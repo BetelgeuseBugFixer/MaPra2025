@@ -2,4 +2,6 @@
 #which foldseek
 
 #foldseek -h
-foldseek easy-search $1 $2 $3 tmpFolder --format-output "query,target,ttmscore,lddt" --remove-tmp-files 1
+tmp_file="tmp_results.txt"
+foldseek easy-search $1 $2 $3 tmpFolder --format-output "ttmscore,lddt" --remove-tmp-files 1
+
