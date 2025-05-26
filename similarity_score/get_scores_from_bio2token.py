@@ -8,8 +8,8 @@ FOLDSEEK_TEMP_FILE="foldseek_temp.txt"
 def main():
     bio2token_output_dir=sys.argv[1]
     # Path for the output file
-    foldseek_output_file = os.path.join("similarity_score", "foldseek_bio2token_out.tsv")
-    usalign_output_file = os.path.join("similarity_score", "usalign_bio2token_out.tsv")
+    foldseek_output_file = os.path.join("similarity_score", "casp14_foldseek_bio2token_out.tsv")
+    usalign_output_file = os.path.join("similarity_score", "casp14_usalign_bio2token_out.tsv")
     # Write header to the file
     with open(foldseek_output_file, "w") as foldseek_output_file_writer:
         foldseek_output_file_writer.write("id\ttmscore\tlddt\n")

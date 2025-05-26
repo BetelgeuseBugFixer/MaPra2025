@@ -1,1 +1,5 @@
 /similarity_score/test_pdbs/
+/similarity_score/raw_output_files/
+similarity_score/error.txt
+/.idea/
+/tmpFolder/
