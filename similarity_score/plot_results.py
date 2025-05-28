@@ -34,7 +34,7 @@ def get_bio2token_data():
 
 
 def boxplot(df, score, output_file):
-    mpl.style.use("seaborn-v0_8")
+    #mpl.style.use("seaborn-v0_8")
     plt.figure(figsize=(8, 6))
     df.boxplot(column=score, by="tool")
     plt.title(f"{score} by Tool")
