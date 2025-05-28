@@ -29,7 +29,7 @@ def main():
 
 def run_foldseek_script_script(script_path,ref_file_path, pred_file_path):
     try:
-        result = subprocess.run(
+        subprocess.run(
             ["bash", script_path, ref_file_path, pred_file_path,FOLDSEEK_TEMP_FILE],
             capture_output=True,
             text=True,
