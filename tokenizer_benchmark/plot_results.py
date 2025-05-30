@@ -57,11 +57,11 @@ def boxplot(df, score, output_file):
 def main():
     bio2token_df = get_bio2token_data()
     foldtoken_df=get_foldtoken_data()
-    tokenizer_df=pd.concat(bio2token_df,foldtoken_df)
-    boxplot(tokenizer_df, "tmscore", "similarity_score/plots/tmscore_boxplot_bio2token.png")
-    boxplot(tokenizer_df, "tmscore_fs", "similarity_score/plots/tmscore_fs_boxplot_bio2token.png")
-    boxplot(tokenizer_df, "rmsd", "similarity_score/plots/rmsd_boxplot_bio2token.png")
-    boxplot(tokenizer_df, "lddt", "similarity_score/plots/lddt_boxplot_bio2token.png")
+    tokenizer_df=pd.concat([bio2token_df,foldtoken_df],ignore_index=True)
+    boxplot(tokenizer_df, "us_tmscore", "tokenizer_benchmark/plots/tmscore_boxplot_bio2token.png")
+    boxplot(tokenizer_df, "f_tmscore", "tokenizer_benchmark/plots/tmscore_fs_boxplot_bio2token.png")
+    boxplot(tokenizer_df, "rmsd", "tokenizer_benchmark/plots/rmsd_boxplot_bio2token.png")
+    boxplot(tokenizer_df, "lddt", "tokenizer_benchmark/plots/lddt_boxplot_bio2token.png")
 
 
 if __name__ == "__main__":
