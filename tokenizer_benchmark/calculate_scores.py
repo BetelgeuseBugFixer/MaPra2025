@@ -1,6 +1,7 @@
 import os
 import subprocess
 import re
+import sys
 
 FOLDSEEK_TEMP_FILE = "foldseek_temp.txt"
 INPUT_FILES = "tokenizer_benchmark/casps"
@@ -31,10 +32,58 @@ def analyse_bio2token_output(bio2token_output_dir, casp):
                 rmsd, tm_score = run_usalign_script("tokenizer_benchmark/us_align.sh", ref_file_path, pred_file_path)
                 usalign_output_file_writer.write(f"{pdb_id}\t{tm_score}\t{rmsd}\n")
 
+def extract_residue_names(pdb_lines):
+    residues = []
+    seen = set()
+    for line in pdb_lines:
+        if not line.startswith("ATOM"):
+            continue
+        res_uid = (line[21], line[22:26])  # Chain ID + Residue number
+        if res_uid not in seen:
+            residues.append(line[17:20])  # Residue name
+            seen.add(res_uid)
+    return residues
+
+
+def fix_residue_names_from_reference(input_path_wrong, input_path_correct, output_path):
+
+    # PDB-Dateien einlesen
+    with open(input_path_wrong) as f_wrong:
+        lines_wrong = f_wrong.readlines()
+    with open(input_path_correct) as f_correct:
+        lines_correct = f_correct.readlines()
+
+    # Extrahiere Referenz-Residue-Namen
+    ref_residues = extract_residue_names(lines_correct)
+
+    # Korrigieren
+    new_lines = []
+    last_resi = None
+    ref_idx = -1
+
+    for line in lines_wrong:
+        if not line.startswith("ATOM"):
+            new_lines.append(line)
+            continue
+
+        resi_num = int(line[22:26].strip())
+        if resi_num != last_resi:
+            ref_idx += 1
+            last_resi = resi_num
+
+        if ref_idx < len(ref_residues):
+            correct_resname = ref_residues[ref_idx].strip()
+            line = line[:17] + f"{correct_resname:>3}" + line[20:]
+
+        new_lines.append(line)
+
+    # Schreiben
+    with open(output_path, "w") as f_out:
+        f_out.writelines(new_lines)
 
 def analyse_foldtoken_output(foldtoken_output_dir, casp, level):
     foldseek_output_file = os.path.join("tokenizer_benchmark/scores", f"casp{casp}_foldseek_foldtoken{level}_out.tsv")
-    usalign_output_file = os.path.join("tokenizer_benchmark/scores", f"casp{casp}_foldseek_foldtoken{level}_out.tsv")
+    usalign_output_file = os.path.join("tokenizer_benchmark/scores", f"casp{casp}_usalign_foldtoken{level}_out.tsv")
     with open(foldseek_output_file, "w") as foldseek_output_file_writer:
         foldseek_output_file_writer.write("id\ttmscore\tlddt\n")
         with open(usalign_output_file, "w") as usalign_output_file_writer:
@@ -45,22 +94,21 @@ def analyse_foldtoken_output(foldtoken_output_dir, casp, level):
                 pdb_id = pdb_file_name.strip("_pred.pdb")
                 ref_file_path = get_ref_file(pdb_id, casp)
                 pred_file_path = os.path.join(foldtoken_output_dir, pdb_file_name)
+                fix_residue_names_from_reference(pred_file_path, ref_file_path,"tmp.pdb")
                 # run foldseek and usalign scripts
                 f_tm_score, lddt_score = run_foldseek_script_script("tokenizer_benchmark/foldseek.sh", ref_file_path,
-                                                                    pred_file_path)
+                                                                    "tmp.pdb")
                 foldseek_output_file_writer.write(f"{pdb_id}\t{f_tm_score}\t{lddt_score}\n")
                 rmsd, tm_score = run_usalign_script("tokenizer_benchmark/us_align.sh", ref_file_path, pred_file_path)
                 usalign_output_file_writer.write(f"{pdb_id}\t{tm_score}\t{rmsd}\n")
 
 
 def analyse_foldtoken(foldtoken_out):
-    # for level in range(6, 13, 2):
-    #     print(f"Analyzing foldtoken output for CASP14 at level {level}")
-    #     analyse_foldtoken_output(os.path.join(foldtoken_out, f"casp14_out_level{level}"), 14, level)
-    #     print(f"Analyzing foldtoken output for CASP15 at level {level}")
-    #     analyse_foldtoken_output(os.path.join(foldtoken_out, f"casp15_out_level{level}"), 15, level)
-    analyse_foldtoken_output(os.path.join(foldtoken_out, f"casp14_out_level{6}"), 14, 6)
-
+    for level in range(6, 13, 2):
+        print(f"Analyzing foldtoken output for CASP14 at level {level}")
+        analyse_foldtoken_output(os.path.join(foldtoken_out, f"casp14_out_level{level}"), 14, level)
+        print(f"Analyzing foldtoken output for CASP15 at level {level}")
+        analyse_foldtoken_output(os.path.join(foldtoken_out, f"casp15_out_level{level}"), 15, level)
 
 def analyse_bio2token(bio2token_out):
     print("Analyzing bio2token output for CASP14")
