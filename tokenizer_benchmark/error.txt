@@ -1,0 +1,24 @@
+Processing /dss/dsshome1/08/ge43vab2/mapra/data/casps/casp15/T1113-D1.pdb
+/dss/dsshome1/08/ge43vab2/mapra/bio2token/.venv/lib/python3.11/site-packages/Bio/PDB/PDBParser.py:384: PDBConstructionWarning: Ignoring unrecognized record 'TER' at line 2666
+  warnings.warn(
+/dss/dsshome1/08/ge43vab2/mapra/bio2token/.venv/lib/python3.11/site-packages/Bio/PDB/PDBParser.py:384: PDBConstructionWarning: Ignoring unrecognized record 'END' at line 2667
+  warnings.warn(
+PDB loading. Chains: [' ']
+PDB loading. N residues: 167
+PDB loading. N atoms: 1343
+structure_rmsd: 1.0518245697021484
+distance_inter_atom_intra_residue: 0.6555854678153992
+structure_rmsd_bb: 0.910453736782074
+structure_rmsd_sc: 1.1682497262954712
+structure_tm_cref: 0.9705068469047546
+loss: 1.7074100971221924
+Traceback (most recent call last):
+  File "/dss/dsshome1/08/ge43vab2/mapra/bio2token/scripts/test_pdb.py", line 123, in <module>
+    main()
+  File "/dss/dsshome1/08/ge43vab2/mapra/bio2token/scripts/test_pdb.py", line 88, in main
+    write_pdb(
+  File "/dss/dsshome1/08/ge43vab2/mapra/bio2token/src/bio2token/data/utils/utils.py", line 398, in write_pdb
+    assert len(coords) == len(atom_types) == len(residue_types), "Length mismatch in inputs"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Length mismatch in inputs
+Processing /dss/dsshome1/08/ge43vab2/mapra/data/casps/casp15/T1114s1-D1.pdb

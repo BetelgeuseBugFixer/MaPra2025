@@ -16,9 +16,9 @@ def analyse_bio2token_output(bio2token_output_dir, casp):
     usalign_output_file = os.path.join("tokenizer_benchmark/scores", f"casp{casp}_usalign_bio2token_out.tsv")
     # Write header to the file
     with open(foldseek_output_file, "w") as foldseek_output_file_writer:
-        foldseek_output_file_writer.write("id\ttmscore\tlddt\n")
+        foldseek_output_file_writer.write("id\tf_tmscore\tlddt\n")
         with open(usalign_output_file, "w") as usalign_output_file_writer:
-            usalign_output_file_writer.write("id\ttmscore\trmsd\n")
+            usalign_output_file_writer.write("id\tus_tmscore\trmsd\n")
             for pdb_id in os.listdir(bio2token_output_dir):
                 # get files
                 folder_path = os.path.join(bio2token_output_dir, pdb_id)
@@ -85,9 +85,9 @@ def analyse_foldtoken_output(foldtoken_output_dir, casp, level):
     foldseek_output_file = os.path.join("tokenizer_benchmark/scores", f"casp{casp}_foldseek_foldtoken{level}_out.tsv")
     usalign_output_file = os.path.join("tokenizer_benchmark/scores", f"casp{casp}_usalign_foldtoken{level}_out.tsv")
     with open(foldseek_output_file, "w") as foldseek_output_file_writer:
-        foldseek_output_file_writer.write("id\ttmscore\tlddt\n")
+        foldseek_output_file_writer.write("id\tf_tmscore\tlddt\n")
         with open(usalign_output_file, "w") as usalign_output_file_writer:
-            usalign_output_file_writer.write("id\ttmscore\trmsd\n")
+            usalign_output_file_writer.write("id\tus_tmscore\trmsd\n")
             for pdb_file_name in os.listdir(foldtoken_output_dir):
                 if not pdb_file_name.endswith("_pred.pdb"):
                     continue
@@ -118,8 +118,8 @@ def analyse_bio2token(bio2token_out):
 
 
 def main():
-    #print("Analyzing bio2token output...")
-    #analyse_bio2token("tokenizer_benchmark/raw_output_files/bio2token_out")
+    print("Analyzing bio2token output...")
+    analyse_bio2token("tokenizer_benchmark/raw_output_files/bio2token_out")
     print("Analyzing foldtoken output...")
     analyse_foldtoken("tokenizer_benchmark/raw_output_files/foldtoken_out")
 
