@@ -1,8 +1,16 @@
-/.venv/
-/similarity_score/test_pdbs/
-similarity_score/error.txt
-/.idea/
+# Virtual environments
+.venv/
+
+# IDE / editor configs
+.idea/
+.DS_Store
+
+# Temporary / scratch files
+tmp_results.txt
+tmp.pdb
 /tmpFolder/
 foldseek_temp.txt
-tmp_results.txt
-tmp.pdb.DS_Store
+
+# Similarity score artifacts
+/similarity_score/test_pdbs/
+/similarity_score/error.txt
