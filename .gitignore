@@ -20,4 +20,4 @@ data/casp14_test/casp14_emb/*
 pdb_to_fasta.py
 
 # models
-/models/*.pt
+models/*.pt
