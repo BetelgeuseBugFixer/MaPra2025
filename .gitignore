@@ -14,7 +14,7 @@ foldseek_temp.txt
 # data
 /similarity_score/test_pdbs/
 /similarity_score/error.txt
-data/casp14_test/casp14_emb/*
+#data/casp14_test/casp14_emb/*
 
 # Helper scripts
 pdb_to_fasta.py
