@@ -178,3 +178,5 @@ def run_usalign_script(script_path, ref_file_path, pred_file_path):
 
 if __name__ == "__main__":
     main()
+    #analyse_bio2token_output("tokenizer_benchmark/raw_output_files/casp14_edited", "14_edited")
+
