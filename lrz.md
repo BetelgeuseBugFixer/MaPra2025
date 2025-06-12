@@ -56,6 +56,23 @@ enroot export --output my_container.sqsh my_container
 ```
 - Das erzeugt einen .sqsh File, den man mit `create` und `start` wieder benutzen kann 
 
+
+## Sonstige nützliche Commands
+
+- liste Directories auf und wie viel Speicherplatz sie verbrauchen
+```bash
+du -h --max-depth=2
+```
+- Nvidia CUDA Version:
+```bash
+nvcc --version
+```
+- Enroot mit Data Dir als mount starten 
+```bash
+enroot start --mount /dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/data:data_storage bio2token
+```
+
+
 ## FoldToken installation
 Hier ein bewährter Weg um FoldToken auf dem lrz zum Laufen zu bringen!
 1. Git klonen
@@ -115,10 +132,3 @@ Hier ein bewährter Weg um FoldToken auf dem lrz zum Laufen zu bringen!
   ```
 CUDA_VISIBLE_DEVICES=0 python foldtoken/reconstruct.py --path_in casp14/ --path_out casp14_out --level 10
   ```
-
-## Sonstige nützliche Commands
-
-- `du -h --max-depth=2` listed directoriers auf und wie viel Speicherplatz sie verbrauchen
-- `nvcc --version` nvidia cuda version
-
-
