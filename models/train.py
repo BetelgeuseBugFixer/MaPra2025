@@ -6,9 +6,13 @@ import random
 import h5py
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 from tqdm import tqdm
-import matplotlib.pyplot as plt  # for plotting
+import matplotlib.pyplot as plt
+
+from models.simple_classifier.simple_classifier import ResidueTokenCNN
+
+from models.simple_classifier.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir
 
 # ------------------------------------------------------------
 #  Hyper-parameters & constants
@@ -17,122 +21,6 @@ import matplotlib.pyplot as plt  # for plotting
 PAD_LABEL = -100         # ignored in the loss on padded positions
 SPLIT_SEED = 42          # for reproducible splits
 
-# ------------------------------------------------------------
-#  Dataset
-# ------------------------------------------------------------
-
-class ProteinPairJSONL(Dataset):
-    """
-    Yield `(embedding, vqid_tokens)` pairs from a single HDF5 file containing
-    one dataset per protein. Skips proteins with mismatched sequence lengths.
-    """
-    def __init__(self, emb_h5_path: str, tok_jsonl: str, ids: list):
-        # Open the shared HDF5 file
-        self.emb_file = h5py.File(emb_h5_path, "r")
-
-        # Load VQ token sequences from JSONL
-        self.vqid_map = {}
-        for line in open(tok_jsonl, "r"):
-            entry = json.loads(line)
-            pid, data = next(iter(entry.items()))
-            self.vqid_map[pid] = torch.tensor(data["vqid"], dtype=torch.long)
-
-        # Filter valid IDs
-        valid_ids = []
-        for pid in ids:
-            if pid not in self.emb_file or pid not in self.vqid_map:
-                continue
-
-            emb = self.emb_file[pid][:]
-            tok = self.vqid_map[pid]
-            if emb.shape[0] != tok.shape[0]:
-                print(f"Skipping {pid}: embedding length = {emb.shape[0]}, token length = {tok.shape[0]}")
-                continue
-
-            valid_ids.append(pid)
-
-        if not valid_ids:
-            raise ValueError("No valid proteins remain after filtering.")
-
-        self.ids = valid_ids
-
-
-
-    def __len__(self):
-        return len(self.ids)
-
-    def __getitem__(self, idx):
-        pid = self.ids[idx]
-        emb = torch.from_numpy(self.emb_file[pid][:]).float()  # (L, d_emb)
-        tok = self.vqid_map[pid]                               # (L,)
-        return emb, tok
-
-### from directory for casp14 dataset
-class ProteinPairJSONL_FromDir(ProteinPairJSONL):
-    def __init__(self, emb_dir: str, tok_jsonl: str, ids: list):
-        self.emb_map = {}
-        for fname in os.listdir(emb_dir):
-            if fname.endswith(".h5"):
-                pid = os.path.splitext(fname)[0]
-                self.emb_map[pid] = os.path.join(emb_dir, fname)
-
-        self.vqid_map = {}
-        for line in open(tok_jsonl, "r"):
-            entry = json.loads(line)
-            pid, data = next(iter(entry.items()))
-            self.vqid_map[pid] = torch.tensor(data["vqid"], dtype=torch.long)
-
-        valid_ids = []
-        for pid in ids:
-            if pid not in self.emb_map or pid not in self.vqid_map:
-                continue
-
-            with h5py.File(self.emb_map[pid], "r") as f:
-                ds = f[list(f.keys())[0]][:]
-            if ds.shape[0] != self.vqid_map[pid].shape[0]:
-                print(f"Skipping {pid}: length mismatch")
-                continue
-            valid_ids.append(pid)
-
-        if not valid_ids:
-            raise ValueError("No valid proteins remain after filtering.")
-        self.ids = valid_ids
-
-    def __getitem__(self, idx):
-        pid = self.ids[idx]
-        with h5py.File(self.emb_map[pid], "r") as f:
-            emb = torch.from_numpy(f[list(f.keys())[0]][:]).float()
-        tok = self.vqid_map[pid]
-        return emb, tok
-
-
-# ------------------------------------------------------------
-#  Model
-# ------------------------------------------------------------
-
-class ResidueTokenCNN(nn.Module):
-    """1D‐CNN head replacing the MLP."""
-    def __init__(self, d_emb: int, hidden: int, vocab_size: int, dropout: float = 0.3):
-        super().__init__()
-        self.conv1 = nn.Conv1d(in_channels=d_emb,
-                               out_channels=hidden,
-                               kernel_size=3,
-                               padding=1)
-        self.relu  = nn.ReLU()
-        self.drop  = nn.Dropout(dropout)
-        self.conv2 = nn.Conv1d(in_channels=hidden,
-                               out_channels=vocab_size,
-                               kernel_size=1)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        B, L, D = x.shape
-        x = x.permute(0, 2, 1)       # → (B, d_emb, L)
-        h = self.conv1(x)            # → (B, hidden, L)
-        h = self.relu(h)
-        h = self.drop(h)
-        h = self.conv2(h)            # → (B, vocab_size, L)
-        out = h.permute(0, 2, 1)     # → (B, L, vocab_size)
-        return out
 
 # ------------------------------------------------------------
 #  Utility functions

@@ -8,5 +8,5 @@
 
 cd /mnt/repro/MaPra2025
 echo "Starting training script..."
-python models/simple_classifier.py --emb_file /mnt/data/lys6/emb/ly6.h5 --tok_jsonl /mnt/data/lys6/tokens_sanitized.jsonl --epochs 100
+python models/train.py --emb_file /mnt/data/lys6/emb/ly6.h5 --tok_jsonl /mnt/data/lys6/tokens_sanitized.jsonl --epochs 100
 echo "Training script finished."
