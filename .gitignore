@@ -23,5 +23,8 @@ utils/ly6.ipynb
 # models
 models/*.pt
 
+# slurm outs
 train_std_err.err
 train_std_output.out
+split_std_err.err
+split_std_output.out
