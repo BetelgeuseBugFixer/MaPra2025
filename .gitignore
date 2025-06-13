@@ -17,7 +17,8 @@ foldseek_temp.txt
 #data/casp14_test/casp14_emb/*
 
 # Helper scripts
-pdb_to_fasta.py
+utils/pdb_to_fasta.py
+utils/ly6.ipynb
 
 # models
 models/*.pt

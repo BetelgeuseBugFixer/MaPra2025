@@ -23,71 +23,88 @@ SPLIT_SEED = 42          # for reproducible splits
 
 class ProteinPairJSONL(Dataset):
     """
-    Yield `(embedding, vqid_tokens)` pairs, skipping any protein where the
-    embedding length ≠ token length (and printing those mismatches).
+    Yield `(embedding, vqid_tokens)` pairs from a single HDF5 file containing
+    one dataset per protein. Skips proteins with mismatched sequence lengths.
     """
-    def __init__(self, emb_dir: str, tok_jsonl: str, ids: list):
-        # Build a map: protein ID → path to its .h5 file
-        self.emb_map = {}
-        for fname in os.listdir(emb_dir):
-            if not fname.endswith(".h5"):
-                continue
-            pid = os.path.splitext(fname)[0]
-            self.emb_map[pid] = os.path.join(emb_dir, fname)
+    def __init__(self, emb_h5_path: str, tok_jsonl: str, ids: list):
+        # Open the shared HDF5 file
+        self.emb_file = h5py.File(emb_h5_path, "r")
 
-        # Load JSONL once into a dict: {protein_id: LongTensor(vqid_list)}
+        # Load VQ token sequences from JSONL
         self.vqid_map = {}
-        with open(tok_jsonl, "r") as fh:
-            for line in fh:
-                entry = json.loads(line)
-                pid, data = next(iter(entry.items()))
-                self.vqid_map[pid] = torch.tensor(data["vqid"], dtype=torch.long)
+        for line in open(tok_jsonl, "r"):
+            entry = json.loads(line)
+            pid, data = next(iter(entry.items()))
+            self.vqid_map[pid] = torch.tensor(data["vqid"], dtype=torch.long)
 
-        # Filter `ids` to only those that exist in both maps AND have matching lengths
+        # Filter valid IDs
         valid_ids = []
         for pid in ids:
-            if pid not in self.emb_map or pid not in self.vqid_map:
+            if pid not in self.emb_file or pid not in self.vqid_map:
                 continue
 
-            emb_np = self._fetch_emb_from_file(self.emb_map[pid])  # (L_emb, d_emb)
-            L_emb = emb_np.shape[0]
-            L_tok = self.vqid_map[pid].shape[0]
-
-            if L_emb != L_tok:
-                print(f"Skipping {pid}: embedding length = {L_emb}, token length = {L_tok}")
+            emb = self.emb_file[pid][:]
+            tok = self.vqid_map[pid]
+            if emb.shape[0] != tok.shape[0]:
+                print(f"Skipping {pid}: embedding length = {emb.shape[0]}, token length = {tok.shape[0]}")
                 continue
 
             valid_ids.append(pid)
 
-        if len(valid_ids) < len(ids):
-            print(f"  → {len(ids)-len(valid_ids)} protein(s) skipped due to length mismatch.")
-
         if not valid_ids:
-            raise ValueError("No valid proteins remain after filtering length mismatches.")
+            raise ValueError("No valid proteins remain after filtering.")
 
         self.ids = valid_ids
 
-    @staticmethod
-    def _fetch_emb_from_file(h5_path: str):
-        """
-        Given a path to a .h5 file containing a single dataset at root,
-        return that dataset as a NumPy array.
-        """
-        with h5py.File(h5_path, "r", swmr=True) as f:
-            ds_names = list(f.keys())
-            if len(ds_names) != 1:
-                raise ValueError(f"Expected exactly one dataset in {h5_path}, found: {ds_names}")
-            return f[ds_names[0]][:]    # shape: (L, d_emb)
+
 
     def __len__(self):
         return len(self.ids)
 
     def __getitem__(self, idx):
         pid = self.ids[idx]
-        emb_np = self._fetch_emb_from_file(self.emb_map[pid])  # shape: (L, d_emb)
-        emb = torch.from_numpy(emb_np).float()                  # → FloatTensor (L, d_emb)
-        tok = self.vqid_map[pid]                                # → LongTensor (L,)
+        emb = torch.from_numpy(self.emb_file[pid][:]).float()  # (L, d_emb)
+        tok = self.vqid_map[pid]                               # (L,)
         return emb, tok
+
+### from directory for casp14 dataset
+class ProteinPairJSONL_FromDir(ProteinPairJSONL):
+    def __init__(self, emb_dir: str, tok_jsonl: str, ids: list):
+        self.emb_map = {}
+        for fname in os.listdir(emb_dir):
+            if fname.endswith(".h5"):
+                pid = os.path.splitext(fname)[0]
+                self.emb_map[pid] = os.path.join(emb_dir, fname)
+
+        self.vqid_map = {}
+        for line in open(tok_jsonl, "r"):
+            entry = json.loads(line)
+            pid, data = next(iter(entry.items()))
+            self.vqid_map[pid] = torch.tensor(data["vqid"], dtype=torch.long)
+
+        valid_ids = []
+        for pid in ids:
+            if pid not in self.emb_map or pid not in self.vqid_map:
+                continue
+
+            with h5py.File(self.emb_map[pid], "r") as f:
+                ds = f[list(f.keys())[0]][:]
+            if ds.shape[0] != self.vqid_map[pid].shape[0]:
+                print(f"Skipping {pid}: length mismatch")
+                continue
+            valid_ids.append(pid)
+
+        if not valid_ids:
+            raise ValueError("No valid proteins remain after filtering.")
+        self.ids = valid_ids
+
+    def __getitem__(self, idx):
+        pid = self.ids[idx]
+        with h5py.File(self.emb_map[pid], "r") as f:
+            emb = torch.from_numpy(f[list(f.keys())[0]][:]).float()
+        tok = self.vqid_map[pid]
+        return emb, tok
+
 
 # ------------------------------------------------------------
 #  Model
@@ -125,8 +142,10 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Train per-residue token classifier (CNN) with early stopping and plots"
     )
-    parser.add_argument("--emb_dir",      required=True,
-                        help="Directory containing per-protein .h5 files")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--emb_file", help="HDF5 file with one dataset per protein ID")
+    group.add_argument("--emb_dir",  help="Directory with per-protein .h5 files")
+
     parser.add_argument("--tok_jsonl",    required=True,
                         help="JSONL with per-protein {'<ID>': {..., 'vqid': [...]}}")
     parser.add_argument("--codebook_size", type=int, default=1024,
@@ -144,17 +163,25 @@ def parse_args():
     return parser.parse_args()
 
 
-def load_common_ids(emb_dir: str, tok_jsonl_path: str) -> list:
-    emb_ids = {os.path.splitext(f)[0] for f in os.listdir(emb_dir) if f.endswith(".h5")}
+
+def load_common_ids(emb_source: str, tok_jsonl_path: str, use_single_file: bool) -> list:
+    if use_single_file:
+        with h5py.File(emb_source, "r") as f:
+            emb_ids = set(f.keys())
+    else:
+        emb_ids = {os.path.splitext(f)[0] for f in os.listdir(emb_source) if f.endswith(".h5")}
+
     tok_ids = set()
     with open(tok_jsonl_path, "r") as fh:
         for line in fh:
-            entry = json.loads(line)
-            tok_ids.add(next(iter(entry.keys())))
+            tok_ids.add(next(iter(json.loads(line).keys())))
+
     common = sorted(emb_ids & tok_ids)
     if not common:
-        raise ValueError("No overlapping protein IDs between emb_dir and tok_jsonl.")
+        raise ValueError("No overlapping protein IDs.")
     return common
+
+
 
 
 def split_ids(ids: list, seed: int = SPLIT_SEED):
@@ -167,15 +194,18 @@ def split_ids(ids: list, seed: int = SPLIT_SEED):
     return ids[:n_train], ids[n_train:n_train+n_val], ids[n_train+n_val:]
 
 
-def create_data_loaders(emb_dir, tok_jsonl, train_ids, val_ids, test_ids, batch_size):
-    train_ds = ProteinPairJSONL(emb_dir, tok_jsonl, train_ids)
-    val_ds   = ProteinPairJSONL(emb_dir, tok_jsonl, val_ids)
-    test_ds  = ProteinPairJSONL(emb_dir, tok_jsonl, test_ids)
+def create_data_loaders(emb_source, tok_jsonl, train_ids, val_ids, test_ids, batch_size, use_single_file):
+    DSClass = ProteinPairJSONL if use_single_file else ProteinPairJSONL_FromDir
+    train_ds = DSClass(emb_source, tok_jsonl, train_ids)
+    val_ds   = DSClass(emb_source, tok_jsonl, val_ids)
+    test_ds  = DSClass(emb_source, tok_jsonl, test_ids)
     return (
         DataLoader(train_ds, batch_size=batch_size, shuffle=True),
         DataLoader(val_ds,   batch_size=batch_size, shuffle=False),
         DataLoader(test_ds,  batch_size=batch_size, shuffle=False)
     )
+
+
 
 
 def build_model(d_emb, hidden, vocab_size, dropout, lr, device):
@@ -221,21 +251,20 @@ def run_epoch(model, loader, criterion, optimizer=None, device="cpu"):
 # ------------------------------------------------------------
 
 def main(args):
-    vocab = args.codebook_size
-    print(f"VQ-token vocabulary size V = {vocab}")
+    use_file = args.emb_file is not None
+    emb_source = args.emb_file if use_file else args.emb_dir
 
-    common_ids = load_common_ids(args.emb_dir, args.tok_jsonl)
+    common_ids = load_common_ids(emb_source, args.tok_jsonl, use_file)
     print(f"Total proteins: {len(common_ids)}")
 
     train_ids, val_ids, test_ids = split_ids(common_ids, seed=SPLIT_SEED)
-    print(f"Split sizes: train={len(train_ids)}, val={len(val_ids)}, test={len(test_ids)}")
 
     train_loader, val_loader, test_loader = create_data_loaders(
-        args.emb_dir, args.tok_jsonl, train_ids, val_ids, test_ids, args.batch
+        emb_source, args.tok_jsonl, train_ids, val_ids, test_ids, args.batch, use_file
     )
 
     model, optimizer, criterion = build_model(
-        args.d_emb, args.hidden, vocab, args.dropout, args.lr, args.device
+        args.d_emb, args.hidden, args.codebook_size, args.dropout, args.lr, args.device
     )
 
     # Tracking metrics
