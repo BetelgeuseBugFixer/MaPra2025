@@ -8,4 +8,4 @@
 
 cd /mnt/repro/MaPra2025
 export PYTHONPATH=/mnt/repro/MaPra2025:$PYTHONPATH
-python models/split_dataset.py mnt/data/lys6/emb/ly6.h5 /mnt/data/lys6/tokens_sanitized.jsonl /mnt/data/lys6/split_ids.json
+python models/split_dataset.py /mnt/data/lys6/emb/ly6.h5 /mnt/data/lys6/tokens_sanitized.jsonl /mnt/data/lys6/split_ids.json
