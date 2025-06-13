@@ -1,4 +1,4 @@
-!/bin/bash
+#!/bin/bash
 #SBATCH -p lrz-dgx-a100-80x8
 #SBATCH --gres=gpu:1
 #SBATCH -o split_std_output.out
