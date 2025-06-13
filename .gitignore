@@ -22,3 +22,6 @@ utils/ly6.ipynb
 
 # models
 models/*.pt
+
+train_std_err.err
+train_std_output.out
