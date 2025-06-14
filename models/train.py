@@ -52,7 +52,7 @@ def parse_args():
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--patience", type=int, default=3,
                         help="Early stopping patience (in epochs)")
-    parser.add_argument("model",default="cnn", help="type of model to use")
+    parser.add_argument("--model", type=str, default="cnn", help="type of model to use")
     return parser.parse_args()
 
 
