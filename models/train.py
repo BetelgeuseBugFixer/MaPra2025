@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 
+import wandb
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -52,6 +53,7 @@ def parse_args():
                         help="Early stopping patience (in epochs)")
     parser.add_argument("--model", type=str, default="cnn", help="type of model to use")
     parser.add_argument("--run_test", action="store_true", help="also run test set")
+    parser.add_argument("--no_wandb", action="store_true", help="do not log wandb")
     return parser.parse_args()
 
 
@@ -130,6 +132,25 @@ def get_model(args):
             raise NotImplementedError
 
 
+def init_wand_db(args):
+    return wandb.init(
+        entity="MaPra",
+        project="monomer-structure-prediction",
+        config={
+            "learning_rate": args.lr,
+            "device": args.device,
+            "patience": args.patience,
+            "architecture": args.model,
+            "dataset": args.tok_jsonl,
+            "epochs": args.epochs,
+            "hidden": args.hidden,
+            "dropout": args.dropout,
+            "batch_size": args.batch_size,
+            "run_test": args.run_test
+        }
+    )
+
+
 def main(args):
     use_file = args.emb_file is not None
     emb_source = args.emb_file if use_file else args.emb_dir
@@ -142,6 +163,12 @@ def main(args):
 
     model, optimizer, criterion = get_model(args)
 
+    # init wand db
+    run = None
+    if not args.no_wandb:
+        wandb.login(key=open("wandb_key").read().strip())
+        run = init_wand_db(args)
+
     # Tracking metrics
     train_losses, train_accs = [], []
     val_losses, val_accs = [], []
@@ -152,6 +179,13 @@ def main(args):
         tr_loss, tr_acc = run_epoch(model, train_loader, criterion, optimizer, args.device)
         val_loss, val_acc = run_epoch(model, val_loader, criterion, device=args.device)
 
+        if not args.no_wandb:
+            run.log({
+                "acc": tr_acc,
+                "loss": tr_loss,
+                "val_acc": val_acc,
+                "val_loss": val_loss,
+            })
         train_losses.append(tr_loss)
         train_accs.append(tr_acc)
         val_losses.append(val_loss)
@@ -177,7 +211,9 @@ def main(args):
         test_loss, test_acc = run_epoch(model, test_loader, criterion, device=args.device)
         print(f"Test {test_loss:.4f}/{test_acc:.4f}")
 
-    # Plotting training curves
+    if args.no_wandb:
+        run.finish()
+        # Plotting training curves
     epochs_range = range(1, len(train_losses) + 1)
 
     plt.figure()
