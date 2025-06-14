@@ -23,8 +23,10 @@ utils/ly6.ipynb
 # models
 models/*.pt
 
-# slurm out
+# run out
 slurm_out/
-
 models/model_out
 models/model_files
+
+#wandb api key
+wandb_key
