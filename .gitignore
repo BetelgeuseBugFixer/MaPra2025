@@ -25,3 +25,5 @@ models/*.pt
 
 # slurm out
 slurm_out/
+
+models/model_out
