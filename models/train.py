@@ -145,7 +145,7 @@ def init_wand_db(args):
             "epochs": args.epochs,
             "hidden": args.hidden,
             "dropout": args.dropout,
-            "batch_size": args.batch_size,
+            "batch_size": args.batch,
             "run_test": args.run_test
         }
     )
