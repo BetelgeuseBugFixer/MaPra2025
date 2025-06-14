@@ -1,9 +1,7 @@
 import argparse
 import json
 import os
-import random
 
-import h5py
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -53,6 +51,7 @@ def parse_args():
     parser.add_argument("--patience", type=int, default=3,
                         help="Early stopping patience (in epochs)")
     parser.add_argument("--model", type=str, default="cnn", help="type of model to use")
+    parser.add_argument("--run_test", action="store_true", help="also run test set")
     return parser.parse_args()
 
 
@@ -174,8 +173,9 @@ def main(args):
                 break
 
     # Final test evaluation
-    test_loss, test_acc = run_epoch(model, test_loader, criterion, device=args.device)
-    print(f"Test {test_loss:.4f}/{test_acc:.4f}")
+    if args.run_test:
+        test_loss, test_acc = run_epoch(model, test_loader, criterion, device=args.device)
+        print(f"Test {test_loss:.4f}/{test_acc:.4f}")
 
     # Plotting training curves
     epochs_range = range(1, len(train_losses) + 1)
