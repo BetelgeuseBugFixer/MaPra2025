@@ -27,3 +27,4 @@ models/*.pt
 slurm_out/
 
 models/model_out
+models/model_files
