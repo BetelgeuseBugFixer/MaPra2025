@@ -23,5 +23,8 @@ utils/ly6.ipynb
 # models
 models/*.pt
 
-train_std_err.err
-train_std_output.out
+# slurm out
+slurm_out/
+
+models/model_out
+models/model_files
