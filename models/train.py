@@ -36,7 +36,6 @@ def parse_args():
     group.add_argument("--emb_file", help="HDF5 file with one dataset per protein ID")
     group.add_argument("--emb_dir", help="Directory with per-protein .h5 files")
 
-
     parser.add_argument("--tok_jsonl", required=True,
                         help="JSONL with per-protein {'<ID>': {..., 'vqid': [...]}}")
     parser.add_argument("--split_file", required=True,
@@ -53,6 +52,7 @@ def parse_args():
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--patience", type=int, default=3,
                         help="Early stopping patience (in epochs)")
+    parser.add_argument("model",default="cnn", help="type of model to use")
     return parser.parse_args()
 
 
@@ -121,6 +121,16 @@ def load_split_file(split_file):
 # ------------------------------------------------------------
 
 
+def get_model(args):
+    match args.model:
+        case "cnn":
+            return build_model(
+                args.d_emb, args.hidden, args.codebook_size, args.dropout, args.lr, args.device
+            )
+        case _:
+            raise NotImplementedError
+
+
 def main(args):
     use_file = args.emb_file is not None
     emb_source = args.emb_file if use_file else args.emb_dir
@@ -131,9 +141,7 @@ def main(args):
         emb_source, args.tok_jsonl, train_ids, val_ids, test_ids, args.batch, use_file
     )
 
-    model, optimizer, criterion = build_model(
-        args.d_emb, args.hidden, args.codebook_size, args.dropout, args.lr, args.device
-    )
+    model, optimizer, criterion = get_model(args)
 
     # Tracking metrics
     train_losses, train_accs = [], []
