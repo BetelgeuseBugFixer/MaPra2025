@@ -28,5 +28,6 @@ slurm_out/
 models/model_out
 models/model_files
 
-#wandb api key
+#wandb
 wandb_key
+wandb/
