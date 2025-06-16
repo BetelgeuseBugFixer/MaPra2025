@@ -5,6 +5,7 @@ import h5py
 import torch
 from torch.utils.data import Dataset
 
+PAD_LABEL = -100
 
 
 class ProteinPairJSONL(Dataset):

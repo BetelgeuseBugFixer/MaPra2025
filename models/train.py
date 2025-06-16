@@ -6,22 +6,13 @@ import wandb
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+from torch.nn.utils.rnn import pad_sequence
+
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
-
-from models.simple_classifier.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir
-
-# ------------------------------------------------------------
-#  Hyper-parameters & constants
-# ------------------------------------------------------------
-
-PAD_LABEL = -100  # ignored in the loss on padded positions
-
-
-# for reproducible splits
-
+from models.simple_classifier.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir, PAD_LABEL
 
 # ------------------------------------------------------------
 #  Utility functions
@@ -58,14 +49,14 @@ def parse_args():
 
 
 def create_data_loaders(emb_source, tok_jsonl, train_ids, val_ids, test_ids, batch_size, use_single_file):
-    DSClass = ProteinPairJSONL if use_single_file else ProteinPairJSONL_FromDir
-    train_ds = DSClass(emb_source, tok_jsonl, train_ids)
-    val_ds = DSClass(emb_source, tok_jsonl, val_ids)
-    test_ds = DSClass(emb_source, tok_jsonl, test_ids)
+    DSClass   = ProteinPairJSONL if use_single_file else ProteinPairJSONL_FromDir
+    train_ds  = DSClass(emb_source, tok_jsonl, train_ids)
+    val_ds    = DSClass(emb_source, tok_jsonl, val_ids)
+    test_ds   = DSClass(emb_source, tok_jsonl, test_ids)
     return (
-        DataLoader(train_ds, batch_size=batch_size, shuffle=True),
-        DataLoader(val_ds, batch_size=batch_size, shuffle=False),
-        DataLoader(test_ds, batch_size=batch_size, shuffle=False)
+        DataLoader(train_ds, batch_size=batch_size, shuffle=True,  collate_fn=pad_collate),
+        DataLoader(val_ds,   batch_size=batch_size, shuffle=False, collate_fn=pad_collate),
+        DataLoader(test_ds,  batch_size=batch_size, shuffle=False, collate_fn=pad_collate),
     )
 
 
@@ -74,6 +65,23 @@ def build_model(d_emb, hidden, vocab_size, dropout, lr, device):
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     criterion = nn.CrossEntropyLoss(ignore_index=PAD_LABEL)
     return model, optimizer, criterion
+
+
+def pad_collate(batch):
+    """
+    batch: list of (emb, tok) where
+      emb: Tensor[L_i, d_emb]
+      tok: Tensor[L_i]
+    Returns:
+      embs_padded: Tensor[B, L_max, d_emb]
+      toks_padded: Tensor[B, L_max]
+    """
+    embs, toks = zip(*batch)
+    # pad embeddings along the sequence dimension
+    embs_padded = pad_sequence(embs, batch_first=True)      # pad with 0.0 by default
+    # pad tokens along the sequence dimension, with PAD_LABEL
+    toks_padded = pad_sequence(toks, batch_first=True, padding_value=PAD_LABEL)
+    return embs_padded, toks_padded
 
 
 def _masked_accuracy(logits, tgt, mask):
