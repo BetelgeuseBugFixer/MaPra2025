@@ -49,7 +49,7 @@ def parse_args():
                         help="Early stopping patience (in epochs)")
     parser.add_argument("--run_test", action="store_true", help="also run test set")
     parser.add_argument("--no_wandb", action="store_true", help="do not log wandb")
-    parser.add_argument("--out_folder",type=int, help="directory where the plots and model files will be stored", required=True)
+    parser.add_argument("--out_folder",type=str, help="directory where the plots and model files will be stored", required=True)
     return parser.parse_args()
 
 
