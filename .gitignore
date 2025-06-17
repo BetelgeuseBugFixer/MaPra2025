@@ -28,6 +28,8 @@ slurm_out/
 models/model_out
 models/model_files
 train_run/
+tmp_jobs/
+grid_search_out/
 
 #wandb
 wandb_key

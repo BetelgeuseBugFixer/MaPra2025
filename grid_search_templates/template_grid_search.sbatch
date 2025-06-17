@@ -12,7 +12,7 @@ export PYTHONPATH=/mnt/repro/MaPra2025:$PYTHONPATH
 python models/train.py \
   --hidden=__HIDDEN_SIZE__ \
   --dropout=__DROPOUT__ \
-  --learning-rate=__LEARNING_RATE__ \
+  --lr=__LEARNING_RATE__ \
   --batch=__BATCH_SIZE__ \
   --kernel_size=__KERNEL_SIZE__ \
   --out_folder=__OUT_FOLDER__ \
