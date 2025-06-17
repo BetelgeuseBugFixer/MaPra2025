@@ -10,7 +10,7 @@ class ResidueTokenCNN(nn.Module):
         self.conv1 = nn.Conv1d(in_channels=d_emb,
                                out_channels=hidden,
                                kernel_size=kernel_size,
-                               padding=1)
+                               padding=(kernel_size - 1) // 2)
         self.relu = nn.ReLU()
         self.drop = nn.Dropout(dropout)
         self.conv2 = nn.Conv1d(in_channels=hidden,
