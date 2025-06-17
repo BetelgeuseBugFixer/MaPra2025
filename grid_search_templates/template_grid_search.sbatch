@@ -9,7 +9,7 @@
 cd /mnt/repro/MaPra2025
 export PYTHONPATH=/mnt/repro/MaPra2025:$PYTHONPATH
 
-python models/train_model.py \
+python models/train.py \
   --hidden=__HIDDEN_SIZE__ \
   --dropout=__DROPOUT__ \
   --learning-rate=__LEARNING_RATE__ \
