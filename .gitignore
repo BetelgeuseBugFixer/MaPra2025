@@ -27,6 +27,7 @@ models/*.pt
 slurm_out/
 models/model_out
 models/model_files
+train_run/
 
 #wandb
 wandb_key
