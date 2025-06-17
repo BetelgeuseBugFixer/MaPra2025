@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 from models.simple_classifier.simple_classifier import ResidueTokenCNN, ResidueTokenLNN
 from models.simple_classifier.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir, PAD_LABEL
 
+
 # ------------------------------------------------------------
 #  Utility functions
 # ------------------------------------------------------------
@@ -34,8 +35,9 @@ def parse_args():
                         help="Size of VQ vocabulary")
 
     parser.add_argument("--model", type=str, default="cnn", help="type of model to use")
+    parser.add_argument("--kernel_size", type=int, default=5, help="kernel size of the cnn")
     parser.add_argument("--d_emb", type=int, default=1024)
-    parser.add_argument("--hidden", type=int, default=256)
+    parser.add_argument("--hidden", type=int, default=2048)
     parser.add_argument("--dropout", type=float, default=0.3)
     parser.add_argument("--batch", type=int, default=1,
                         help="Batch size (1 → no padding)")
@@ -47,33 +49,34 @@ def parse_args():
                         help="Early stopping patience (in epochs)")
     parser.add_argument("--run_test", action="store_true", help="also run test set")
     parser.add_argument("--no_wandb", action="store_true", help="do not log wandb")
+    parser.add_argument("--out_folder",type=int, help="directory where the plots and model files will be stored", required=True)
     return parser.parse_args()
 
 
 def create_data_loaders(emb_source, tok_jsonl, train_ids, val_ids, test_ids, batch_size, use_single_file):
-    DSClass   = ProteinPairJSONL if use_single_file else ProteinPairJSONL_FromDir
-    train_ds  = DSClass(emb_source, tok_jsonl, train_ids)
-    val_ds    = DSClass(emb_source, tok_jsonl, val_ids)
-    test_ds   = DSClass(emb_source, tok_jsonl, test_ids)
+    DSClass = ProteinPairJSONL if use_single_file else ProteinPairJSONL_FromDir
+    train_ds = DSClass(emb_source, tok_jsonl, train_ids)
+    val_ds = DSClass(emb_source, tok_jsonl, val_ids)
+    test_ds = DSClass(emb_source, tok_jsonl, test_ids)
     return (
-        DataLoader(train_ds, batch_size=batch_size, shuffle=True,  collate_fn=pad_collate),
-        DataLoader(val_ds,   batch_size=batch_size, shuffle=False, collate_fn=pad_collate),
-        DataLoader(test_ds,  batch_size=batch_size, shuffle=False, collate_fn=pad_collate),
+        DataLoader(train_ds, batch_size=batch_size, shuffle=True, collate_fn=pad_collate),
+        DataLoader(val_ds, batch_size=batch_size, shuffle=False, collate_fn=pad_collate),
+        DataLoader(test_ds, batch_size=batch_size, shuffle=False, collate_fn=pad_collate),
     )
 
 
-def build_cnn(d_emb, hidden, vocab_size, dropout, lr, device):
-    model = ResidueTokenCNN(d_emb, hidden, vocab_size, dropout).to(device)
+def build_cnn(d_emb, hidden, vocab_size, kernel_size, dropout, lr, device):
+    model = ResidueTokenCNN(d_emb, hidden, vocab_size, kernel_size, dropout).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     criterion = nn.CrossEntropyLoss(ignore_index=PAD_LABEL)
     return model, optimizer, criterion
+
 
 def build_nn(d_emb, hidden, vocab_size, dropout, lr, device):
     model = ResidueTokenLNN(d_emb, hidden, vocab_size, dropout).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     criterion = nn.CrossEntropyLoss()
     return model, optimizer, criterion
-
 
 
 def pad_collate(batch):
@@ -87,7 +90,7 @@ def pad_collate(batch):
     """
     embs, toks = zip(*batch)
     # pad embeddings along the sequence dimension
-    embs_padded = pad_sequence(embs, batch_first=True)      # pad with 0.0 by default
+    embs_padded = pad_sequence(embs, batch_first=True)  # pad with 0.0 by default
     # pad tokens along the sequence dimension, with PAD_LABEL
     toks_padded = pad_sequence(toks, batch_first=True, padding_value=PAD_LABEL)
     return embs_padded, toks_padded
@@ -143,7 +146,7 @@ def get_model(args):
     match args.model:
         case "cnn":
             return build_cnn(
-                args.d_emb, args.hidden, args.codebook_size, args.dropout, args.lr, args.device
+                args.d_emb, args.hidden, args.codebook_size, args.kernel_size, args.dropout, args.lr, args.device
             )
         case "NN":
             # will not work yet, because nn needs a single token as input, but it will be given s seq
@@ -159,6 +162,7 @@ def init_wand_db(args):
         project="monomer-structure-prediction",
         config={
             "learning_rate": args.lr,
+            "kernel_size": args.kernel_size,
             "device": args.device,
             "patience": args.patience,
             "architecture": args.model,
@@ -196,6 +200,9 @@ def main(args):
     best_val_loss = float('inf')
     patience_ctr = 0
 
+    # init output
+    os.makedirs(args.out_folder, exist_ok=True)
+
     for epoch in range(1, args.epochs + 1):
         tr_loss, tr_acc = run_epoch(model, train_loader, criterion, optimizer, args.device)
         val_loss, val_acc = run_epoch(model, val_loader, criterion, device=args.device)
@@ -219,8 +226,7 @@ def main(args):
             best_val_loss = val_loss
             patience_ctr = 0
             # Save best model
-            os.makedirs("models/model_files", exist_ok=True)
-            torch.save(model.state_dict(), "models/model_files/simple_cnn_classifier.pt")
+            torch.save(model.state_dict(), os.path.join(args.out_folder,"simple_cnn_classifier.pt"))
         else:
             patience_ctr += 1
             if patience_ctr >= args.patience:
@@ -244,7 +250,7 @@ def main(args):
     plt.ylabel('Loss')
     plt.legend()
     plt.title('Loss over Epochs')
-    plt.savefig('models/model_out/simple/loss_curve.png')
+    plt.savefig(os.path.join(args.out_folder,'loss_curve.png'))
     plt.show()
 
     plt.figure()
@@ -254,10 +260,10 @@ def main(args):
     plt.ylabel('Accuracy')
     plt.legend()
     plt.title('Accuracy over Epochs')
-    plt.savefig('models/model_out/simple/accuracy_curve.png')
+    plt.savefig(os.path.join(args.out_folder,'accuracy_curve.png'))
     plt.show()
 
-    print("Saved best model → models/simple_cnn_classifier.pt")
+    print(f"Saved best model → {os.path.join(args.out_folder,"simple_cnn_classifier.pt")}")
 
 
 if __name__ == "__main__":
