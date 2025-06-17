@@ -11,7 +11,7 @@ from torch.nn.utils.rnn import pad_sequence
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
-from models.simple_classifier.simple_classifier import ResidueTokenCNN
+from models.simple_classifier.simple_classifier import ResidueTokenCNN, ResidueTokenLNN
 from models.simple_classifier.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir, PAD_LABEL
 
 # ------------------------------------------------------------
@@ -32,17 +32,19 @@ def parse_args():
                         help="JSON containing the ids split into train, validation and test")
     parser.add_argument("--codebook_size", type=int, default=1024,
                         help="Size of VQ vocabulary")
+
+    parser.add_argument("--model", type=str, default="cnn", help="type of model to use")
     parser.add_argument("--d_emb", type=int, default=1024)
     parser.add_argument("--hidden", type=int, default=256)
     parser.add_argument("--dropout", type=float, default=0.3)
     parser.add_argument("--batch", type=int, default=1,
                         help="Batch size (1 → no padding)")
+
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--patience", type=int, default=3,
                         help="Early stopping patience (in epochs)")
-    parser.add_argument("--model", type=str, default="cnn", help="type of model to use")
     parser.add_argument("--run_test", action="store_true", help="also run test set")
     parser.add_argument("--no_wandb", action="store_true", help="do not log wandb")
     return parser.parse_args()
@@ -60,11 +62,18 @@ def create_data_loaders(emb_source, tok_jsonl, train_ids, val_ids, test_ids, bat
     )
 
 
-def build_model(d_emb, hidden, vocab_size, dropout, lr, device):
+def build_cnn(d_emb, hidden, vocab_size, dropout, lr, device):
     model = ResidueTokenCNN(d_emb, hidden, vocab_size, dropout).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     criterion = nn.CrossEntropyLoss(ignore_index=PAD_LABEL)
     return model, optimizer, criterion
+
+def build_nn(d_emb, hidden, vocab_size, dropout, lr, device):
+    model = ResidueTokenLNN(d_emb, hidden, vocab_size, dropout).to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    criterion = nn.CrossEntropyLoss()
+    return model, optimizer, criterion
+
 
 
 def pad_collate(batch):
@@ -133,9 +142,13 @@ def load_split_file(split_file):
 def get_model(args):
     match args.model:
         case "cnn":
-            return build_model(
+            return build_cnn(
                 args.d_emb, args.hidden, args.codebook_size, args.dropout, args.lr, args.device
             )
+        case "NN":
+            # will not work yet, because nn needs a single token as input, but it will be given s seq
+            raise NotImplementedError
+            # return build_nn(args.d_emb, args.hidden, args.codebook_size, args.dropout, args.lr, args.device)
         case _:
             raise NotImplementedError
 
