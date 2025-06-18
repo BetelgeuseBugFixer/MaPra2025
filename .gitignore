@@ -34,3 +34,7 @@ grid_search_out/
 #wandb
 wandb_key
 wandb/
+
+# pychache
+models/simple_classifier/__pycache__/
+models/__pycache__
