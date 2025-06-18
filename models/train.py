@@ -37,7 +37,7 @@ def parse_args():
     parser.add_argument("--model", type=str, default="cnn", help="type of model to use")
     parser.add_argument("--kernel_size", type=int, default=5, help="kernel size of the cnn")
     parser.add_argument("--d_emb", type=int, default=1024)
-    parser.add_argument("--hidden", type=int, default=2048)
+    parser.add_argument("--hidden", type=int, nargs="+", default=[2048])
     parser.add_argument("--dropout", type=float, default=0.3)
     parser.add_argument("--batch", type=int, default=1,
                         help="Batch size (1 → no padding)")
