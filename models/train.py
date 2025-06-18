@@ -49,7 +49,9 @@ def parse_args():
                         help="Early stopping patience (in epochs)")
     parser.add_argument("--run_test", action="store_true", help="also run test set")
     parser.add_argument("--no_wandb", action="store_true", help="do not log wandb")
-    parser.add_argument("--out_folder",type=str, help="directory where the plots and model files will be stored", required=True)
+    parser.add_argument("--plot", action="store_true", help="plot training progress")
+    parser.add_argument("--out_folder", type=str, help="directory where the plots and model files will be stored",
+                        required=True)
     return parser.parse_args()
 
 
@@ -226,7 +228,7 @@ def main(args):
             best_val_loss = val_loss
             patience_ctr = 0
             # Save best model
-            torch.save(model.state_dict(), os.path.join(args.out_folder,"simple_cnn_classifier.pt"))
+            torch.save(model.state_dict(), os.path.join(args.out_folder, "simple_cnn_classifier.pt"))
         else:
             patience_ctr += 1
             if patience_ctr >= args.patience:
@@ -239,10 +241,17 @@ def main(args):
         print(f"Test {test_loss:.4f}/{test_acc:.4f}")
 
     if args.no_wandb:
-        run.finish()
+        run.finish(0)
         # Plotting training curves
     epochs_range = range(1, len(train_losses) + 1)
 
+    if args.plot:
+        plot_training(args.out_folder, epochs_range, train_accs, train_losses, val_accs, val_losses)
+
+    print(f"Saved best model → {os.path.join(args.out_folder, "simple_cnn_classifier.pt")}")
+
+
+def plot_training(out_folder, epochs_range, train_accs, train_losses, val_accs, val_losses):
     plt.figure()
     plt.plot(epochs_range, train_losses, label='Train Loss')
     plt.plot(epochs_range, val_losses, label='Val Loss')
@@ -250,9 +259,7 @@ def main(args):
     plt.ylabel('Loss')
     plt.legend()
     plt.title('Loss over Epochs')
-    plt.savefig(os.path.join(args.out_folder,'loss_curve.png'))
-    plt.show()
-
+    plt.savefig(os.path.join(out_folder, 'loss_curve.png'))
     plt.figure()
     plt.plot(epochs_range, train_accs, label='Train Acc')
     plt.plot(epochs_range, val_accs, label='Val Acc')
@@ -260,10 +267,7 @@ def main(args):
     plt.ylabel('Accuracy')
     plt.legend()
     plt.title('Accuracy over Epochs')
-    plt.savefig(os.path.join(args.out_folder,'accuracy_curve.png'))
-    plt.show()
-
-    print(f"Saved best model → {os.path.join(args.out_folder,"simple_cnn_classifier.pt")}")
+    plt.savefig(os.path.join(out_folder, 'accuracy_curve.png'))
 
 
 if __name__ == "__main__":
