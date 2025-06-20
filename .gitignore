@@ -37,4 +37,6 @@ wandb/
 
 # pychache
 models/simple_classifier/__pycache__/
-models/__pycache__
+models/__pycache__/
+models/foldtoken_decoder/src/__pycache__/
+models/foldtoken_decoder/__pycache__/
