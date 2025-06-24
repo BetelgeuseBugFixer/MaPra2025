@@ -37,9 +37,9 @@ class FoldDecoder(nn.Module):
 
     def decode_single_prot(self, vq_codes, output_path):
         # get latent embeddings
-        h_V = self.model.vq.embed_id(vq_codes, self.level)
+        h_V = self.model.model.vq.embed_id(vq_codes, self.level)
         # simple chain encoding
         chain_encoding = torch.ones_like(vq_codes, device=self.device)
         # decode to protein object
-        protein = self.model.decoding(h_V, chain_encoding)
+        protein = self.model.model.decoding(h_V, chain_encoding)
         protein.to(output_path)

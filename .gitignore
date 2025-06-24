@@ -45,3 +45,5 @@ models/foldtoken_decoder/src/__pycache__
 models/foldtoken_decoder/src/constants/__pycache__/
 models/foldtoken_decoder/src/data/__pycache__/
 models/foldtoken_decoder/src/utility/__pycache__/
+models/foldtoken_decoder/src/layers/structure/__pycache__/
+models/foldtoken_decoder/src/layers/__pycache__/
