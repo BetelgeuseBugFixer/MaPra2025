@@ -3,11 +3,11 @@ import torch
 import math
 import torch.nn as nn
 import numpy as np
-from src.modules.FoldToken4_module import *
-from src.chroma.layers.structure.diffusion import DiffusionChainCov, ReconstructionLosses
-from src.modules.graph_transform import GraphTransform
-from src.chroma.data import Protein
-from src.modules.vq_modules import HierCVQLayer
+from models.foldtoken_decoder.src.FoldToken4_module import *
+from models.foldtoken_decoder.src.layers.structure.diffusion import DiffusionChainCov, ReconstructionLosses
+from models.foldtoken_decoder.src.graph_transform import GraphTransform
+from models.foldtoken_decoder.src.data import Protein
+from models.foldtoken_decoder.src.vq_modules import HierCVQLayer
 from torch_geometric.nn import knn_graph
 
 pair_lst = ['N-N', 'C-C', 'O-O', 'Cb-Cb', 'Ca-N', 'Ca-C', 'Ca-O', 'Ca-Cb', 'N-C', 'N-O', 'N-Cb', 'Cb-C', 'Cb-O', 'O-C', 'N-Ca', 'C-Ca', 'O-Ca', 'Cb-Ca', 'C-N', 'O-N', 'Cb-N', 'C-Cb', 'O-Cb', 'C-O']
