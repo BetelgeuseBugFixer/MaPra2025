@@ -56,7 +56,7 @@ class MInterface(MInterface_base):
 
     
     def load_model(self):
-        from src.models.FoldToken4 import PiFold_Model
+        from models.foldtoken_decoder.src.FoldToken4 import PiFold_Model
         self.model = PiFold_Model(self.hparams)
 
 
