@@ -22,6 +22,7 @@ utils/ly6.ipynb
 
 # models
 models/*.pt
+models/foldtoken_decoder/model_zoom/
 
 # run out
 slurm_out/
@@ -40,3 +41,4 @@ models/simple_classifier/__pycache__/
 models/__pycache__/
 models/foldtoken_decoder/src/__pycache__/
 models/foldtoken_decoder/__pycache__/
+models/foldtoken_decoder/src/__pycache__
