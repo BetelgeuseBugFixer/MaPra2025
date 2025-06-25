@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from omegaconf import OmegaConf
 
+from models.foldtoken_decoder.src.data import Protein
 from models.foldtoken_decoder.src.model_interface import MInterface
 
 
@@ -43,3 +44,9 @@ class FoldDecoder(nn.Module):
         # decode to protein object
         protein = self.model.model.decoding(h_V, chain_encoding)
         protein.to(output_path)
+
+    def encode_pdb(self, pdb_path):
+        protein = Protein(pdb_path, device=self.device)
+        with torch.no_grad():
+            vq_code = self.model.encode_protein(protein, level=self.level)[1]
+            return vq_code
