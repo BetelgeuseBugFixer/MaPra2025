@@ -53,8 +53,8 @@ class FoldDecoder(nn.Module):
         chain_encoding = torch.ones_like(vq_codes, device=self.device)
         # decode to protein object
         protein = self.model.model.decoding(h_V, chain_encoding)
-        protein.to(output_path)
-        #return protein
+        #protein.to(output_path)
+        return protein
 
     def encode_pdb(self, pdb_path):
         protein = Protein(pdb_path, device=self.device)
