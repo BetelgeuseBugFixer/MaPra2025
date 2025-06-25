@@ -3137,7 +3137,7 @@ class System:
             )
 
             # add mapping between standard names and themselves
-            import src.chroma.utility.polyseq as polyseq
+            import models.foldtoken_decoder.src.utility.polyseq as polyseq
 
             for aa in polyseq.canonical_amino_acids():
                 mapping[aa] = aa
@@ -3536,7 +3536,7 @@ class ChainView(BaseView):
                 seq[ri] = residue.name
             return seq
         elif format == "one-letter-string":
-            import src.chroma.utility.polyseq as polyseq
+            import models.foldtoken_decoder.src.utility.polyseq as polyseq
 
             seq = [None] * self.num_residues()
             for ri, residue in enumerate(self.residues()):
