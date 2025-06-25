@@ -16,10 +16,9 @@ if __name__ == '__main__':
             
     token_example = token_data["T1082-D1"]["vqid"]
     vq_codes = torch.tensor(token_example, dtype=torch.long, device=device)
-    protein=model.decode_to_structure(vq_codes)
+    protein=model.model.decode_single_prot(vq_codes,"test.pdb")
     X, _, _ = protein.to_XCS(all_atom=True)
     print(X)
-    # model.decode_single_prot(vq_codes,"test.pdb")
     # print("in project encoded tokens")
     # print(model.encode_pdb("tokenizer_benchmark/casps/casp14/T1082-D1.pdb"))
     # print("previous encoded tokens")
