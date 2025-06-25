@@ -43,7 +43,7 @@ class FoldDecoder(nn.Module):
         batch_id = torch.zeros(L, device='cuda').long()
         virtual_frame_num = 3
         chain_encoding = torch.ones_like(vq_codes, device=self.device)
-        return self.decoder_struct.infer_X(X_t, h_V,  None, chain_encoding, 30, virtual_frame_num=virtual_frame_num)
+        return self.model.model.decoder_struct.infer_X(X_t, h_V,  batch_id, chain_encoding, 30, virtual_frame_num=virtual_frame_num)
 
 
     def decode_single_prot(self, vq_codes, output_path):
