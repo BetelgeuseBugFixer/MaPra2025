@@ -24,7 +24,7 @@ if __name__ == '__main__':
     print("\n\nx pred")
     print(X_pred)
     print("\n\nall_pred")
-    print(all_pred)
+    print(all_preds)
     # print("in project encoded tokens")
     # print(model.encode_pdb("tokenizer_benchmark/casps/casp14/T1082-D1.pdb"))
     # print("previous encoded tokens")
