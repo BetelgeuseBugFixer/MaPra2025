@@ -10,43 +10,45 @@ from biotite.structure.filter import _filter_atom_names
 
 from models.foldtoken_decoder.foldtoken_decoder import FoldDecoder
 
-if __name__ == '__main__':
-    device = "cuda"
-    model = FoldDecoder(device=device)
+def load_prot_from_pdb(pdb_file):
+    # load
+    file = PDBFile.read(pdb_file)
+    array_stack = file.get_structure(model=1)
+    # filter canonical atoms
+    return array_stack[_filter_atom_names(array_stack, ["N", "CA", "C", "O"])]
+
+def load_casp_tokens(token_jsonl):
     token_data = {}
 
-    with open("data/casp14_test/casp14_tokens.jsonl", "r") as f:
+    with open(token_jsonl, "r") as f:
         for line in f:
             entry = json.loads(line)
             token_data.update(entry)
+    return token_data
 
-    token_example = token_data["T1082-D1"]["vqid"]
-    vq_codes = torch.tensor(token_example, dtype=torch.long, device=device)
-    protein=model.decode_single_prot(vq_codes,"test.pdb")
+
+def decode_atom_coordinates(vq_codes):
+    protein = model.decode_single_prot(vq_codes, "test.pdb")
     X, _, _ = protein.to_XCS(all_atom=False)
-    #print(X)
-    #X_pred, all_preds = model.decode_to_structure(vq_codes)
-    #print("\n\nx pred")
-    #print(X_pred)
-    #print("\n\nall_pred")
-    #print(all_preds)
+    return X
 
-    # print("in project encoded tokens")
-    #print(model.encode_pdb("tokenizer_benchmark/casps/casp14/T1082-D1.pdb"))
-    # print("previous encoded tokens")
-    # print(vq_codes)
-    
-    # get comaparision
-    file = PDBFile.read("tokenizer_benchmark/casps/casp14/T1082-D1.pdb")
-    array_stack = file.get_structure(model=1)
-    array_stack = array_stack[_filter_atom_names(array_stack,["N", "CA", "C","O"])]
-    
-    #convert pred
-    print(X)
-    print("="*11)
-    pred=X.detach().squeeze(0).reshape(-1, 3).cpu().numpy()
-    print(pred)
-    print("="*11)
+if __name__ == '__main__':
+    device = "cuda"
+    model = FoldDecoder(device=device)
+    test_pdb="tokenizer_benchmark/casps/casp14/T1024-D1.pdb"
 
-    print(lddt(array_stack, pred,aggregation="residue"))
+    #get ref
+    ref_protein=load_prot_from_pdb(test_pdb)
+
+    #encode and decode model
+    locally_encoded_vq_codes=model.encode_pdb(test_pdb)
+    locally_encoded_coords=decode_atom_coordinates(locally_encoded_vq_codes)
+
+    # also load prev computed tokens
+    pre_encoded_vq_codes=load_casp_tokens("data/casp14_test/casp14_tokens.jsonl")["T1082-D1.pdb"]["vqid"]
+    pre_encoded_coords=decode_atom_coordinates(pre_encoded_vq_codes)
+
+    #get scores
+    print(f"locally encoded: {lddt(ref_protein, locally_encoded_vq_codes)}")
+    print(f"pre encoded: {lddt(ref_protein, pre_encoded_coords)}")
 
