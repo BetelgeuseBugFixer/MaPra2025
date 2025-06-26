@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -p lrz-dgx-a100-80x8
+#SBATCH -p lrz-hgx-h100-94x4
 #SBATCH --gres=gpu:1
 #SBATCH -o slurm_out/foldtoken_test_std_output.out
 #SBATCH -e slurm_out/foldtoken_test_std_err.err
