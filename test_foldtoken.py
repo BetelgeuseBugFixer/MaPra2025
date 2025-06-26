@@ -1,7 +1,10 @@
 import json
 
 import torch
-import biotite
+# import biotite
+import biotite.structure.io.pdb as pdb
+from biotite.structure.io.pdb import PDBFile
+
 from models.foldtoken_decoder.foldtoken_decoder import FoldDecoder
 
 if __name__ == '__main__':
@@ -13,7 +16,7 @@ if __name__ == '__main__':
         for line in f:
             entry = json.loads(line)
             token_data.update(entry)
-            
+
     token_example = token_data["T1082-D1"]["vqid"]
     vq_codes = torch.tensor(token_example, dtype=torch.long, device=device)
     protein=model.decode_single_prot(vq_codes,"test.pdb")
@@ -25,8 +28,12 @@ if __name__ == '__main__':
     print(X_pred)
     print("\n\nall_pred")
     print(all_preds)
+
     # print("in project encoded tokens")
     # print(model.encode_pdb("tokenizer_benchmark/casps/casp14/T1082-D1.pdb"))
     # print("previous encoded tokens")
     # print(vq_codes)
+    file = PDBFile.read("tokenizer_benchmark/casps/casp14/T1082-D1.pdb")
+    array_stack = file.get_structure()
 
+    print(array_stack)
