@@ -7,8 +7,8 @@ from biotite.structure.io.pdb import PDBFile
 from biotite.structure import lddt, tm_score, filter_canonical_amino_acids
 from biotite.structure.filter import _filter_atom_names
 
-
 from models.foldtoken_decoder.foldtoken_decoder import FoldDecoder
+
 
 def load_prot_from_pdb(pdb_file):
     # load
@@ -16,6 +16,7 @@ def load_prot_from_pdb(pdb_file):
     array_stack = file.get_structure(model=1)
     # filter canonical atoms
     return array_stack[_filter_atom_names(array_stack, ["N", "CA", "C", "O"])]
+
 
 def load_casp_tokens(token_jsonl):
     token_data = {}
@@ -32,23 +33,23 @@ def decode_atom_coordinates(vq_codes):
     X, _, _ = protein.to_XCS(all_atom=False)
     return X
 
+
 if __name__ == '__main__':
     device = "cuda"
     model = FoldDecoder(device=device)
-    test_pdb="tokenizer_benchmark/casps/casp14/T1024-D1.pdb"
+    test_pdb = "tokenizer_benchmark/casps/casp14/T1024-D1.pdb"
 
-    #get ref
-    ref_protein=load_prot_from_pdb(test_pdb)
+    # get ref
+    ref_protein = load_prot_from_pdb(test_pdb)
 
-    #encode and decode model
-    locally_encoded_vq_codes=model.encode_pdb(test_pdb)
-    locally_encoded_coords=decode_atom_coordinates(locally_encoded_vq_codes)
+    # encode and decode model
+    locally_encoded_vq_codes = model.encode_pdb(test_pdb)
+    locally_encoded_coords = decode_atom_coordinates(locally_encoded_vq_codes)
 
     # also load prev computed tokens
-    pre_encoded_vq_codes=load_casp_tokens("data/casp14_test/casp14_tokens.jsonl")["T1082-D1.pdb"]["vqid"]
-    pre_encoded_coords=decode_atom_coordinates(pre_encoded_vq_codes)
+    pre_encoded_vq_codes = torch.tensor(load_casp_tokens("data/casp14_test/casp14_tokens.jsonl")["T1082-D1.pdb"]["vqid"],dtype=torch.long,device=device)
+    pre_encoded_coords = decode_atom_coordinates(pre_encoded_vq_codes)
 
-    #get scores
+    # get scores
     print(f"locally encoded: {lddt(ref_protein, locally_encoded_vq_codes)}")
     print(f"pre encoded: {lddt(ref_protein, pre_encoded_coords)}")
-
