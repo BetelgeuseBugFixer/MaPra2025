@@ -1,7 +1,7 @@
 import json
 
 import torch
-
+import biotite
 from models.foldtoken_decoder.foldtoken_decoder import FoldDecoder
 
 if __name__ == '__main__':
