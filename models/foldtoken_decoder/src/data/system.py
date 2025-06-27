@@ -31,6 +31,7 @@ from models.foldtoken_decoder.src import constants
 import gzip
 import io
 
+
 @dataclass
 class SystemAssemblyInfo:
     """A class for representing the assembly information for System objects.
@@ -126,14 +127,14 @@ class StringList:
 
     def __getitem__(self, i: int):
         beg, length = self.rng[i]
-        return self.string[beg : beg + length]
+        return self.string[beg: beg + length]
 
     def __setitem__(self, i: int, new_string: str):
         beg, length = self.rng[i]
-        self.string = self.string[:beg] + new_string + self.string[beg + length :]
+        self.string = self.string[:beg] + new_string + self.string[beg + length:]
         if len(new_string) != length:
             self.rng[i, 1] = len(new_string)
-            self.rng[i + 1 :, 0] = self.rng[i + 1 :, 0] + len(new_string) - length
+            self.rng[i + 1:, 0] = self.rng[i + 1:, 0] + len(new_string) - length
 
     def __str__(self):
         return self.string
@@ -166,13 +167,13 @@ class StringList:
         self.string = self.string[0:ix] + new_string + self.string[ix:]
         self.rng.insert(i, [ix, len(new_string)])
         if len(new_string) > 0:
-            self.rng[i + 1 :, 0] = self.rng[i + 1 :, 0] + len(new_string)
+            self.rng[i + 1:, 0] = self.rng[i + 1:, 0] + len(new_string)
 
     def pop(self, i: int):
         beg, length = self.rng[i]
-        val = self.string[beg : beg + length]
-        self.string = self.string[0:beg] + self.string[beg + length :]
-        self.rng[i + 1 :, 0] = self.rng[i + 1 :, 0] - len(val)
+        val = self.string[beg: beg + length]
+        self.string = self.string[0:beg] + self.string[beg + length:]
+        self.rng[i + 1:, 0] = self.rng[i + 1:, 0] - len(val)
         self.rng.pop(i)
         return val
 
@@ -182,7 +183,7 @@ class StringList:
         beg, _ = self.rng[i]
         end = self.rng[j].sum()
         self.string = self.string[0:beg] + self.string[end:]
-        self.rng[j + 1 :, 0] = self.rng[j + 1 :, 0] - (end - beg + 1)
+        self.rng[j + 1:, 0] = self.rng[j + 1:, 0] - (end - beg + 1)
         self.rng.delete_range(rng)
 
 
@@ -352,7 +353,7 @@ class ArrayList:
         self.resize(1)
 
         # everything in range [i:end-1) moves over by +1
-        self.array[i + 1 :] = self.array[i:-1]
+        self.array[i + 1:] = self.array[i:-1]
 
         # set the value at index i
         self.array[i] = row
@@ -364,7 +365,7 @@ class ArrayList:
         row = self.array[i].copy()
 
         # everything from [i+1; end) moves over by -1
-        self.array[i:-1] = self.array[i + 1 :]
+        self.array[i:-1] = self.array[i + 1:]
 
         # resize by -1
         self.resize(-1)
@@ -377,7 +378,7 @@ class ArrayList:
         # move over to the left to account for the removed part
         cut_length = j - i + 1
         new_length = len(self) - cut_length
-        self.array[i:new_length] = self.array[j + 1 :]
+        self.array[i:new_length] = self.array[j + 1:]
 
         # resize by -1
         self.resize(-cut_length)
@@ -400,10 +401,10 @@ class HierarchicList:
     _child_offset: ArrayList  # (1, n)
 
     def __init__(
-        self,
-        properties: dict,
-        parent_list: HierarchicList = None,
-        num_children: ArrayList = ArrayList(1, dtype=int),
+            self,
+            properties: dict,
+            parent_list: HierarchicList = None,
+            num_children: ArrayList = ArrayList(1, dtype=int),
     ):
         self._properties = dict()
         for key in properties:
@@ -442,7 +443,7 @@ class HierarchicList:
             )
             for i in range(1, len(self)):
                 self._child_offset[i] = (
-                    self._child_offset[i - 1] + self._num_children[i - 1]
+                        self._child_offset[i - 1] + self._num_children[i - 1]
                 )
 
     def append_child(self, properties):
@@ -648,11 +649,11 @@ class System:
 
     @classmethod
     def from_XCS(
-        cls,
-        X: torch.Tensor,
-        C: torch.Tensor,
-        S: torch.Tensor,
-        alternate_alphabet: str = None,
+            cls,
+            X: torch.Tensor,
+            C: torch.Tensor,
+            S: torch.Tensor,
+            alternate_alphabet: str = None,
     ) -> System:
         """Convert an XCS set of pytorch tensors to a new System object.
 
@@ -714,7 +715,7 @@ class System:
 
                     if all_atom and resname in constants.AA_GEOMETRY:
                         atom_names = (
-                            atom_names + constants.AA_GEOMETRY[resname]["atoms"]
+                                atom_names + constants.AA_GEOMETRY[resname]["atoms"]
                         )
 
                     for atom_ix, atom_name in enumerate(atom_names):
@@ -738,15 +739,15 @@ class System:
         return new_system
 
     def to_XCS(
-        self,
-        all_atom: bool = False,
-        batch_dimension: bool = True,
-        mask_unknown: bool = True,
-        unknown_token: int = 0,
-        reorder_chain: bool = True,
-        alternate_alphabet=None,
-        alternate_atoms=None,
-        get_indices=False,
+            self,
+            all_atom: bool = False,
+            batch_dimension: bool = True,
+            mask_unknown: bool = True,
+            unknown_token: int = 0,
+            reorder_chain: bool = True,
+            alternate_alphabet=None,
+            alternate_atoms=None,
+            get_indices=False,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Convert System object to XCS format.
 
@@ -854,12 +855,12 @@ class System:
                 if all_atom:
                     code3 = constants.AA20_1_TO_3[oneLetterSeq[i]]
                     atom_names = (
-                        constants.ATOMS_BB + constants.AA_GEOMETRY[code3]["atoms"]
+                            constants.ATOMS_BB + constants.AA_GEOMETRY[code3]["atoms"]
                     )
                     atom_names = {a: i for (i, a) in enumerate(atom_names)}
 
                 X[
-                    i, :
+                i, :
                 ] = np.nan  # so we can tell whether some atom was previously found
                 num_rem = len(atom_names)
                 for atom in res.atoms():
@@ -923,9 +924,9 @@ class System:
 
         # check to make sure sizes agree
         if not (
-            (X.shape[1] == self.num_residues())
-            and (X.shape[1] == C.shape[1])
-            and (X.shape[1] == S.shape[1])
+                (X.shape[1] == self.num_residues())
+                and (X.shape[1] == C.shape[1])
+                and (X.shape[1] == S.shape[1])
         ):
             raise Exception(
                 f"input tensor sizes {X.shape}, {C.shape}, and {S.shape}, disagree with System size {self.num_residues()}"
@@ -1135,11 +1136,11 @@ class System:
         return result
 
     def select_residues(
-        self,
-        expression: str,
-        gti: bool = False,
-        allow_unstructured=False,
-        left_associativity: bool = True,
+            self,
+            expression: str,
+            gti: bool = False,
+            allow_unstructured=False,
+            left_associativity: bool = True,
     ):
         """Evalates the given selection expression and returns all residues with any
            atoms involved in the result as a list of ResidueView's or list of gti's.
@@ -1175,7 +1176,7 @@ class System:
         return result
 
     def select_chains(
-        self, expression: str, allow_unstructured=False, left_associativity: bool = True
+            self, expression: str, allow_unstructured=False, left_associativity: bool = True
     ):
         """Evalates the given selection expression and returns all chains with any
            atoms involved in the result as a list of ChainView's.
@@ -1206,10 +1207,10 @@ class System:
         return result
 
     def _select(
-        self,
-        expression: str,
-        unstructured: bool = False,
-        left_associativity: bool = True,
+            self,
+            expression: str,
+            unstructured: bool = False,
+            left_associativity: bool = True,
     ):
         # Build some helpful data structures to support _selex_eval
         @dataclass(frozen=True)
@@ -1275,12 +1276,12 @@ class System:
         return val, _selex_info
 
     def save_selection(
-        self,
-        expression: Optional[str] = None,
-        gti: Optional[List[int]] = None,
-        selname: str = "_default",
-        allow_unstructured=False,
-        left_associativity: bool = True,
+            self,
+            expression: Optional[str] = None,
+            gti: Optional[List[int]] = None,
+            selname: str = "_default",
+            allow_unstructured=False,
+            left_associativity: bool = True,
     ):
         """Performs a selection on the System according to the given
            selection string and saves the indices of residues involved in
@@ -1391,8 +1392,8 @@ class System:
                     unpacked[i] = operand[0]
                 elif dest == "strings":
                     if not (
-                        isinstance(operand, list)
-                        and all([isinstance(val, str) for val in operands])
+                            isinstance(operand, list)
+                            and all([isinstance(val, str) for val in operands])
                     ):
                         succ = False
                         break
@@ -1404,8 +1405,8 @@ class System:
                     unpacked[i] = float(operand[0])
                 elif dest == "floats":
                     if not (
-                        isinstance(operand, list)
-                        and all([_is_numeric(val) for val in operands])
+                            isinstance(operand, list)
+                            and all([_is_numeric(val) for val in operands])
                     ):
                         succ = False
                         break
@@ -1423,8 +1424,8 @@ class System:
                     unpacked[i] = int(operand[0])
                 elif dest == "ints":
                     if not (
-                        isinstance(operand, list)
-                        and all([_is_int(val) for val in operands])
+                            isinstance(operand, list)
+                            and all([_is_int(val) for val in operands])
                     ):
                         succ = False
                         break
@@ -1448,8 +1449,8 @@ class System:
             by spaces. Allowed range expressiosn are of the form: `< n`, `> n`, `n:m` with
             optional spaces allowed between operands."""
             if not (
-                isinstance(operands, list)
-                and all([isinstance(opr, str) for opr in operands])
+                    isinstance(operands, list)
+                    and all([isinstance(opr, str) for opr in operands])
             ):
                 return None
             operand = "".join(operands)
@@ -1480,8 +1481,8 @@ class System:
             `n`, `n-m`, `n+m`, with optional spaces allowed anywhere and combinations
             also allowed (e.g., "n+m+s+r-p+a")."""
             if not (
-                isinstance(operands, list)
-                and all([isinstance(opr, str) for opr in operands])
+                    isinstance(operands, list)
+                    and all([isinstance(opr, str) for opr in operands])
             ):
                 return None
             operand = "".join(operands)
@@ -1701,13 +1702,13 @@ class System:
         return self.get_chain(chain_idx)
 
     def add_chain(
-        self,
-        cid: str,
-        segid: str = None,
-        authid: str = None,
-        entity_id: int = None,
-        auto_rename: bool = True,
-        at: int = None,
+            self,
+            cid: str,
+            segid: str = None,
+            authid: str = None,
+            entity_id: int = None,
+            auto_rename: bool = True,
+            at: int = None,
     ):
         """Adds a new chain to the System and returns a reference to it.
 
@@ -1755,15 +1756,15 @@ class System:
         return len(self._residues) - 1
 
     def _append_atom(
-        self,
-        name: str,
-        het: bool,
-        x: float = None,
-        y: float = None,
-        z: float = None,
-        occ: float = None,
-        B: float = None,
-        alt: str = None,
+            self,
+            name: str,
+            het: bool,
+            x: float = None,
+            y: float = None,
+            z: float = None,
+            occ: float = None,
+            B: float = None,
+            alt: str = None,
     ):
         """Adds a new atom to the end of this System. Internal method, do not use.
 
@@ -1846,7 +1847,7 @@ class System:
         # if that does not work, get a longer chain name
         for i in range(-1, len(goodNames)):
             # first try to expand the original chain ID
-            base = hint if i < 0 else goodNames[i : i + 1]
+            base = hint if i < 0 else goodNames[i: i + 1]
             if base == "":
                 continue
             for k in range(1000):
@@ -2240,7 +2241,7 @@ class System:
                             first_model = tab[i][modelCol]
                             prev_model = first_model
                         elif (tab[i][modelCol] != prev_model) or (
-                            tab[i][modelCol] != first_model
+                                tab[i][modelCol] != first_model
                         ):
                             if tab[i][modelCol] != prev_model:
                                 aIdx = 0
@@ -2264,18 +2265,18 @@ class System:
 
                             # check that the atoms correspond
                             same = (
-                                (loc is not None)
-                                and (tab[i][chainNameCol] == loc.atom.residue.chain.cid)
-                                and (tab[i][resNameCol] == loc.atom.residue.name)
-                                and (
-                                    int(
-                                        sp.star_value(
-                                            tab[i][seqIdCol], loc.atom.residue.num
-                                        )
+                                    (loc is not None)
+                                    and (tab[i][chainNameCol] == loc.atom.residue.chain.cid)
+                                    and (tab[i][resNameCol] == loc.atom.residue.name)
+                                    and (
+                                            int(
+                                                sp.star_value(
+                                                    tab[i][seqIdCol], loc.atom.residue.num
+                                                )
+                                            )
+                                            == loc.atom.residue.num
                                     )
-                                    == loc.atom.residue.num
-                                )
-                                and (tab[i][atomNameCol] == loc.atom.name)
+                                    and (tab[i][atomNameCol] == loc.atom.name)
                             )
                             if not same:
                                 _warn_or_error(
@@ -2299,9 +2300,9 @@ class System:
 
                         # new chain?
                         if (
-                            (chain is None)
-                            or (prev_entity_id != tab[i][entityIdCol])
-                            or (tab[i][chainNameCol] != chain.cid)
+                                (chain is None)
+                                or (prev_entity_id != tab[i][entityIdCol])
+                                or (tab[i][chainNameCol] != chain.cid)
                         ):
                             authid = (
                                 tab[i][authChainNameCol]
@@ -2317,10 +2318,10 @@ class System:
 
                         # new residue
                         if (
-                            (residue is None)
-                            or (chain != prev_chain)
-                            or (prev_seq_id != tab[i][seqIdCol])
-                            or (prev_auth_seq_id != tab[i][authSeqIdCol])
+                                (residue is None)
+                                or (chain != prev_chain)
+                                or (prev_seq_id != tab[i][seqIdCol])
+                                or (prev_auth_seq_id != tab[i][authSeqIdCol])
                         ):
                             resnum = (
                                 int(tab[i][seqIdCol])
@@ -2344,9 +2345,9 @@ class System:
                         ]
                         alt = sp.star_value(tab[i][altIdCol], " ")[0]
                         if (
-                            (atom is None)
-                            or (residue != prev_residue)
-                            or (tab[i][atomNameCol] != atom.name)
+                                (atom is None)
+                                or (residue != prev_residue)
+                                or (tab[i][atomNameCol] != atom.name)
                         ):
                             ai = system._append_atom(
                                 tab[i][atomNameCol], (tab[i][groupCol] == "HETATM")
@@ -2573,9 +2574,9 @@ class System:
             # if necessary, make a new residue
             really_new_atom = True  # is this a truely new atom, as opposed to an alternative position?
             if (
-                (resnum != last_resnum)
-                or (resname != last_resname)
-                or (icodes_as_sep_res and (icode != last_icode))
+                    (resnum != last_resnum)
+                    or (resname != last_resname)
+                    or (icodes_as_sep_res and (icode != last_icode))
             ):
                 # this corresponds to a case, where the alternative location flag is being used to
                 # designate two (or more) different possible amino acids at a particular position
@@ -2584,10 +2585,10 @@ class System:
                 # this from the case, where we end up here because we are trying to separate residues
                 # by insertion code.
                 if (
-                    (resnum == last_resnum)
-                    and (resname != last_resname)
-                    and (alt != last_alt)
-                    and (not icodes_as_sep_res or (icode == last_icode))
+                        (resnum == last_resnum)
+                        and (resname != last_resname)
+                        and (alt != last_alt)
+                        and (not icodes_as_sep_res or (icode == last_icode))
                 ):
                     continue
 
@@ -2619,7 +2620,7 @@ class System:
         for chain in chains_to_rename:
             parts = chain.cid.split("|")
             assert (
-                len(parts) > 1
+                    len(parts) > 1
             ), "something went wrong when renaming a chain at the end of reading"
             name = all_system._pick_unique_chain_name(parts[0], verbose)
             chain.cid = name
@@ -2914,23 +2915,23 @@ class System:
             # moduli are used to make sure numbers do not go over prescribe field widths
             # (this is not enforced by sprintf like with strings)
             line = (
-                "%6s%5d %-4s%c%-4s%.1s%4d%c   %8.3f%8.3f%8.3f%6.2f%6.2f      %.4s"
-                % (
-                    "HETATM" if loc.atom.het else "ATOM  ",
-                    ai % 100000,
-                    an_str,
-                    loc.alt,
-                    rn,
-                    cid,
-                    ri % 10000,
-                    icode,
-                    loc.x,
-                    loc.y,
-                    loc.z,
-                    loc.occ,
-                    loc.B,
-                    segid,
-                )
+                    "%6s%5d %-4s%c%-4s%.1s%4d%c   %8.3f%8.3f%8.3f%6.2f%6.2f      %.4s"
+                    % (
+                        "HETATM" if loc.atom.het else "ATOM  ",
+                        ai % 100000,
+                        an_str,
+                        loc.alt,
+                        rn,
+                        cid,
+                        ri % 10000,
+                        icode,
+                        loc.x,
+                        loc.y,
+                        loc.z,
+                        loc.occ,
+                        loc.B,
+                        segid,
+                    )
             )
 
             return line
@@ -3060,11 +3061,11 @@ class System:
                 f.write("END\n")
 
     def canonicalize_protein(
-        self,
-        level=2,
-        drop_coors_unknowns=False,
-        drop_coors_missing_backbone=False,
-        filter_by_entity=False,
+            self,
+            level=2,
+            drop_coors_unknowns=False,
+            drop_coors_missing_backbone=False,
+            filter_by_entity=False,
     ):
         """Canonicalize the calling System object (in place) by assuming that it represents
            a protein molecular system. Different canonicalization rigor and options
@@ -3099,7 +3100,7 @@ class System:
         """
 
         def _mod_to_standard_aa_mappings(
-            less_standard: bool, almost_standard: bool, standard: bool
+                less_standard: bool, almost_standard: bool, standard: bool
         ):
             # Perfectly corresponding to standard residues
             standard_map = {"HSD": "HIS", "HSE": "HIS", "HSC": "HIS", "HSP": "HIS"}
@@ -3129,7 +3130,7 @@ class System:
             return ret
 
         def _to_standard_aa_mappings(
-            less_standard: bool, almost_standard: bool, standard: bool
+                less_standard: bool, almost_standard: bool, standard: bool
         ):
             # get the mapping between modifications and their corresponding standard forms
             mapping = _mod_to_standard_aa_mappings(
@@ -3174,9 +3175,9 @@ class System:
             entity = chain.get_entity()
             if filter_by_entity:
                 if (
-                    (entity is None)
-                    or (entity._type != "polymer")
-                    or ("polypeptide" not in entity.polymer_time)
+                        (entity is None)
+                        or (entity._type != "polymer")
+                        or ("polypeptide" not in entity.polymer_time)
                 ):
                     chains_to_delete.append(chain)
                     continue
@@ -3192,14 +3193,14 @@ class System:
                     if aa != aa_new:
                         # edit any atoms to reflect the mutation
                         if (
-                            (aa == "HSD")
-                            or (aa == "HSE")
-                            or (aa == "HSC")
-                            or (aa == "HSP")
+                                (aa == "HSD")
+                                or (aa == "HSE")
+                                or (aa == "HSC")
+                                or (aa == "HSP")
                         ) and (aa_new == "HIS"):
                             pass
                         elif ((aa == "MSE") and (aa_new == "MET")) or (
-                            (aa == "SEC") and (aa_new == "CYS")
+                                (aa == "SEC") and (aa_new == "CYS")
                         ):
                             SE = residue.find_atom("SE")
                             if SE is not None:
@@ -3208,10 +3209,10 @@ class System:
                                 else:
                                     SE.residue.rename("SG")
                         elif (
-                            ((aa == "HIP") and (aa_new == "HIS"))
-                            or ((aa == "SEP") and (aa_new == "SER"))
-                            or ((aa == "TPO") and (aa_new == "THR"))
-                            or ((aa == "PTR") and (aa_new == "TYR"))
+                                ((aa == "HIP") and (aa_new == "HIS"))
+                                or ((aa == "SEP") and (aa_new == "SER"))
+                                or ((aa == "TPO") and (aa_new == "THR"))
+                                or ((aa == "PTR") and (aa_new == "TYR"))
                         ):
                             # delete the phosphate group
                             for atomname in ["P", "O1P", "O2P", "O3P", "HOP2", "HOP3"]:
@@ -3268,9 +3269,9 @@ class System:
             # the entity type (i.e., whether it is peptidic), in which case the decision
             # of whether to keep the chain would have been made previously.
             if (
-                not filter_by_entity
-                and (cleared_residues != 0)
-                and (cleared_residues == chain.num_residues())
+                    not filter_by_entity
+                    and (cleared_residues != 0)
+                    and (cleared_residues == chain.num_residues())
             ):
                 chains_to_delete.append(chain)
 
@@ -3323,7 +3324,7 @@ class System:
 
     @staticmethod
     def angle(
-        a1: AtomLocationView, a2: AtomLocationView, a3: AtomLocationView, radians=False
+            a1: AtomLocationView, a2: AtomLocationView, a3: AtomLocationView, radians=False
     ):
         """Computes the angle formed by three 3D points represented by AtomLocationView objects.
 
@@ -3344,11 +3345,11 @@ class System:
 
     @staticmethod
     def dihedral(
-        a1: AtomLocationView,
-        a2: AtomLocationView,
-        a3: AtomLocationView,
-        a4: AtomLocationView,
-        radians=False,
+            a1: AtomLocationView,
+            a2: AtomLocationView,
+            a3: AtomLocationView,
+            a4: AtomLocationView,
+            radians=False,
     ):
         """Computes the dihedral angle formed by four 3D points represented by AtomLocationView objects.
 
@@ -3412,9 +3413,9 @@ class System:
                 return array[4]
             # Rosetta's N-terinal amine has hydrogens named 1H, 2H, and 3H
             if (
-                atom_name.startswith("1H")
-                or atom_name.startswith("2H")
-                or atom_name.startswith("3H")
+                    atom_name.startswith("1H")
+                    or atom_name.startswith("2H")
+                    or atom_name.startswith("3H")
             ):
                 return array[4]
         return None
@@ -3442,8 +3443,8 @@ class SystemEntity:
             entity_type = "polymer"
             for ptype in polyseq.polymerType:
                 if (
-                    np.mean([polyseq.is_polymer_residue(res, ptype) for res in seq])
-                    > 0.8
+                        np.mean([polyseq.is_polymer_residue(res, ptype) for res in seq])
+                        > 0.8
                 ):
                     polymer_type = polyseq.polymer_type_name(ptype)
                     break
@@ -3776,16 +3777,16 @@ class ResidueView(BaseView):
         self._siblings["name"][self._ix] = new_name
 
     def add_atom(
-        self,
-        name: str,
-        het: bool,
-        x: float = None,
-        y: float = None,
-        z: float = None,
-        occ: float = 1.0,
-        B: float = 0.0,
-        alt: str = " ",
-        at=None,
+            self,
+            name: str,
+            het: bool,
+            x: float = None,
+            y: float = None,
+            z: float = None,
+            occ: float = 1.0,
+            B: float = 0.0,
+            alt: str = " ",
+            at=None,
     ):
         """Adds a new atom to the residue (appending it at the end) and
            returns an AtomView to it. If atom location information is
@@ -4364,13 +4365,13 @@ class ExpressionTreeEvaluator:
     """
 
     def __init__(
-        self,
-        operators_nullary: list,
-        operators_unary: list,
-        operators_binary: list,
-        eval_function: function,
-        left_associativity: bool = True,
-        debug: bool = False,
+            self,
+            operators_nullary: list,
+            operators_unary: list,
+            operators_binary: list,
+            eval_function: function,
+            left_associativity: bool = True,
+            debug: bool = False,
     ):
         self.operators_nullary = operators_nullary
         self.operators_unary = operators_unary
@@ -4435,7 +4436,7 @@ class ExpressionTreeEvaluator:
                         return None, f"parenthesis imbalance starting with {E[i:]}"
                     # evaluate expression inside the parentheses, and it becomes the left operand
                     left, rem = self._traverse_expression_tree(
-                        E[i + 1 : end], 0, eval_all=True, debug=debug
+                        E[i + 1: end], 0, eval_all=True, debug=debug
                     )
                     if left is None:
                         return None, rem
@@ -4467,16 +4468,16 @@ class ExpressionTreeEvaluator:
                 op = E[i]
                 i = i + 1
             elif (
-                (left is None) and (op in self.operators_unary) and (right is None)
+                    (left is None) and (op in self.operators_unary) and (right is None)
             ) or (
-                (left is not None) and (op in self.operators_binary) and (right is None)
+                    (left is not None) and (op in self.operators_binary) and (right is None)
             ):
                 # we saw a unary operator before and now looking for a right operand, another unary operator, or a nullary operator
                 # OR
                 # we have a left operand and a binary operator before, now looking for a right operand, a unary operator, or a nullary operator
                 if (
-                    E[i] in (self.operators_nullary + self.operators_unary)
-                    or E[i] == "("
+                        E[i] in (self.operators_nullary + self.operators_unary)
+                        or E[i] == "("
                 ):
                     right, i = self._traverse_expression_tree(
                         E, i, eval_all=not self.left_associativity, debug=debug
