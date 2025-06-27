@@ -1463,7 +1463,7 @@ class DiffusionChainCov(nn.Module):
     ) -> torch.Tensor:
         """Use Bayes theorem and Tweedie formula to obtain a conditional X0 given
         prior X0 and a conditional score \nabla_x p( y | x)
-        X0 <- X0 + \frac{sigma_t**2}{alpha_t} \Sigma score
+        X0 <- X0 + \frac{sigma_t**2}{alpha_t} \ Sigma score
         Args:
             X0 (torch.Tensor): backbone coordinates of size (batch, num_residues, 4, 3)
             score (torch.Tensor): of size (batch, num_residues, 4, 3)

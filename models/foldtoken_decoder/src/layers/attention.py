@@ -33,7 +33,7 @@ class ScaledDotProductAttention(nn.Module):
              zeroes (or False) indicate positions that cannot contribute to attention
     Outputs:
         output (torch.tensor) of shape (batch_size, sequence_length_q, d_v). The [i-j]-entry output[i,j,:] is formed as a convex combination of values:
-        \sum_k a_k V[i,k,:] and \sum_k a_k = 1.
+        \ sum_k a_k V[i,k,:] and \ sum_k a_k = 1.
         attentions (torch.tensor) of shape (batch_size, sequence_length_q, sequence_length_k)) where the [b,i,j]-element
         corresponds to the attention value (e.g relative contribution) of position j in the key-tensor to position i in the query tensor in element b of the batch.
     """
