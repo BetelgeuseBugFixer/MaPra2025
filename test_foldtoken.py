@@ -44,12 +44,12 @@ if __name__ == '__main__':
 
     # encode and decode model
     locally_encoded_vq_codes = model.encode_pdb(test_pdb)
-    locally_encoded_coords = decode_atom_coordinates(locally_encoded_vq_codes)
+    locally_encoded_coords = decode_atom_coordinates(locally_encoded_vq_codes).detach().squeeze(0).reshape(-1, 3).cpu().numpy()
 
     # also load prev computed tokens
-    pre_encoded_vq_codes = torch.tensor(load_casp_tokens("data/casp14_test/casp14_tokens.jsonl")["T1082-D1.pdb"]["vqid"],dtype=torch.long,device=device)
-    pre_encoded_coords = decode_atom_coordinates(pre_encoded_vq_codes)
+    pre_encoded_vq_codes = torch.tensor(load_casp_tokens("data/casp14_test/casp14_tokens.jsonl")["T1024-D1"]["vqid"],dtype=torch.long,device=device)
+    pre_encoded_coords = decode_atom_coordinates(pre_encoded_vq_codes).detach().squeeze(0).reshape(-1, 3).cpu().numpy()
 
     # get scores
-    print(f"locally encoded: {lddt(ref_protein, locally_encoded_vq_codes)}")
+    print(f"locally encoded: {lddt(ref_protein, locally_encoded_coords)}")
     print(f"pre encoded: {lddt(ref_protein, pre_encoded_coords)}")
