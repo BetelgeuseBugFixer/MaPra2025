@@ -4525,7 +4525,7 @@ class ExpressionTreeEvaluator:
             return [
                 t.strip()
                 for p in parts
-                for t in re.split("\s+", p.strip())
+                for t in re.split(r"\s+", p.strip())
                 if t.strip() != ""
             ]
 
