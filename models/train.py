@@ -199,7 +199,7 @@ def main(args):
     # Tracking metrics
     train_losses, train_accs = [], []
     val_losses, val_accs = [], []
-    best_val_loss = float('inf')
+    best_val_acc = -1
     patience_ctr = 0
 
     # init output
@@ -224,8 +224,8 @@ def main(args):
         print(f"Epoch {epoch:02d} | train {tr_loss:.4f}/{tr_acc:.4f} | val {val_loss:.4f}/{val_acc:.4f}")
 
         # Early stopping check
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
+        if val_acc < best_val_acc:
+            best_val_acc = val_acc
             patience_ctr = 0
             # Save best model
             model.save(args.out_folder)
