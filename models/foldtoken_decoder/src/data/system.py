@@ -1489,7 +1489,7 @@ class System:
             operands = operand.split("+")
             ranges = []
             for operand in operands:
-                m = re.fullmatch("(.*\d)-(.+)", operand)
+                m = re.fullmatch(r"(.*\d)-(.+)", operand)
                 if m:
                     if not all([_is_int(g) for g in m.groups()]):
                         return None
