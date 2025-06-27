@@ -35,7 +35,7 @@ def parse_args():
                         help="Size of VQ vocabulary")
 
     parser.add_argument("--model", type=str, default="cnn", help="type of model to use")
-    parser.add_argument("--kernel_size", type=int, default=5, help="kernel size of the cnn")
+    parser.add_argument("--kernel_size", type=int,nargs="+", default=[5], help="kernel size of the cnn")
     parser.add_argument("--d_emb", type=int, default=1024)
     parser.add_argument("--hidden", type=int, nargs="+", default=[2048])
     parser.add_argument("--dropout", type=float, default=0.3)
@@ -228,7 +228,7 @@ def main(args):
             best_val_loss = val_loss
             patience_ctr = 0
             # Save best model
-            torch.save(model.state_dict(), os.path.join(args.out_folder, "simple_cnn_classifier.pt"))
+            model.save(args.out_folder)
         else:
             patience_ctr += 1
             if patience_ctr >= args.patience:
