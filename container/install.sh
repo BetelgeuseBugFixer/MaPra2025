@@ -1,32 +1,34 @@
-# enroot create --name help nvidia+pytorch+22.12-py3.sqsh
-# enroot start help
-# wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
-# chmod +x Miniconda3-latest-Linux-x86_64.sh
-# ./Miniconda3-latest-Linux-x86_64.sh -b -p /opt/miniconda
-# source /opt/miniconda/etc/profile.d/conda.sh
-
-# conda create -y -p /opt/envs/f_token python=3.11
-# conda activate /opt/envs/f_token
+#enroot import docker://nvcr.io/nvidia/pytorch:24.12-py3
+#enroot create --name final 
+# -> python container with python 3.12 and cuda 12.6
 
 export CUDA_HOME=/usr/local/cuda
 export PATH=$CUDA_HOME/bin:$PATH
 export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
 
+# create conda
 
-python -m pip install --upgrade pip setuptools wheel packaging ninja
+# wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+# chmod +x Miniconda3-latest-Linux-x86_64.sh
+# ./Miniconda3-latest-Linux-x86_64.sh -b -p /opt/miniconda
+# source /opt/miniconda/etc/profile.d/conda.sh
 
-#pip install pytorch==2.3.0 torchvision==0.18.0 torchaudio==2.3.0 --index-url https://download.pytorch.org/whl/cu118
-conda install pytorch==2.3.0 torchvision==0.18.0 torchaudio==2.3.0 pytorch-cuda=11.8 -c pytorch -c nvidia
+# conda create -y -p /opt/envs/f_token python=3.12
+conda activate /opt/envs/f_token
 
+# install pytorch and dependencies
+pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu126
 
-#pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.2.0+cu118.html
-pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.3.0+cu118.html
-pip install torch-geometric -f https://data.pyg.org/whl/torch-2.3.0+cu118.html
+pip install torch_geometric -f https://data.pyg.org/whl/torch-2.6.0+cu126.html 
+pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.6.0+cu126.html
+pip install https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.0.post2/flash_attn-2.8.0.post2+cu12torch2.6cxx11abiTRUE-cp312-cp312-linux_x86_64.whl
 
-# wget https://github.com/Dao-AILab/flash-attention/releases/download/v2.6.3/flash_attn-2.6.3+cu118torch2.2cxx11abiTRUE-cp39-cp39-linux_x86_64.whl
-# pip install flash_attn-2.6.3+cu118torch2.2cxx11abiTRUE-cp39-cp39-linux_x86_64.whl
-pip install https://github.com/Dao-AILab/flash-attention/releases/download/v2.5.8/flash_attn-2.5.8+cu118torch2.3cxx11abiFALSE-cp311-cp311-linux_x86_64.whl
-
+pip install transformers
+pip install sentencepiece
 pip install lightning
 pip install omegaconf
 pip install tqdm
+pip install h5py
+pip install biotite
+pip install peft
+
