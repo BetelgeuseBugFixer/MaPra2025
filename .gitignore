@@ -47,4 +47,6 @@ models/foldtoken_decoder/src/data/__pycache__/
 models/foldtoken_decoder/src/utility/__pycache__/
 models/foldtoken_decoder/src/layers/structure/__pycache__/
 models/foldtoken_decoder/src/layers/__pycache__/
+models/prot_t5/__pycache__/
+
 /container/f_token2.tar.gz

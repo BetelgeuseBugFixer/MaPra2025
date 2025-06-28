@@ -72,14 +72,33 @@ def read_fasta(fasta_path: Path) -> dict:
 #                                                                                                            3).cpu().numpy()
 #
 #     # also load prev computed tokens
-#     pre_encoded_vq_codes = torch.tensor(load_casp_tokens("data/casp14_test/casp14_tokens.jsonl")["T1024-D1"]["vqid"],
-#                                         dtype=torch.long, device=device)
-#     pre_encoded_coords = decode_atom_coordinates(pre_encoded_vq_codes).detach().squeeze(0).reshape(-1, 3).cpu().numpy()
+    # pre_encoded_vq_codes = torch.tensor(load_casp_tokens("data/casp14_test/casp14_tokens.jsonl")["T1024-D1"]["vqid"],
+    #                                     dtype=torch.long, device=device)
+    # pre_encoded_coords = decode_atom_coordinates(pre_encoded_vq_codes).detach().squeeze(0).reshape(-1, 3).cpu().numpy()
 #
 #     # get scores
 #     print(f"locally encoded: {lddt(ref_protein, locally_encoded_coords)}")
 #     print(f"pre encoded: {lddt(ref_protein, pre_encoded_coords)}")
 
+three_to_one_dict = {
+    'ALA': 'A', 'ARG': 'R', 'ASN': 'N', 'ASP': 'D',
+    'CYS': 'C', 'GLN': 'Q', 'GLU': 'E', 'GLY': 'G',
+    'HIS': 'H', 'ILE': 'I', 'LEU': 'L', 'LYS': 'K',
+    'MET': 'M', 'PHE': 'F', 'PRO': 'P', 'SER': 'S',
+    'THR': 'T', 'TRP': 'W', 'TYR': 'Y', 'VAL': 'V'
+}
+
+
+
+def get_seq_from_pdb(pdb_file: str) -> str:
+    seq=""
+    with open(pdb_file, 'r') as f:
+        for line in f.readlines():
+            if line.startswith("ATOM") and line[12:16].strip() == "CA":
+                res_name = line[17:20].strip()
+                seq += three_to_one_dict[res_name]
+
+    return seq
 
 if __name__ == '__main__':
     device = "cuda"
@@ -89,19 +108,42 @@ if __name__ == '__main__':
     cnn = ResidueTokenCNN.load_cnn("train_run/cnn_k21_3_3_h16384_8192_2048.pt").to(device)
     decoder = FoldDecoder(device=device)
 
+    # define input
+    seqs = [get_seq_from_pdb("tokenizer_benchmark/casps/casp14/T1024-D1.pdb"), get_seq_from_pdb("tokenizer_benchmark/casps/casp14/T1024-D1.pdb")]
+    true_lengths = [len(seq) for seq in seqs]
+    print(f"true_lengths: {true_lengths}")
+    print(seqs)
+    seqs = [raw_seq.translate(str.maketrans('UZO', 'XXX')) for raw_seq in seqs]
+    seqs = [" ".join(raw_seq) for raw_seq in seqs]
+    print(seqs)
     # run through model
-    seqs = list(read_fasta(Path("data/casp14_test/casp14.fasta")).get("T1024-D1"))
     plm.eval()
     with torch.no_grad():
         emb = plm(seqs)
-
+    print(f"emb: {len(emb[0])}")
+    print("="*20)
     cnn.eval()
     with torch.no_grad():
         logits = cnn(emb)  # shape: (B, L, vocab_size)
         pred_tokens = logits.argmax(dim=-1)
+    
+    pred_tokens = pred_tokens.to(device)
+    pre_encoded_vq_codes = torch.tensor(load_casp_tokens("data/casp14_test/casp14_tokens.jsonl")["T1024-D1"]["vqid"],
+                                         dtype=torch.long, device=device)
+    
+    print(f"pre_encoded_vq_codes: {pre_encoded_vq_codes.shape}")
+    print(f"pred_tokens: {pred_tokens.shape}")
+    print("="*20)
+    print(f"pred_tokens: {pred_tokens}")
+    print(f"pre_encoded_vq_codes: {pre_encoded_vq_codes}")
+    print("="*20)
+    for i,protein_token in enumerate(pred_tokens):
+        L = true_lengths[i]
+        protein_token = protein_token[:L]
+        print(f"protein_token: {protein_token.shape}")
+        coords = decode_atom_coordinates(protein_token, decoder).detach().squeeze(0).reshape(-1, 3).cpu().numpy()
 
-    coords = decode_atom_coordinates(pred_tokens, FoldDecoder)
+        # score
+        ref_protein = load_prot_from_pdb("tokenizer_benchmark/casps/casp14/T1024-D1.pdb")
 
-    # score
-    ref_protein = load_prot_from_pdb("tokenizer_benchmark/casps/casp14/T1024-D1.pdb")
-    print(lddt(ref_protein,coords))
+        print(lddt(ref_protein, coords))
