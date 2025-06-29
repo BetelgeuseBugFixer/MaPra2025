@@ -72,9 +72,9 @@ def read_fasta(fasta_path: Path) -> dict:
 #                                                                                                            3).cpu().numpy()
 #
 #     # also load prev computed tokens
-    # pre_encoded_vq_codes = torch.tensor(load_casp_tokens("data/casp14_test/casp14_tokens.jsonl")["T1024-D1"]["vqid"],
-    #                                     dtype=torch.long, device=device)
-    # pre_encoded_coords = decode_atom_coordinates(pre_encoded_vq_codes).detach().squeeze(0).reshape(-1, 3).cpu().numpy()
+# pre_encoded_vq_codes = torch.tensor(load_casp_tokens("data/casp14_test/casp14_tokens.jsonl")["T1024-D1"]["vqid"],
+#                                     dtype=torch.long, device=device)
+# pre_encoded_coords = decode_atom_coordinates(pre_encoded_vq_codes).detach().squeeze(0).reshape(-1, 3).cpu().numpy()
 #
 #     # get scores
 #     print(f"locally encoded: {lddt(ref_protein, locally_encoded_coords)}")
@@ -89,9 +89,8 @@ three_to_one_dict = {
 }
 
 
-
 def get_seq_from_pdb(pdb_file: str) -> str:
-    seq=""
+    seq = ""
     with open(pdb_file, 'r') as f:
         for line in f.readlines():
             if line.startswith("ATOM") and line[12:16].strip() == "CA":
@@ -99,6 +98,7 @@ def get_seq_from_pdb(pdb_file: str) -> str:
                 seq += three_to_one_dict[res_name]
 
     return seq
+
 
 if __name__ == '__main__':
     device = "cuda"
@@ -109,7 +109,8 @@ if __name__ == '__main__':
     decoder = FoldDecoder(device=device)
 
     # define input
-    seqs = [get_seq_from_pdb("tokenizer_benchmark/casps/casp14/T1024-D1.pdb"), get_seq_from_pdb("tokenizer_benchmark/casps/casp14/T1024-D1.pdb")]
+    test_pdbs=["tokenizer_benchmark/casps/casp14/T1024-D1.pdb","tokenizer_benchmark/casps/casp14/T1024-D2.pdb"]
+    seqs = [get_seq_from_pdb(pdb) for pdb in test_pdbs]
     true_lengths = [len(seq) for seq in seqs]
     print(f"true_lengths: {true_lengths}")
     print(seqs)
@@ -121,29 +122,39 @@ if __name__ == '__main__':
     with torch.no_grad():
         emb = plm(seqs)
     print(f"emb: {len(emb[0])}")
-    print("="*20)
+    print("=" * 20)
     cnn.eval()
     with torch.no_grad():
         logits = cnn(emb)  # shape: (B, L, vocab_size)
         pred_tokens = logits.argmax(dim=-1)
-    
+
     pred_tokens = pred_tokens.to(device)
     pre_encoded_vq_codes = torch.tensor(load_casp_tokens("data/casp14_test/casp14_tokens.jsonl")["T1024-D1"]["vqid"],
-                                         dtype=torch.long, device=device)
-    
-    print(f"pre_encoded_vq_codes: {pre_encoded_vq_codes.shape}")
-    print(f"pred_tokens: {pred_tokens.shape}")
-    print("="*20)
-    print(f"pred_tokens: {pred_tokens}")
-    print(f"pre_encoded_vq_codes: {pre_encoded_vq_codes}")
-    print("="*20)
-    for i,protein_token in enumerate(pred_tokens):
+                                        dtype=torch.long, device=device)
+
+    # batch for foldtoken
+    vq_codes = []
+    batch_ids = []
+    chain_encodings = []
+    for i, protein_token in enumerate(pred_tokens):
         L = true_lengths[i]
-        protein_token = protein_token[:L]
-        print(f"protein_token: {protein_token.shape}")
-        coords = decode_atom_coordinates(protein_token, decoder).detach().squeeze(0).reshape(-1, 3).cpu().numpy()
+        protein_token_without_padding = protein_token[:L]
+        vq_codes.append(protein_token_without_padding)
+        batch_ids.append(torch.full((L,), i, dtype=torch.long, device=protein_token.device))
 
-        # score
-        ref_protein = load_prot_from_pdb("tokenizer_benchmark/casps/casp14/T1024-D1.pdb")
+        chain_encodings.append(torch.ones((L,), dtype=torch.long, device=protein_token.device))
 
-        print(lddt(ref_protein, coords))
+
+    vq_codes_cat = torch.cat(vq_codes, dim=0)
+    batch_ids_cat = torch.cat(batch_ids, dim=0)
+    chain_encodings_cat = torch.cat(chain_encodings, 0)
+
+    proteins=decoder.decode(vq_codes_cat,chain_encodings_cat,batch_ids_cat)
+    print(proteins)
+    print("*"*20)
+    for protein,pdb in zip(proteins,test_pdbs):
+        X, _, _ = protein.to_XCS(all_atom=False).detach().squeeze(0).reshape(-1, 3).cpu().numpy()
+        ref_protein = load_prot_from_pdb(pdb)
+        print(lddt(ref_protein, X))
+
+
