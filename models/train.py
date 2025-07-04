@@ -224,7 +224,7 @@ def main(args):
         print(f"Epoch {epoch:02d} | train {tr_loss:.4f}/{tr_acc:.4f} | val {val_loss:.4f}/{val_acc:.4f}")
 
         # Early stopping check
-        if val_acc < best_val_acc:
+        if val_acc > best_val_acc:
             best_val_acc = val_acc
             patience_ctr = 0
             # Save best model

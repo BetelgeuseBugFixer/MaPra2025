@@ -45,9 +45,23 @@ class FoldDecoder(nn.Module):
         chain_encoding = torch.ones_like(vq_codes, device=self.device)
         return self.model.model.decoder_struct.infer_X(X_t, h_V,  batch_id, chain_encoding, 30, virtual_frame_num=virtual_frame_num)
 
-    def decode(self,vq_codes_batch, chain_encodings,batch_ids):
+    def decode(self,vq_codes_batch, chain_encodings, batch_ids):
+        # get latent embeddings
         h_V = self.model.model.vq.embed_id(vq_codes_batch, self.level)  # (B, L, D)
-        proteins = self.model.model.decoding(h_V, chain_encodings, batch_ids=batch_ids)
+        # no fucking idea why this is needed, but it is in the original code
+        L, _ = h_V.shape
+        X_t = torch.rand(L,4,3, device='cuda')
+        # return get predicted structure
+        X_pred, all_preds = self.model.model.decoder_struct.infer_X(X_t, h_V,  batch_ids, chain_encodings)
+        # create protein objects
+        proteins = []
+        for i in range(batch_ids.max()+1):
+            idx = batch_ids == i
+            X_i = X_pred[idx]
+            C_i = chain_encodings[idx]
+            S_i = torch.ones_like(C_i)
+            protein = Protein.from_XCS(X_i[None], C_i[None], S_i[None])
+            proteins.append(protein)
         return proteins
 
     def decode_single_prot(self, vq_codes, output_path):

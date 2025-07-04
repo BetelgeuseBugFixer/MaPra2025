@@ -5,9 +5,10 @@
 #SBATCH -e slurm_out/train_std_err.err
 #SBATCH --container-image="/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/container/mapra_container.sqsh"
 #SBATCH --container-mounts=/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/data:/mnt/data,/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/repro/:/mnt/repro
+#SBATCH --time=02:00:00
 
 cd /mnt/repro/MaPra2025
 export PYTHONPATH=/mnt/repro/MaPra2025:$PYTHONPATH
 echo "Starting training script..."
-python models/train.py --hidden 16384 8192 2048 --kernel 21 3 3 --emb_file /mnt/data/lys6/emb/ly6.h5 --tok_jsonl /mnt/data/lys6/tokens_sanitized.jsonl --epochs 200 --split_file /mnt/data/lys6/split_ids.json --out_folder train_run --batch 800 --patience 200
+python models/train.py --hidden 10000 8000 4000 --kernel 19 1 1 --emb_file /mnt/data/lys6/emb/ly6.h5 --tok_jsonl /mnt/data/lys6/tokens_sanitized.jsonl --epochs 200 --split_file /mnt/data/lys6/split_ids.json --out_folder train_run --batch 800 --patience 10
 echo "Training script finished."
