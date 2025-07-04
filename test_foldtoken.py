@@ -14,6 +14,7 @@ from models.prot_t5.prot_t5 import ProtT5
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
 
 from models.foldtoken_decoder.foldtoken_decoder import FoldDecoder
+from models.whole_model import TFold
 
 
 def load_prot_from_pdb(pdb_file):
@@ -67,27 +68,28 @@ def sanity_test():
     # test_pdb = "data/lys6/pdb_files/pdb/AF-A0A0A0AJ30-F1-model_v4.pdb"
     # test_tokens = load_casp_tokens("/mnt/data/lys6/tokens_sanitized.jsonl")["A0A0A0AJ30"]["vqid"]
 
-
     # get ref
     ref_protein = load_prot_from_pdb(test_pdb)
 
     # encode and decode model
     locally_encoded_vq_codes = model.encode_pdb(test_pdb)
     locally_encoded_coords = decode_atom_coordinates(locally_encoded_vq_codes, model).detach().squeeze(0).reshape(-1,
-                                                                                                           3).cpu().numpy()
+                                                                                                                  3).cpu().numpy()
 
     # also load prev computed tokens
     pre_encoded_vq_codes = torch.tensor(test_tokens, dtype=torch.long, device=device)
-    pre_encoded_coords = decode_atom_coordinates(pre_encoded_vq_codes, model).detach().squeeze(0).reshape(-1, 3).cpu().numpy()
-    
-    #compare vq codes
-    print(f"identical vq codes: {((locally_encoded_vq_codes==pre_encoded_vq_codes).float().mean())*100:.2f}%")
-    
+    pre_encoded_coords = decode_atom_coordinates(pre_encoded_vq_codes, model).detach().squeeze(0).reshape(-1,
+                                                                                                          3).cpu().numpy()
+
+    # compare vq codes
+    print(f"identical vq codes: {((locally_encoded_vq_codes == pre_encoded_vq_codes).float().mean()) * 100:.2f}%")
+
     # get scores
     print(f"locally encoded: {lddt(ref_protein, locally_encoded_coords)}")
     print(f"pre encoded: {lddt(ref_protein, pre_encoded_coords)}")
     print(f"locally encoded: {lddt(ref_protein, locally_encoded_coords, aggregation='residue')}")
     print(f"pre encoded: {lddt(ref_protein, pre_encoded_coords, aggregation='residue')}")
+
 
 three_to_one_dict = {
     'ALA': 'A', 'ARG': 'R', 'ASN': 'N', 'ASP': 'D',
@@ -108,23 +110,23 @@ def get_seq_from_pdb(pdb_file: str) -> str:
 
     return seq
 
+
 def sample_workflow():
     device = "cuda"
     # init models
-    model = FoldDecoder(device=device).to(device)
     plm = ProtT5().to(device)
     cnn = ResidueTokenCNN.load_cnn("train_run/cnn_k19_1_1_h10000_8000_4000.pt").to(device)
     decoder = FoldDecoder(device=device)
 
     # define input
-    #test_pdbs=["tokenizer_benchmark/casps/casp14/T1024-D1.pdb","tokenizer_benchmark/casps/casp14/T1024-D2.pdb"]
-    ly6_pdb_dir="/mnt/data/lys6/pdb_files/pdb"
-    test_pdbs=[os.path.join(ly6_pdb_dir,pdb) for pdb in os.listdir(ly6_pdb_dir)]
+    # test_pdbs=["tokenizer_benchmark/casps/casp14/T1024-D1.pdb","tokenizer_benchmark/casps/casp14/T1024-D2.pdb"]
+    ly6_pdb_dir = "/mnt/data/lys6/pdb_files/pdb"
+    test_pdbs = [os.path.join(ly6_pdb_dir, pdb) for pdb in os.listdir(ly6_pdb_dir)]
     lddt_scores = []
     # create batches 
-    batch_size = 16 
+    batch_size = 16
     for i in range(0, len(test_pdbs), batch_size):
-        pdb_batch = test_pdbs[i:i+batch_size]
+        pdb_batch = test_pdbs[i:i + batch_size]
         seqs = [get_seq_from_pdb(pdb) for pdb in pdb_batch]
         true_lengths = [len(seq) for seq in seqs]
         # print(f"true_lengths: {true_lengths}")
@@ -137,7 +139,7 @@ def sample_workflow():
         with torch.no_grad():
             emb = plm(seqs)
         # print(f"emb: {len(emb[0])}")
-        #print("=" * 20)
+        # print("=" * 20)
         cnn.eval()
         with torch.no_grad():
             logits = cnn(emb)  # shape: (B, L, vocab_size)
@@ -146,7 +148,6 @@ def sample_workflow():
         pred_tokens = pred_tokens.to(device)
         # pre_encoded_vq_codes = torch.tensor(load_casp_tokens("data/casp14_test/casp14_tokens.jsonl")["T1024-D1"]["vqid"],
         #                                     dtype=torch.long, device=device)
-        
 
         # batch for foldtoken
         vq_codes = []
@@ -159,18 +160,17 @@ def sample_workflow():
             batch_ids.append(torch.full((L,), i, dtype=torch.long, device=protein_token.device))
             chain_encodings.append(torch.full((L,), 1, dtype=torch.long, device=protein_token.device))
 
-
         vq_codes_cat = torch.cat(vq_codes, dim=0)
         batch_ids_cat = torch.cat(batch_ids, dim=0)
         chain_encodings_cat = torch.cat(chain_encodings, 0)
         # print(f"vq_codes_cat:\n{vq_codes_cat}\nbatch_ids_cat:\n{batch_ids_cat}\nchain_encodings_cat:\n{chain_encodings_cat}")
-        
-        proteins=decoder.decode(vq_codes_cat,chain_encodings_cat,batch_ids_cat)
+
+        proteins = decoder.decode(vq_codes_cat, chain_encodings_cat, batch_ids_cat)
         # print("*"*20)
-        for protein,pdb in zip(proteins, pdb_batch):
+        for protein, pdb in zip(proteins, pdb_batch):
             # print(protein)
             X, _, _ = protein.to_XCS(all_atom=False)
-            X=X.detach().squeeze(0).reshape(-1,3).cpu().numpy()
+            X = X.detach().squeeze(0).reshape(-1, 3).cpu().numpy()
             try:
                 ref_protein = load_prot_from_pdb(pdb)
             except Exception as e:
@@ -179,10 +179,20 @@ def sample_workflow():
             lddt_score = lddt(ref_protein, X)
             lddt_scores.append(lddt_score)
             print(lddt_score)
-    print(f"Average lddt score: {sum(lddt_scores)/len(lddt_scores)}")    
+    print(f"Average lddt score: {sum(lddt_scores) / len(lddt_scores)}")
 
 
 if __name__ == '__main__':
-    sample_workflow()
-
-
+    test_pdbs = ["tokenizer_benchmark/casps/casp14/T1024-D1.pdb", "tokenizer_benchmark/casps/casp14/T1026-D1.pdb"]
+    seqs = [get_seq_from_pdb(pdb_path) for pdb_path in test_pdbs]
+    t_fold = TFold([1024],device="cuda").to("cuda")
+    proteins, tokens = t_fold(seqs)
+    for protein,pdb in zip(proteins,test_pdbs):
+        X, _, _ = protein.to_XCS(all_atom=False)
+        X = X.detach().squeeze(0).reshape(-1, 3).cpu().numpy()
+        try:
+            ref_protein = load_prot_from_pdb(pdb)
+        except Exception as e:
+            print(f"Error loading PDB {pdb}: {e}")
+            continue
+        print(lddt(ref_protein, X))
