@@ -1,3 +1,4 @@
+import os
 from typing import List
 
 import torch
@@ -24,6 +25,37 @@ class TFold(nn.Module):
 
         for param in self.plm.parameters():
             param.requires_grad = False
+
+        # save args
+        # save args
+        self.args = {
+            "hidden": hidden,
+            "kernel_sizes": kernel_sizes,
+            "dropout": dropout,
+        }
+        hidden_layers_string = "_".join(str(i) for i in hidden)
+        kernel_sizes_string = "_".join(str(i) for i in kernel_sizes)
+        self.model_name = f"t_fold_k{kernel_sizes_string}_h{hidden_layers_string}"
+
+    def save(self, output_dir: str):
+        os.makedirs(output_dir, exist_ok=True)
+        save_path = os.path.join(output_dir, f"{self.model_name}.pt")
+        torch.save({
+            "model_args": self.args,
+            "state_dict": self.state_dict()
+        }, save_path)
+
+    @staticmethod
+    def load_tfold(path: str, device="cpu") -> "TFold":
+        checkpoint = torch.load(path, map_location=device)
+        model_args = checkpoint["model_args"]
+        model_args["device"] = device
+
+        model = TFold(**model_args)
+        model.load_state_dict(checkpoint["state_dict"])
+        model.to(device)
+        model.eval()
+        return model
 
     def forward(self, seqs: List[str]):
         # save the lengths of the sequences
