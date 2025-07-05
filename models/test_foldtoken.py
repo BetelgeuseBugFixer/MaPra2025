@@ -186,8 +186,9 @@ if __name__ == '__main__':
     test_pdbs = ["tokenizer_benchmark/casps/casp14/T1024-D1.pdb", "tokenizer_benchmark/casps/casp14/T1026-D1.pdb"]
     seqs = [get_seq_from_pdb(pdb_path) for pdb_path in test_pdbs]
     t_fold = TFold([1024],device="cuda").to("cuda").eval()
-
+    print(hash(str(t_fold.decoder.state_dict())))
     proteins, tokens = t_fold(seqs)
+    print(tokens)
     for protein,pdb in zip(proteins,test_pdbs):
         X, _, _ = protein.to_XCS(all_atom=False)
         X = X.detach().squeeze(0).reshape(-1, 3).cpu().numpy()
@@ -199,8 +200,10 @@ if __name__ == '__main__':
         print(lddt(ref_protein, X))
     print("*"*11)
     t_fold.save(".")
-    t_fold = TFold.load_tfold(f"{t_fold.model_name}.pt")
+    t_fold = TFold.load_tfold(f"{t_fold.model_name}.pt",device="cuda").to("cuda").eval()
+    print(hash(str(t_fold.decoder.state_dict())))
     proteins, tokens = t_fold(seqs)
+    print(tokens)
     for protein, pdb in zip(proteins, test_pdbs):
         X, _, _ = protein.to_XCS(all_atom=False)
         X = X.detach().squeeze(0).reshape(-1, 3).cpu().numpy()

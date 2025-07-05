@@ -32,6 +32,7 @@ class TFold(nn.Module):
             "hidden": hidden,
             "kernel_sizes": kernel_sizes,
             "dropout": dropout,
+            "device": device
         }
         hidden_layers_string = "_".join(str(i) for i in hidden)
         kernel_sizes_string = "_".join(str(i) for i in kernel_sizes)
