@@ -188,7 +188,7 @@ def main(args):
         run = init_wand_db(args)
 
     # init important metric based on if the models need to optimize or minimize
-    if model.maximze:
+    if model.maximize:
         best_val_score = -float('inf')
     else:
         best_val_score = float('inf')
