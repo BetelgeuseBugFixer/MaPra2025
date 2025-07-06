@@ -35,19 +35,18 @@ def parse_args():
                         help="Size of VQ vocabulary")
 
     parser.add_argument("--model", type=str, default="cnn", help="type of model to use")
-    parser.add_argument("--kernel_size", type=int,nargs="+", default=[5], help="kernel size of the cnn")
+    parser.add_argument("--kernel_size", type=int, nargs="+", default=[5], help="kernel size of the cnn")
     parser.add_argument("--d_emb", type=int, default=1024)
     parser.add_argument("--hidden", type=int, nargs="+", default=[2048])
     parser.add_argument("--dropout", type=float, default=0.3)
     parser.add_argument("--batch", type=int, default=1,
-                        help="Batch size (1 → no padding)")
+                        help="Batch size")
 
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--patience", type=int, default=3,
                         help="Early stopping patience (in epochs)")
-    parser.add_argument("--run_test", action="store_true", help="also run test set")
     parser.add_argument("--no_wandb", action="store_true", help="do not log wandb")
     parser.add_argument("--plot", action="store_true", help="plot training progress")
     parser.add_argument("--out_folder", type=str, help="directory where the plots and model files will be stored",
@@ -70,8 +69,7 @@ def create_data_loaders(emb_source, tok_jsonl, train_ids, val_ids, test_ids, bat
 def build_cnn(d_emb, hidden, vocab_size, kernel_size, dropout, lr, device):
     model = ResidueTokenCNN(d_emb, hidden, vocab_size, kernel_size, dropout).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    criterion = nn.CrossEntropyLoss(ignore_index=PAD_LABEL)
-    return model, optimizer, criterion
+    return model, optimizer
 
 
 def build_nn(d_emb, hidden, vocab_size, dropout, lr, device):
@@ -188,7 +186,7 @@ def main(args):
         emb_source, args.tok_jsonl, train_ids, val_ids, test_ids, args.batch, use_file
     )
 
-    model, optimizer, criterion = get_model(args)
+    model, optimizer = get_model(args)
 
     # init wand db
     run = None
@@ -196,36 +194,35 @@ def main(args):
         wandb.login(key=open("wandb_key").read().strip())
         run = init_wand_db(args)
 
-    # Tracking metrics
-    train_losses, train_accs = [], []
-    val_losses, val_accs = [], []
-    best_val_acc = -1
+    # init important metric based on if the models need to optimize or minimize
+    if model.maximze:
+        best_val_score = -float('inf')
+    else:
+        best_val_score = float('inf')
     patience_ctr = 0
 
     # init output
     os.makedirs(args.out_folder, exist_ok=True)
 
     for epoch in range(1, args.epochs + 1):
-        tr_loss, tr_acc = run_epoch(model, train_loader, criterion, optimizer, args.device)
-        val_loss, val_acc = run_epoch(model, val_loader, criterion, device=args.device)
+        train_score_dict = model.run_epoch(train_loader, optimizer=optimizer, device=args.device)
+        val_score_dict = model.run_epoch(val_loader, device=args.device)
+        score_dict = train_score_dict | val_score_dict
 
         if not args.no_wandb:
-            run.log({
-                "acc": tr_acc,
-                "loss": tr_loss,
-                "val_acc": val_acc,
-                "val_loss": val_loss,
-            })
-        train_losses.append(tr_loss)
-        train_accs.append(tr_acc)
-        val_losses.append(val_loss)
-        val_accs.append(val_acc)
+            run.log(score_dict)
 
+        tr_loss=score_dict["loss"]
+        tr_acc=score_dict["acc"]
+        val_loss=score_dict["val_loss"]
+        val_acc=score_dict["val_acc"]
         print(f"Epoch {epoch:02d} | train {tr_loss:.4f}/{tr_acc:.4f} | val {val_loss:.4f}/{val_acc:.4f}")
 
         # Early stopping check
-        if val_acc > best_val_acc:
-            best_val_acc = val_acc
+        new_score=score_dict[model.key_metric]
+        if ((model.maximize and new_score > best_val_score)
+                or (not model.maximize and new_score < best_val_score )):
+            best_val_score = new_score
             patience_ctr = 0
             # Save best model
             model.save(args.out_folder)
@@ -235,20 +232,15 @@ def main(args):
                 print(f"Stopping early at epoch {epoch} (no improvement for {args.patience} epochs)")
                 break
 
-    # Final test evaluation
-    if args.run_test:
-        test_loss, test_acc = run_epoch(model, test_loader, criterion, device=args.device)
-        print(f"Test {test_loss:.4f}/{test_acc:.4f}")
-
-    if args.no_wandb:
-        run.finish(0)
+    if not args.no_wandb:
+        run.finish()
         # Plotting training curves
-    epochs_range = range(1, len(train_losses) + 1)
 
-    if args.plot:
-        plot_training(args.out_folder, epochs_range, train_accs, train_losses, val_accs, val_losses)
+    # if args.plot:
+    #    epochs_range = range(1, len(train_losses) + 1)
+    #    plot_training(args.out_folder, epochs_range, train_accs, train_losses, val_accs, val_losses)
 
-    print(f"Saved best model → {os.path.join(args.out_folder, "simple_cnn_classifier.pt")}")
+    print(f"Saved best model in → {args.out_folder}")
 
 
 def plot_training(out_folder, epochs_range, train_accs, train_losses, val_accs, val_losses):

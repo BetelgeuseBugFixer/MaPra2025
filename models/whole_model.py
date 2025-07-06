@@ -27,7 +27,6 @@ class TFold(nn.Module):
             param.requires_grad = False
 
         # save args
-        # save args
         self.args = {
             "hidden": hidden,
             "kernel_sizes": kernel_sizes,

@@ -2,6 +2,8 @@ import os.path
 
 import torch
 import torch.nn as nn
+from models.simple_classifier.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir, PAD_LABEL
+from models.train import _masked_accuracy
 
 
 class ResidueTokenCNN(nn.Module):
@@ -91,6 +93,11 @@ class ResidueTokenLNN(nn.Module):
         self.drop = nn.Dropout(dropout)
         self.lin2 = nn.Linear(in_features=hidden,
                               out_features=vocab_size)
+        self.criterion = nn.CrossEntropyLoss(ignore_index=PAD_LABEL)
+
+        # define most important metric and whether it needs to be minimized or maximized
+        self.key_metric = "val_acc"
+        self.maximize = True
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # B, L, D = x.shape
@@ -101,3 +108,33 @@ class ResidueTokenLNN(nn.Module):
         h = self.lin2(h)  # → (B, vocab_size, L)
         out = h.permute(0, 2, 1)  # → (B, L, vocab_size)
         return out
+
+    def run_epoch(self, loader, optimizer=None, device="cpu"):
+        is_train = optimizer is not None
+        self.train() if is_train else self.eval()
+        total_loss = total_acc = total_samples = 0
+        torch.set_grad_enabled(is_train)
+
+        for emb, tok in loader:
+            emb, tok = emb.to(device), tok.to(device)
+            mask = (tok != PAD_LABEL)
+            logits = self(emb)
+            loss = self.criterion(logits.transpose(1, 2), tok)
+
+            if is_train:
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+            bsz = emb.size(0)
+            total_loss += loss.item() * bsz
+            total_acc += _masked_accuracy(logits, tok, mask) * bsz
+            total_samples += bsz
+        set_prefix = ""
+        if not is_train:
+            set_prefix = "val_"
+        score_dict = {
+            f"{set_prefix}acc": total_acc / total_samples,
+            f"{set_prefix}loss": total_loss / total_samples,
+        }
+        return score_dict
