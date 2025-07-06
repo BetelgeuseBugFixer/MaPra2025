@@ -11,6 +11,7 @@ from torch.nn.utils.rnn import pad_sequence
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
+from models.model_utils import _masked_accuracy
 from models.simple_classifier.simple_classifier import ResidueTokenCNN, ResidueTokenLNN
 from models.simple_classifier.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir, PAD_LABEL
 
@@ -94,13 +95,6 @@ def pad_collate(batch):
     # pad tokens along the sequence dimension, with PAD_LABEL
     toks_padded = pad_sequence(toks, batch_first=True, padding_value=PAD_LABEL)
     return embs_padded, toks_padded
-
-
-def _masked_accuracy(logits, tgt, mask):
-    pred = logits.argmax(dim=-1)
-    correct = ((pred == tgt) & mask).sum().item()
-    total = mask.sum().item()
-    return correct / total if total else 0.0
 
 
 def run_epoch(model, loader, criterion, optimizer=None, device="cpu"):
@@ -212,16 +206,16 @@ def main(args):
         if not args.no_wandb:
             run.log(score_dict)
 
-        tr_loss=score_dict["loss"]
-        tr_acc=score_dict["acc"]
-        val_loss=score_dict["val_loss"]
-        val_acc=score_dict["val_acc"]
+        tr_loss = score_dict["loss"]
+        tr_acc = score_dict["acc"]
+        val_loss = score_dict["val_loss"]
+        val_acc = score_dict["val_acc"]
         print(f"Epoch {epoch:02d} | train {tr_loss:.4f}/{tr_acc:.4f} | val {val_loss:.4f}/{val_acc:.4f}")
 
         # Early stopping check
-        new_score=score_dict[model.key_metric]
+        new_score = score_dict[model.key_metric]
         if ((model.maximize and new_score > best_val_score)
-                or (not model.maximize and new_score < best_val_score )):
+                or (not model.maximize and new_score < best_val_score)):
             best_val_score = new_score
             patience_ctr = 0
             # Save best model

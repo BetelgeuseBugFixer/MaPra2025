@@ -3,7 +3,7 @@ import os.path
 import torch
 import torch.nn as nn
 from models.simple_classifier.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir, PAD_LABEL
-from models.train import _masked_accuracy
+from models.model_utils import _masked_accuracy
 
 
 class ResidueTokenCNN(nn.Module):
