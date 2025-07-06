@@ -165,7 +165,6 @@ def init_wand_db(args):
             "hidden": args.hidden,
             "dropout": args.dropout,
             "batch_size": args.batch,
-            "run_test": args.run_test
         }
     )
 
