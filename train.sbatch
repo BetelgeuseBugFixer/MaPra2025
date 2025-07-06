@@ -7,6 +7,8 @@
 #SBATCH --container-mounts=/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/data:/mnt/data,/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/repro/:/mnt/repro
 #SBATCH --time=02:00:00
 
+# command to execute and track it
+# sbatch train.sbatch &  tail -f slurm_out/train_std_output.out slurm_out/train_std_err.err
 cd /mnt/repro/MaPra2025
 export PYTHONPATH=/mnt/repro/MaPra2025:$PYTHONPATH
 echo "Starting training script..."
