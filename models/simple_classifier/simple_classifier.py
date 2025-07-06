@@ -50,6 +50,11 @@ class ResidueTokenCNN(nn.Module):
         hidden_layers_string = "_".join(str(i) for i in hidden)
         kernel_sizes_string = "_".join(str(i) for i in kernel_sizes)
         self.model_name = f"cnn_k{kernel_sizes_string}_h{hidden_layers_string}"
+        self.criterion = nn.CrossEntropyLoss(ignore_index=PAD_LABEL)
+
+        # define most important metric and whether it needs to be minimized or maximized
+        self.key_metric = "val_acc"
+        self.maximize = True
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # B, L, D = x.shape
@@ -82,33 +87,6 @@ class ResidueTokenCNN(nn.Module):
         return model
 
 
-class ResidueTokenLNN(nn.Module):
-    """Linear head."""
-
-    def __init__(self, d_emb: int, hidden: int, vocab_size: int, dropout: float = 0.3):
-        super().__init__()
-        self.lin1 = nn.Linear(in_features=d_emb,
-                              out_features=hidden)
-        self.relu = nn.ReLU()
-        self.drop = nn.Dropout(dropout)
-        self.lin2 = nn.Linear(in_features=hidden,
-                              out_features=vocab_size)
-        self.criterion = nn.CrossEntropyLoss(ignore_index=PAD_LABEL)
-
-        # define most important metric and whether it needs to be minimized or maximized
-        self.key_metric = "val_acc"
-        self.maximize = True
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # B, L, D = x.shape
-        x = x.permute(0, 2, 1)  # → (B, d_emb, L)
-        h = self.lin1(x)  # → (B, hidden, L)
-        h = self.relu(h)
-        h = self.drop(h)
-        h = self.lin2(h)  # → (B, vocab_size, L)
-        out = h.permute(0, 2, 1)  # → (B, L, vocab_size)
-        return out
-
     def run_epoch(self, loader, optimizer=None, device="cpu"):
         is_train = optimizer is not None
         self.train() if is_train else self.eval()
@@ -138,3 +116,33 @@ class ResidueTokenLNN(nn.Module):
             f"{set_prefix}loss": total_loss / total_samples,
         }
         return score_dict
+
+
+class ResidueTokenLNN(nn.Module):
+    """Linear head."""
+
+    def __init__(self, d_emb: int, hidden: int, vocab_size: int, dropout: float = 0.3):
+        super().__init__()
+        self.lin1 = nn.Linear(in_features=d_emb,
+                              out_features=hidden)
+        self.relu = nn.ReLU()
+        self.drop = nn.Dropout(dropout)
+        self.lin2 = nn.Linear(in_features=hidden,
+                              out_features=vocab_size)
+        self.criterion = nn.CrossEntropyLoss(ignore_index=PAD_LABEL)
+
+        # define most important metric and whether it needs to be minimized or maximized
+        self.key_metric = "val_acc"
+        self.maximize = True
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # B, L, D = x.shape
+        x = x.permute(0, 2, 1)  # → (B, d_emb, L)
+        h = self.lin1(x)  # → (B, hidden, L)
+        h = self.relu(h)
+        h = self.drop(h)
+        h = self.lin2(h)  # → (B, vocab_size, L)
+        out = h.permute(0, 2, 1)  # → (B, L, vocab_size)
+        return out
+
+
