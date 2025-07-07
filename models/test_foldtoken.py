@@ -100,14 +100,22 @@ three_to_one_dict = {
 }
 
 
-def get_seq_from_pdb(pdb_file: str) -> str:
+def get_seq_from_pdb(pdb_file: str) -> str | None:
     seq = ""
+    chain_id=None
     with open(pdb_file, 'r') as f:
         for line in f.readlines():
             if line.startswith("ATOM") and line[12:16].strip() == "CA":
+                current_chain=line[21]
+                if chain_id is None:
+                    chain_id = current_chain
+                else:
+                    if current_chain != chain_id:
+                        return None
                 res_name = line[17:20].strip()
                 seq += three_to_one_dict[res_name]
-
+            elif line.startswith("ENDMDL"):
+                break
     return seq
 
 
