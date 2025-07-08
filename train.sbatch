@@ -12,5 +12,5 @@
 cd /mnt/repro/MaPra2025
 export PYTHONPATH=/mnt/repro/MaPra2025:$PYTHONPATH
 echo "Starting training script..."
-python models/train.py --hidden 4096 4096 2048 --kernel 9 7 5 --emb_file /mnt/data/lys6/emb/ly6.h5 --tok_jsonl /mnt/data/lys6/tokens_sanitized.jsonl --epochs 200 --split_file /mnt/data/lys6/split_ids.json --out_folder train_run --batch 800 --patience 10
+python models/train.py --hidden 4096 2048 2048 2048 --kernel 5 5 5 5 --emb_file /mnt/data/lys6/emb/ly6.h5 --tok_jsonl /mnt/data/lys6/tokens_sanitized.jsonl --epochs 200 --split_file /mnt/data/lys6/split_ids.json --out_folder train_run --batch 800 --patience 10
 echo "Training script finished."
