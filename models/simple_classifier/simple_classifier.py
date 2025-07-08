@@ -53,8 +53,8 @@ class ResidueTokenCNN(nn.Module):
         self.criterion = nn.CrossEntropyLoss(ignore_index=PAD_LABEL)
 
         # define most important metric and whether it needs to be minimized or maximized
-        self.key_metric = "val_acc"
-        self.maximize = True
+        self.key_metric = "val_loss"
+        self.maximize = False
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # B, L, D = x.shape
