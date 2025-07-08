@@ -232,7 +232,7 @@ def calc_lddt_scores(protein_predictions, ref_protein):
     for protein_prediction, protein_ref in zip(protein_predictions, ref_protein):
         X, _, _ = protein_prediction.to_XCS(all_atom=False)
         X = X.detach().squeeze(0).reshape(-1, 3).cpu().numpy()
-        lddt_scores.append(lddt(ref_protein, X))
+        lddt_scores.append(lddt(protein_ref, X))
     return lddt_scores
 
 
@@ -250,23 +250,27 @@ if __name__ == '__main__':
     tokens_reference = [fold_model.encode_pdb(test_pdb) for test_pdb in test_pdbs]
     tokens_reference_padded = pad_sequence(tokens_reference, batch_first=True, padding_value=PAD_LABEL)
     protein_reference = [load_prot_from_pdb(test_pdb) for test_pdb in test_pdbs]
-    criterion = nn.CrossEntropyLoss(ignore_index=PAD_LABEL)
     # define model
-    model = TFold(hidden=[2024], kernel_sizes=[3]).to(device)
+    model = TFold(hidden=[2048, 2048], kernel_sizes=[5, 5], use_lora = True).to(device)
+    #define learning stuff
+    criterion = nn.CrossEntropyLoss(ignore_index=PAD_LABEL)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001 )
     # get predicted tokens + protein structure
-    for _ in range(1_000):
+    model.train()
+    for _ in range(100):
         protein_predictions, logits = model(seqs)
         # get loss
         mask = (tokens_reference_padded != PAD_LABEL)
         loss = calc_token_loss(criterion, logits, tokens_reference_padded)
         # backpropagate
-        print(print(f"{loss}"))
+        optimizer.zero_grad()
         loss.backward()
+        optimizer.step()
         # get lddt
         lddt_scores = calc_lddt_scores(protein_predictions, protein_reference)
         # log
         batch_size=len(seqs)
         total_loss = loss.detach().item() * batch_size
         total_acc = _masked_accuracy(logits, tokens_reference_padded, mask) * batch_size
-        print(print(f"token loss {loss}"))
+        print(f"token loss: {loss}")
         print(lddt_scores)
