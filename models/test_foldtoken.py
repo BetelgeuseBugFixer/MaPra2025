@@ -9,8 +9,12 @@ import biotite.structure.io.pdb as pdb
 from biotite.structure.io.pdb import PDBFile
 from biotite.structure import lddt, tm_score, filter_canonical_amino_acids
 from biotite.structure.filter import _filter_atom_names
+from torch import nn
+from torch.nn.utils.rnn import pad_sequence
 
+from models.model_utils import _masked_accuracy
 from models.prot_t5.prot_t5 import ProtT5
+from models.simple_classifier.datasets import PAD_LABEL
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
 
 from models.foldtoken_decoder.foldtoken_decoder import FoldDecoder
@@ -102,11 +106,11 @@ three_to_one_dict = {
 
 def get_seq_from_pdb(pdb_file: str) -> str | None:
     seq = ""
-    chain_id=None
+    chain_id = None
     with open(pdb_file, 'r') as f:
         for line in f.readlines():
             if line.startswith("ATOM") and line[12:16].strip() == "CA":
-                current_chain=line[21]
+                current_chain = line[21]
                 if chain_id is None:
                     chain_id = current_chain
                 else:
@@ -190,25 +194,10 @@ def sample_workflow():
     print(f"Average lddt score: {sum(lddt_scores) / len(lddt_scores)}")
 
 
-if __name__ == '__main__':
+def test_loading():
     test_pdbs = ["tokenizer_benchmark/casps/casp14/T1024-D1.pdb", "tokenizer_benchmark/casps/casp14/T1026-D1.pdb"]
     seqs = [get_seq_from_pdb(pdb_path) for pdb_path in test_pdbs]
-    t_fold = TFold([1024],device="cuda").to("cuda").eval()
-    print(hash(str(t_fold.decoder.state_dict())))
-    proteins, tokens = t_fold(seqs)
-    print(tokens)
-    for protein,pdb in zip(proteins,test_pdbs):
-        X, _, _ = protein.to_XCS(all_atom=False)
-        X = X.detach().squeeze(0).reshape(-1, 3).cpu().numpy()
-        try:
-            ref_protein = load_prot_from_pdb(pdb)
-        except Exception as e:
-            print(f"Error loading PDB {pdb}: {e}")
-            continue
-        print(lddt(ref_protein, X))
-    print("*"*11)
-    t_fold.save(".")
-    t_fold = TFold.load_tfold(f"{t_fold.model_name}.pt",device="cuda").to("cuda").eval()
+    t_fold = TFold([1024], device="cuda").to("cuda").eval()
     print(hash(str(t_fold.decoder.state_dict())))
     proteins, tokens = t_fold(seqs)
     print(tokens)
@@ -221,3 +210,63 @@ if __name__ == '__main__':
             print(f"Error loading PDB {pdb}: {e}")
             continue
         print(lddt(ref_protein, X))
+    print("*" * 11)
+    t_fold.save(".")
+    t_fold = TFold.load_tfold(f"{t_fold.model_name}.pt", device="cuda").to("cuda").eval()
+    print(hash(str(t_fold.decoder.state_dict())))
+    proteins, tokens = t_fold(seqs)
+    print(tokens)
+    for protein, pdb in zip(proteins, test_pdbs):
+        X, _, _ = protein.to_XCS(all_atom=False)
+        X = X.detach().squeeze(0).reshape(-1, 3).cpu().numpy()
+        try:
+            ref_protein = load_prot_from_pdb(pdb)
+        except Exception as e:
+            print(f"Error loading PDB {pdb}: {e}")
+            continue
+        print(lddt(ref_protein, X))
+
+
+def calc_lddt_scores(protein_predictions, ref_protein):
+    lddt_scores = []
+    for protein_prediction, protein_ref in zip(protein_predictions, ref_protein):
+        X, _, _ = protein_prediction.to_XCS(all_atom=False)
+        X = X.detach().squeeze(0).reshape(-1, 3).cpu().numpy()
+        lddt_scores.append(lddt(ref_protein, X))
+    return lddt_scores
+
+
+def calc_token_loss(criterion, tokens_predictions, tokens_reference):
+    return criterion(tokens_predictions.transpose(1, 2), tokens_reference)
+
+
+if __name__ == '__main__':
+    device = "cuda"
+    # define input
+    test_pdbs = ["tokenizer_benchmark/casps/casp14/T1024-D1.pdb", "tokenizer_benchmark/casps/casp14/T1026-D1.pdb"]
+    seqs = [get_seq_from_pdb(pdb_path) for pdb_path in test_pdbs]
+    ref_proteins = [load_prot_from_pdb(test_pdb) for test_pdb in test_pdbs]
+    fold_model = FoldDecoder(device=device)
+    tokens_reference = [fold_model.encode_pdb(test_pdb) for test_pdb in test_pdbs]
+    tokens_reference_padded = pad_sequence(tokens_reference, batch_first=True, padding_value=PAD_LABEL)
+    protein_reference = [load_prot_from_pdb(test_pdb) for test_pdb in test_pdbs]
+    criterion = nn.CrossEntropyLoss(ignore_index=PAD_LABEL)
+    # define model
+    model = TFold(hidden=[2024], kernel_sizes=[3]).to(device)
+    # get predicted tokens + protein structure
+    for _ in range(1_000):
+        protein_predictions, logits = model(seqs)
+        # get loss
+        mask = (tokens_reference_padded != PAD_LABEL)
+        loss = calc_token_loss(criterion, logits, tokens_reference_padded)
+        # backpropagate
+        print(print(f"{loss}"))
+        loss.backward()
+        # get lddt
+        lddt_scores = calc_lddt_scores(protein_predictions, protein_reference)
+        # log
+        batch_size=len(seqs)
+        total_loss = loss.detach().item() * batch_size
+        total_acc = _masked_accuracy(logits, tokens_reference_padded, mask) * batch_size
+        print(print(f"token loss {loss}"))
+        print(lddt_scores)
