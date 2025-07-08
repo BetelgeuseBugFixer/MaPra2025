@@ -5,7 +5,9 @@ import torch
 from torch import nn
 
 from models.foldtoken_decoder.foldtoken_decoder import FoldDecoder
+from models.model_utils import _masked_accuracy
 from models.prot_t5.prot_t5 import ProtT5
+from models.simple_classifier.datasets import PAD_LABEL
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
 
 
@@ -66,12 +68,12 @@ class TFold(nn.Module):
         x = self.plm(x)
         # generate tokens
         x = self.cnn(x)  # shape: (B, L, vocab_size)
-        x = x.argmax(dim=-1)
+        tokens = x.argmax(dim=-1)
         # prepare tokens for decoding
         vq_codes = []
         batch_ids = []
         chain_encodings = []
-        for i, protein_token in enumerate(x):
+        for i, protein_token in enumerate(tokens):
             L = true_lengths[i]
             protein_token_without_padding = protein_token[:L]
             vq_codes.append(protein_token_without_padding)
@@ -85,3 +87,33 @@ class TFold(nn.Module):
         proteins = self.decoder.decode(vq_codes_cat, chain_encodings_cat, batch_ids_cat)
         # return proteins and tokens
         return proteins, x
+
+    def run_epoch(self, loader, optimizer=None, device="cpu"):
+        is_train = optimizer is not None
+        self.train() if is_train else self.eval()
+        total_loss = total_acc = total_samples = 0
+        torch.set_grad_enabled(is_train)
+
+        for sequences, tokens, ref_atom in loader:
+            sequences, tokens = sequences.to(device), tokens.to(device)
+            mask = (tokens != PAD_LABEL)
+            protein_predictions, token_predictions = self(sequences)
+            loss = self.criterion(token_predictions.transpose(1, 2), tokens)
+
+            if is_train:
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+            bsz = len(sequences)
+            total_loss += loss.item() * bsz
+            total_acc += _masked_accuracy(token_predictions, tokens, mask) * bsz
+            total_samples += bsz
+        set_prefix = ""
+        if not is_train:
+            set_prefix = "val_"
+        score_dict = {
+            f"{set_prefix}acc": total_acc / total_samples,
+            f"{set_prefix}loss": total_loss / total_samples,
+        }
+        return score_dict
