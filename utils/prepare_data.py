@@ -22,6 +22,7 @@ def load_prot_from_pdb(pdb_file):
 # Output base
 base_output = Path("/mnt/data/large/subset")
 base_output.mkdir(parents=True, exist_ok=True)
+print("1 Current working directory:", os.getcwd())
 
 
 # === VAL and TEST ===
@@ -30,6 +31,7 @@ for split in ["val_subset474", "test_subset474"]:
     output_dir = base_output / split
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    print("2 Current working directory:", os.getcwd())
     print(f"Loading {split} from {pdb_dir}")
 
     pdbs = {}
