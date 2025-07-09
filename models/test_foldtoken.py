@@ -317,20 +317,26 @@ if __name__ == '__main__':
 
     seqs=["AGHGFEFF","FGTGAD"]
     true_lengths = [len(seq) for seq in seqs]
+    print(f"lengths: {true_lengths}")
     # prepare seqs
     x = [" ".join(seq.translate(str.maketrans('UZO', 'XXX'))) for seq in seqs]
     encoding = tokenizer.batch_encode_plus(
-        seqs,
+        x,
         add_special_tokens=True,
         padding='longest',
         return_tensors='pt'
     )
-    print(encoding)
+    print(f"encoding:\n{encoding}")
     input_ids = encoding['input_ids'].to(device)
     attention_mask = encoding['attention_mask'].to(device)
-    print(attention_mask)
-
+    
+    print(f"attention_mask:\n{attention_mask}")
+    relevant_mask = ((input_ids != 0) & (input_ids != 1)).unsqueeze(-1)
     outputs = model(input_ids, attention_mask=attention_mask)
     hidden = outputs.last_hidden_state
-    print(hidden.shape)
+    print(f"hidden.shape{hidden.shape}")
     print(hidden)
+    new_hidden= hidden * relevant_mask
+    new_hidden = new_hidden[:, :-1, :]
+    print(f"new_hidden.shape{new_hidden.shape}")
+    print(new_hidden)
