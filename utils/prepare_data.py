@@ -33,6 +33,8 @@ for split in ["val_subset474", "test_subset474"]:
     pdbs = {}
     for pdb_file in pdb_dir.glob("*.pdb"):
         mid = pdb_file.stem.split("-")[1]
+        print(f"Processing {pdb_file.stem}")
+        print(f"mid: {mid}")
         if mid in singleton_ids:
             print(f" NOT !!! [{split}] Skipping singleton: {pdb_file.name}")
             #continue
