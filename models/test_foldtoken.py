@@ -127,71 +127,94 @@ def sample_workflow():
     device = "cuda"
     # init models
     plm = ProtT5().to(device)
-    cnn = ResidueTokenCNN.load_cnn("train_run/cnn_k19_1_1_h10000_8000_4000.pt").to(device)
     decoder = FoldDecoder(device=device)
 
     # define input
     # test_pdbs=["tokenizer_benchmark/casps/casp14/T1024-D1.pdb","tokenizer_benchmark/casps/casp14/T1024-D2.pdb"]
     ly6_pdb_dir = "/mnt/data/lys6/pdb_files/pdb"
-    test_pdbs = [os.path.join(ly6_pdb_dir, pdb) for pdb in os.listdir(ly6_pdb_dir)]
-    lddt_scores = []
-    # create batches 
-    batch_size = 16
-    for i in range(0, len(test_pdbs), batch_size):
-        pdb_batch = test_pdbs[i:i + batch_size]
-        seqs = [get_seq_from_pdb(pdb) for pdb in pdb_batch]
-        true_lengths = [len(seq) for seq in seqs]
-        # print(f"true_lengths: {true_lengths}")
-        # print(seqs)
-        seqs = [raw_seq.translate(str.maketrans('UZO', 'XXX')) for raw_seq in seqs]
-        seqs = [" ".join(raw_seq) for raw_seq in seqs]
-        # print(seqs)
-        # run through model
-        plm.eval()
-        with torch.no_grad():
-            emb = plm(seqs)
-        # print(f"emb: {len(emb[0])}")
-        # print("=" * 20)
-        cnn.eval()
-        with torch.no_grad():
-            logits = cnn(emb)  # shape: (B, L, vocab_size)
-            pred_tokens = logits.argmax(dim=-1)
+    # open split
+    with open("/mnt/data/lys6/split_ids.json", "r") as split_file:
+        split = json.load(split_file)
+    train_set = set(split["train"])
+    test_set = set(split["test"])
+    val_set = set(split["val"])
 
-        pred_tokens = pred_tokens.to(device)
-        # pre_encoded_vq_codes = torch.tensor(load_casp_tokens("data/casp14_test/casp14_tokens.jsonl")["T1024-D1"]["vqid"],
-        #                                     dtype=torch.long, device=device)
+    # define sets
+    all_pdb_files = os.listdir(ly6_pdb_dir)
+    train_pdbs = [os.path.join(ly6_pdb_dir, pdb) for pdb in all_pdb_files if pdb.split("-")[1] in train_set]
+    val_pdbs = [os.path.join(ly6_pdb_dir, pdb) for pdb in all_pdb_files if pdb.split("-")[1] in val_set]
+    test_pdbs = [os.path.join(ly6_pdb_dir, pdb) for pdb in all_pdb_files if pdb.split("-")[1] in test_set]
+    sets = [train_pdbs, val_pdbs, test_pdbs]
+    set_names = ["train", "val", "test"]
+    # define models
+    overfitted_cnn = ResidueTokenCNN.load_cnn("train_run/cnn_k9_7_5_h4096_4096_2048.pt").to(device)
+    non_overfitted_large_cnn = ResidueTokenCNN.load_cnn("train_run/cnn_k5_5_5_5_h4096_2048_2048_2048.pt").to(device)
+    non_overfitted_smol_cnn = ResidueTokenCNN.load_cnn("train_run/cnn_k5_5_h2048_2048.pt").to(device)
+    models = [overfitted_cnn, non_overfitted_large_cnn, non_overfitted_smol_cnn]
+    model_names = ["overfitted", "large not overfitted", "small not overfitted"]
+    # run analysis
+    plm.eval()
+    decoder.eval()
+    with torch.no_grad():
+        for cnn, model_name in zip(models, model_names):
+            cnn.eval()
+            for current_set, set_name in zip(sets, set_names):
+                lddt_scores = []
+                # create batches
+                batch_size = 16
+                for batch in range(0, len(current_set), batch_size):
+                    pdb_batch = current_set[batch:batch + batch_size]
+                    seqs = [get_seq_from_pdb(pdb) for pdb in pdb_batch]
+                    true_lengths = [len(seq) for seq in seqs]
+                    # print(f"true_lengths: {true_lengths}")
+                    # print(seqs)
+                    # seqs = [raw_seq.translate(str.maketrans('UZO', 'XXX')) for raw_seq in seqs]
+                    # seqs = [" ".join(raw_seq) for raw_seq in seqs]
+                    # print(seqs)
+                    # run through model
+                    emb = plm(seqs)
+                    emb = [emb[i, : length] for i, length in enumerate(true_lengths)]
+                    emb = pad_sequence(emb, batch_first=True)
+                    # print(f"emb: {len(emb[0])}")
+                    # print("=" * 20)
+                    logits = cnn(emb)  # shape: (B, L, vocab_size)
+                    pred_tokens = logits.argmax(dim=-1)
 
-        # batch for foldtoken
-        vq_codes = []
-        batch_ids = []
-        chain_encodings = []
-        for i, protein_token in enumerate(pred_tokens):
-            L = true_lengths[i]
-            protein_token_without_padding = protein_token[:L]
-            vq_codes.append(protein_token_without_padding)
-            batch_ids.append(torch.full((L,), i, dtype=torch.long, device=protein_token.device))
-            chain_encodings.append(torch.full((L,), 1, dtype=torch.long, device=protein_token.device))
+                    pred_tokens = pred_tokens.to(device)
+                    # pre_encoded_vq_codes = torch.tensor(load_casp_tokens("data/casp14_test/casp14_tokens.jsonl")["T1024-D1"]["vqid"],
+                    #                                     dtype=torch.long, device=device)
 
-        vq_codes_cat = torch.cat(vq_codes, dim=0)
-        batch_ids_cat = torch.cat(batch_ids, dim=0)
-        chain_encodings_cat = torch.cat(chain_encodings, 0)
-        # print(f"vq_codes_cat:\n{vq_codes_cat}\nbatch_ids_cat:\n{batch_ids_cat}\nchain_encodings_cat:\n{chain_encodings_cat}")
+                    # batch for foldtoken
+                    vq_codes = []
+                    batch_ids = []
+                    chain_encodings = []
+                    for i, protein_token in enumerate(pred_tokens):
+                        L = true_lengths[i]
+                        protein_token_without_padding = protein_token[:L]
+                        vq_codes.append(protein_token_without_padding)
+                        batch_ids.append(torch.full((L,), i, dtype=torch.long, device=protein_token.device))
+                        chain_encodings.append(torch.full((L,), 1, dtype=torch.long, device=protein_token.device))
 
-        proteins = decoder.decode(vq_codes_cat, chain_encodings_cat, batch_ids_cat)
-        # print("*"*20)
-        for protein, pdb in zip(proteins, pdb_batch):
-            # print(protein)
-            X, _, _ = protein.to_XCS(all_atom=False)
-            X = X.detach().squeeze(0).reshape(-1, 3).cpu().numpy()
-            try:
-                ref_protein = load_prot_from_pdb(pdb)
-            except Exception as e:
-                print(f"Error loading PDB {pdb}: {e}")
-                continue
-            lddt_score = lddt(ref_protein, X)
-            lddt_scores.append(lddt_score)
-            print(lddt_score)
-    print(f"Average lddt score: {sum(lddt_scores) / len(lddt_scores)}")
+                    vq_codes_cat = torch.cat(vq_codes, dim=0)
+                    batch_ids_cat = torch.cat(batch_ids, dim=0)
+                    chain_encodings_cat = torch.cat(chain_encodings, 0)
+                    # print(f"vq_codes_cat:\n{vq_codes_cat}\nbatch_ids_cat:\n{batch_ids_cat}\nchain_encodings_cat:\n{chain_encodings_cat}")
+
+                    proteins = decoder.decode(vq_codes_cat, chain_encodings_cat, batch_ids_cat)
+                    # print("*"*20)
+                    for protein, pdb in zip(proteins, pdb_batch):
+                        # print(protein)
+                        X, _, _ = protein.to_XCS(all_atom=False)
+                        X = X.detach().squeeze(0).reshape(-1, 3).cpu().numpy()
+                        try:
+                            ref_protein = load_prot_from_pdb(pdb)
+                        except Exception as e:
+                            print(f"Error loading PDB {pdb}: {e}")
+                            continue
+                        lddt_score = lddt(ref_protein, X)
+                        lddt_scores.append(lddt_score)
+                        # print(lddt_score)
+                print(f"{model_name} - {set_name}: {sum(lddt_scores) / len(lddt_scores)}")
 
 
 def test_loading():
@@ -240,7 +263,7 @@ def calc_token_loss(criterion, tokens_predictions, tokens_reference):
     return criterion(tokens_predictions.transpose(1, 2), tokens_reference)
 
 
-if __name__ == '__main__':
+def training_test():
     device = "cuda"
     # define input
     test_pdbs = ["tokenizer_benchmark/casps/casp14/T1024-D1.pdb", "tokenizer_benchmark/casps/casp14/T1026-D1.pdb"]
@@ -251,10 +274,10 @@ if __name__ == '__main__':
     tokens_reference_padded = pad_sequence(tokens_reference, batch_first=True, padding_value=PAD_LABEL)
     protein_reference = [load_prot_from_pdb(test_pdb) for test_pdb in test_pdbs]
     # define model
-    model = TFold(hidden=[2048, 2048], kernel_sizes=[5, 5], use_lora = True).to(device)
-    #define learning stuff
+    model = TFold(hidden=[2048, 2048], kernel_sizes=[5, 5], use_lora=True).to(device)
+    # define learning stuff
     criterion = nn.CrossEntropyLoss(ignore_index=PAD_LABEL)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001 )
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     # get predicted tokens + protein structure
     model.train()
     for _ in range(100):
@@ -269,8 +292,12 @@ if __name__ == '__main__':
         # get lddt
         lddt_scores = calc_lddt_scores(protein_predictions, protein_reference)
         # log
-        batch_size=len(seqs)
+        batch_size = len(seqs)
         total_loss = loss.detach().item() * batch_size
         total_acc = _masked_accuracy(logits, tokens_reference_padded, mask) * batch_size
         print(f"token loss: {loss}")
         print(lddt_scores)
+
+
+if __name__ == '__main__':
+    sample_workflow()
