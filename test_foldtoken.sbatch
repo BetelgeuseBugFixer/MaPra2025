@@ -13,5 +13,5 @@ source /opt/miniconda/etc/profile.d/conda.sh
 conda activate /opt/envs/f_token
 cd /mnt/repro/MaPra2025
 export PYTHONPATH=/mnt/repro/MaPra2025:$PYTHONPATH
-python models/test_foldtoken.py
+python -u models/test_foldtoken.py
 
