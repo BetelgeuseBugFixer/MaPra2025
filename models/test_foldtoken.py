@@ -147,11 +147,13 @@ def sample_workflow():
     sets = [train_pdbs, val_pdbs, test_pdbs]
     set_names = ["train", "val", "test"]
     # define models
-    overfitted_cnn = ResidueTokenCNN.load_cnn("train_run/cnn_k9_7_5_h4096_4096_2048.pt").to(device)
-    non_overfitted_large_cnn = ResidueTokenCNN.load_cnn("train_run/cnn_k5_5_5_5_h4096_2048_2048_2048.pt").to(device)
-    non_overfitted_smol_cnn = ResidueTokenCNN.load_cnn("train_run/cnn_k5_5_h2048_2048.pt").to(device)
-    models = [overfitted_cnn, non_overfitted_large_cnn, non_overfitted_smol_cnn]
-    model_names = ["overfitted", "large not overfitted", "small not overfitted"]
+    # overfitted_cnn = ResidueTokenCNN.load_cnn("train_run/cnn_k9_7_5_h4096_4096_2048.pt").to(device)
+    # non_overfitted_large_cnn = ResidueTokenCNN.load_cnn("train_run/cnn_k5_5_5_5_h4096_2048_2048_2048.pt").to(device)
+    # non_overfitted_smol_cnn = ResidueTokenCNN.load_cnn("train_run/cnn_k5_5_h2048_2048.pt").to(device)
+    # models = [overfitted_cnn, non_overfitted_large_cnn, non_overfitted_smol_cnn]
+    # model_names = ["overfitted", "large not overfitted", "small not overfitted"]
+    models = [ResidueTokenCNN(1024, [2048, 2048], 1024, [5, 5])]
+    model_names = ["random"]
     # run analysis
     plm.eval()
     decoder.eval()
@@ -161,12 +163,12 @@ def sample_workflow():
             for current_set, set_name in zip(sets, set_names):
                 lddt_scores = []
                 # create batches
-                batch_size = 2
+                batch_size = 16
                 for batch in range(0, len(current_set), batch_size):
                     pdb_batch = current_set[batch:batch + batch_size]
                     seqs = [get_seq_from_pdb(pdb) for pdb in pdb_batch]
                     true_lengths = [len(seq) for seq in seqs]
-                    #print(f"true_lengths: {true_lengths}")
+                    # print(f"true_lengths: {true_lengths}")
                     # print(seqs)
                     seqs = [raw_seq.translate(str.maketrans('UZO', 'XXX')) for raw_seq in seqs]
                     seqs = [" ".join(raw_seq) for raw_seq in seqs]
