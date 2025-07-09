@@ -105,7 +105,7 @@ class ResidueTokenCNN(nn.Module):
                 optimizer.step()
 
             bsz = emb.size(0)
-            total_loss += loss.item() * bsz
+            total_loss += loss.detach().item() * bsz
             total_acc += _masked_accuracy(logits, tok, mask) * bsz
             total_samples += bsz
         set_prefix = ""
