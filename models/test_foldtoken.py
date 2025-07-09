@@ -147,13 +147,13 @@ def sample_workflow():
     sets = [train_pdbs, val_pdbs, test_pdbs]
     set_names = ["train", "val", "test"]
     # define models
-    # overfitted_cnn = ResidueTokenCNN.load_cnn("train_run/cnn_k9_7_5_h4096_4096_2048.pt").to(device)
-    # non_overfitted_large_cnn = ResidueTokenCNN.load_cnn("train_run/cnn_k5_5_5_5_h4096_2048_2048_2048.pt").to(device)
-    # non_overfitted_smol_cnn = ResidueTokenCNN.load_cnn("train_run/cnn_k5_5_h2048_2048.pt").to(device)
-    # models = [overfitted_cnn, non_overfitted_large_cnn, non_overfitted_smol_cnn]
-    # model_names = ["overfitted", "large not overfitted", "small not overfitted"]
-    models = [ResidueTokenCNN(1024, [2048, 2048], 1024, [5, 5]).to(device)]
-    model_names = ["random"]
+    overfitted_cnn = ResidueTokenCNN.load_cnn("train_run/cnn_k9_7_5_h4096_4096_2048.pt").to(device)
+    non_overfitted_large_cnn = ResidueTokenCNN.load_cnn("train_run/cnn_k5_5_5_5_h4096_2048_2048_2048.pt").to(device)
+    non_overfitted_smol_cnn = ResidueTokenCNN.load_cnn("train_run/cnn_k5_5_h2048_2048.pt").to(device)
+    models = [overfitted_cnn, non_overfitted_large_cnn, non_overfitted_smol_cnn]
+    model_names = ["overfitted", "large not overfitted", "small not overfitted"]
+    # models = [ResidueTokenCNN(1024, [2048, 2048], 1024, [5, 5]).to(device)]
+    # model_names = ["random"]
     # run analysis
     plm.eval()
     decoder.eval()
@@ -208,9 +208,9 @@ def sample_workflow():
                     # print("*"*20)
                     protein_index = 0
                     for protein, pdb in zip(proteins, pdb_batch):
-                        protein.to_PDB(f"test_{protein_index}.pdb")
                         if protein_index > 5:
                             exit()
+                        protein.to_PDB(f"test_{protein_index}.pdb")
                         protein_index += 1
                         # print(protein)
                         X, _, _ = protein.to_XCS(all_atom=False)
@@ -222,7 +222,7 @@ def sample_workflow():
                             continue
                         lddt_score = lddt(ref_protein, X)
                         lddt_scores.append(lddt_score)
-                        # print(lddt_score)
+                        print(lddt_score)
                 print(f"{model_name} - {set_name}: {sum(lddt_scores) / len(lddt_scores)}")
 
 
