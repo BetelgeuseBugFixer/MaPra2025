@@ -152,7 +152,7 @@ def sample_workflow():
     # non_overfitted_smol_cnn = ResidueTokenCNN.load_cnn("train_run/cnn_k5_5_h2048_2048.pt").to(device)
     # models = [overfitted_cnn, non_overfitted_large_cnn, non_overfitted_smol_cnn]
     # model_names = ["overfitted", "large not overfitted", "small not overfitted"]
-    models = [ResidueTokenCNN(1024, [2048, 2048], 1024, [5, 5])]
+    models = [ResidueTokenCNN(1024, [2048, 2048], 1024, [5, 5]).to(device)]
     model_names = ["random"]
     # run analysis
     plm.eval()
