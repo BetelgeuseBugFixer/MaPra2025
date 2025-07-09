@@ -4,13 +4,12 @@
 #SBATCH -o slurm_out/prepare_data_std_output.out
 #SBATCH -e slurm_out/prepare_data.err
 #SBATCH --container-image="/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/container/final.sqsh"
-#SBATCH --container-mounts=/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/data:/mnt/data,/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/repro/:/mnt/repro
+#SBATCH --container-mounts=/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/data:/mnt/data,/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/repro:/mnt/repro
 #SBATCH --get-user-env
-
 
 source /opt/miniconda/etc/profile.d/conda.sh
 conda activate /opt/envs/f_token
-cd /mnt/data/large/zip_file/final_data_PDB/
+
+cd /mnt/repro/MaPra2025
 export PYTHONPATH=/mnt/repro/MaPra2025:$PYTHONPATH
 python utils/prepare_data.py
-
