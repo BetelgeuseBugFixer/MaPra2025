@@ -206,7 +206,12 @@ def sample_workflow():
 
                     proteins = decoder.decode(vq_codes_cat, chain_encodings_cat, batch_ids_cat)
                     # print("*"*20)
+                    protein_index = 0
                     for protein, pdb in zip(proteins, pdb_batch):
+                        protein.to_PDB(f"test_{protein_index}.pdb")
+                        if protein_index > 5:
+                            exit()
+                        protein_index += 1
                         # print(protein)
                         X, _, _ = protein.to_XCS(all_atom=False)
                         X = X.detach().squeeze(0).reshape(-1, 3).cpu().numpy()
