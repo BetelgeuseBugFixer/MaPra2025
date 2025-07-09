@@ -26,7 +26,7 @@ print("1 Current working directory:", os.getcwd())
 
 
 # === VAL and TEST ===
-for split in ["val_subset474", "test_subset474"]:
+for split in ["val", "test"]:
     pdb_dir = Path(f"/mnt/data/large/zip_file/final_data_PDB/{split}") / f"{split}_pdb"
     output_dir = base_output / split
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -41,8 +41,8 @@ for split in ["val_subset474", "test_subset474"]:
         print(f"mid: {mid}")
 
         if mid in singleton_ids:
-            print(f" NOT !!! [{split}] Skipping singleton: {pdb_file.name}")
-            #continue
+            print(f"[{split}] Skipping singleton: {pdb_file.name}")
+            continue
         try:
             prot = load_prot_from_pdb(str(pdb_file))
             pdbs[pdb_file.stem] = prot
