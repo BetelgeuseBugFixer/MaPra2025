@@ -8,6 +8,7 @@
 #SBATCH --get-user-env
 
 
+# sbatch test_foldtoken.sbatch & tail -f slurm_out/foldtoken_test_std_output.out slurm_out/foldtoken_test_std_err.err
 source /opt/miniconda/etc/profile.d/conda.sh
 conda activate /opt/envs/f_token
 cd /mnt/repro/MaPra2025
