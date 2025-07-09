@@ -25,7 +25,7 @@ base_output.mkdir(parents=True, exist_ok=True)
 
 
 # === VAL and TEST ===
-for split in ["val", "test"]:
+for split in ["val_subset474", "test_subset474"]:
     pdb_dir = Path(split) / f"{split}_pdb"
     output_dir = base_output / split
     output_dir.mkdir(parents=True, exist_ok=True)
