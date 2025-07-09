@@ -166,22 +166,22 @@ def sample_workflow():
                     pdb_batch = current_set[batch:batch + batch_size]
                     seqs = [get_seq_from_pdb(pdb) for pdb in pdb_batch]
                     true_lengths = [len(seq) for seq in seqs]
-                    print(f"true_lengths: {true_lengths}")
+                    #print(f"true_lengths: {true_lengths}")
                     # print(seqs)
-                    # seqs = [raw_seq.translate(str.maketrans('UZO', 'XXX')) for raw_seq in seqs]
-                    # seqs = [" ".join(raw_seq) for raw_seq in seqs]
+                    seqs = [raw_seq.translate(str.maketrans('UZO', 'XXX')) for raw_seq in seqs]
+                    seqs = [" ".join(raw_seq) for raw_seq in seqs]
                     # print(seqs)
                     # run through model
                     emb = plm(seqs)
                     emb = [emb[i, : length] for i, length in enumerate(true_lengths)]
                     emb = pad_sequence(emb, batch_first=True)
-                    print(f"emb: {len(emb[0])}")
-                    print(f"emb: {emb.shape}")
+                    # print(f"emb: {len(emb[0])}")
+                    # print(f"emb: {emb.shape}")
                     # print("=" * 20)
                     logits = cnn(emb)  # shape: (B, L, vocab_size)
-                    print(f"logits: {logits.shape}")
+                    # print(f"logits: {logits.shape}")
                     pred_tokens = logits.argmax(dim=-1)
-                    print(f"tokens: {pred_tokens.shape}")
+                    # print(f"tokens: {pred_tokens.shape}")
                     pred_tokens = pred_tokens.to(device)
                     # pre_encoded_vq_codes = torch.tensor(load_casp_tokens("data/casp14_test/casp14_tokens.jsonl")["T1024-D1"]["vqid"],
                     #                                     dtype=torch.long, device=device)
@@ -200,7 +200,7 @@ def sample_workflow():
                     vq_codes_cat = torch.cat(vq_codes, dim=0)
                     batch_ids_cat = torch.cat(batch_ids, dim=0)
                     chain_encodings_cat = torch.cat(chain_encodings, 0)
-                    print(f"vq_codes_cat:\n{vq_codes_cat.shape}\nbatch_ids_cat:\n{batch_ids_cat.shape}\nchain_encodings_cat:\n{chain_encodings_cat.shape}")
+                    # print(f"vq_codes_cat:\n{vq_codes_cat.shape}\nbatch_ids_cat:\n{batch_ids_cat.shape}\nchain_encodings_cat:\n{chain_encodings_cat.shape}")
 
                     proteins = decoder.decode(vq_codes_cat, chain_encodings_cat, batch_ids_cat)
                     # print("*"*20)
