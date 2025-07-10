@@ -88,7 +88,6 @@ for split in ["val", "test", "train"]:
                         tmp_path = tmp.name
 
                     try:
-                        print(f"[train] Encoding: {member.name}")
                         vq_ids = model.encode_pdb(tmp_path)
                     finally:
                         os.remove(tmp_path)
