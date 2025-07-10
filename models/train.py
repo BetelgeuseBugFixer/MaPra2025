@@ -35,7 +35,7 @@ def parse_args():
                         help="JSONL with per-protein {'<ID>': {..., 'vqid': [...]}}")
     parser.add_argument("--split_file",
                         help="JSON containing the ids split into train, validation and test")
-    parser.add_argument("data_dir", help="Directory with train, validation and test sub directories")
+    parser.add_argument("--data_dir", help="Directory with train, validation and test sub directories")
 
     #model
     parser.add_argument("--model", type=str, default="cnn", help="type of model to use")
