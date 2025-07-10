@@ -58,8 +58,9 @@ for split in ["val", "test", "train"]:
         tar_path = Path("/mnt/data/large/zip_file/final_data_PDB/train/rostlab_subset.tar")
         with tarfile.open(tar_path, "r") as tar:
             processed = 0
-            skipped_singletons = 0  # NEW
+            skipped_singletons = 0
             total_start = time.time()
+            batch_start = time.time()
 
             for member in tar:
                 if not member.name.endswith(".pdb"):
@@ -105,7 +106,9 @@ for split in ["val", "test", "train"]:
                     })
                     processed += 1
                     if processed % 1_000 == 0:
-                        print(f"[train] {processed} done – Time: {time.time() - start:.2f}s")
+                        elapsed = time.time() - batch_start
+                        print(f"[train] {processed} done – Time for last 1000: {elapsed:.2f}s")
+                        batch_start = time.time()
 
                 except Exception as e:
                     print(f"[train] Failed: {member.name}, {e}")
