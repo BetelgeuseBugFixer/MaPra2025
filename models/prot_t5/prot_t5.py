@@ -45,6 +45,10 @@ class ProtT5(nn.Module):
         attention_mask = encoding['attention_mask'].to(self.model.device)
 
         outputs = self.model(input_ids, attention_mask=attention_mask)
-        hidden = outputs.last_hidden_state  # (B, L, D)
+        hidden = outputs.last_hidden_state  # (B, L+1, D)
+        # remove embeddings from eos and padding
+        residue_mask_mask = ((input_ids != 0) & (input_ids != 1)).unsqueeze(-1)
+        hidden = hidden * residue_mask_mask
+        # remove last "residue" embeddings, because it is the eos from the longest seq
         hidden = hidden[:, :-1, :]
         return hidden
