@@ -1,5 +1,6 @@
+import time
 import os
-import io
+
 import tarfile
 import pickle
 import json
@@ -56,15 +57,22 @@ for split in ["val", "test", "train"]:
     if split == "train":
         tar_path = Path("/mnt/data/large/zip_file/final_data_PDB/train/rostlab_subset.tar")
         with tarfile.open(tar_path, "r") as tar:
-            members = [m for m in tar.getmembers() if m.name.endswith(".pdb")]
             processed = 0
-            for member in members:
+            total_start = time.time()
+
+            for member in tar:
+                if not member.name.endswith(".pdb"):
+                    continue
                 if processed >= 100_000:
                     break
+
                 mid = member.name.split("-")[1]
                 if mid in singleton_ids:
                     continue
+
                 try:
+                    start = time.time()
+                    print(f"[train] Processing {member.name}")
                     f = tar.extractfile(member)
                     if not f:
                         continue
@@ -72,30 +80,52 @@ for split in ["val", "test", "train"]:
                     seq = get_seq_from_lines(lines)
                     if not seq:
                         continue
-                    with tempfile.NamedTemporaryFile("w+", suffix=".pdb", delete=True) as tmp:
+
+                    with tempfile.NamedTemporaryFile("w+", suffix=".pdb", delete=False) as tmp:
                         tmp.write("\n".join(lines))
                         tmp.flush()
-                        vq_ids = model.encode_pdb(tmp.name)
+                        tmp_path = tmp.name
 
-                    print(f"seq: {seq}")
-                    print(f"vq_ids: {vq_ids}")
+                    try:
+                        print(f"[train] Encoding: {member.name}")
+                        vq_ids = model.encode_pdb(tmp_path)
+                        print(f"[train] Done encoding: {member.name}")
+                    finally:
+                        os.remove(tmp_path)
 
-                    protein_id = member.name.rsplit("/", 1)[-1].rsplit(".", 1)[0]
+                    parts = member.name.split("-")
+                    if len(parts) < 2:
+                        print(f"[train] Skipped invalid name: {member.name}")
+                        continue
+                    protein_id = parts[1]
+
                     entries.append({
                         "id": protein_id,
                         "sequence": seq,
                         "vq_ids": vq_ids.tolist()
                     })
                     processed += 1
+                    if processed % 100 == 0:
+                        print(f"[train] {processed} done – Time: {time.time() - start:.2f}s")
+
                 except Exception as e:
-                    print(f"[{split}] Failed: {member.name}, {e}")
+                    print(f"[train] Failed: {member.name}, {e}")
+
+            print(f"[train] Finished processing {processed} proteins in {time.time() - total_start:.2f}s")
+
 
     # === VAL / TEST ===
     else:
         pdb_dir = Path(f"/mnt/data/large/zip_file/final_data_PDB/{split}") / f"{split}_pdb"
         for pdb_file in pdb_dir.glob("*.pdb"):
-            mid = pdb_file.stem.split("-")[1]
-            if mid in singleton_ids:
+
+            parts = pdb_file.stem.split("-")
+            if len(parts) < 2:
+                print(f"[{split}] Skipped invalid filename: {pdb_file.name}")
+                continue
+            protein_id = parts[1]
+
+            if protein_id in singleton_ids:
                 continue
             try:
                 with open(pdb_file, "r") as f:
@@ -105,11 +135,11 @@ for split in ["val", "test", "train"]:
                     continue
                 vq_ids = model.encode_pdb(str(pdb_file))
 
-                print(f"seq: {seq}")
-                print(f"vq_ids: {vq_ids}")
+                #print(f"seq: {seq}")
+                #print(f"vq_ids: {vq_ids}")
 
                 entries.append({
-                    "id": pdb_file.stem,
+                    "id": protein_id,
                     "sequence": seq,
                     "vq_ids": vq_ids.tolist()
                 })
