@@ -218,7 +218,7 @@ def sample_workflow():
                             continue
                         lddt_score = lddt(ref_protein, X)
                         lddt_scores.append(lddt_score)
-                        print(lddt_score)
+                        # print(lddt_score)
                 print(f"{model_name} - {set_name}: {sum(lddt_scores) / len(lddt_scores)}")
 
 
