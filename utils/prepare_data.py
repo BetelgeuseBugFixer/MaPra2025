@@ -105,7 +105,7 @@ for split in ["val", "test", "train"]:
                         "vq_ids": vq_ids.tolist()
                     })
                     processed += 1
-                    if processed % 100 == 0:
+                    if processed % 10_000 == 0:
                         print(f"[train] {processed} done – Time: {time.time() - start:.2f}s")
 
                 except Exception as e:
@@ -146,8 +146,6 @@ for split in ["val", "test", "train"]:
                     "vq_ids": vq_ids.tolist()
                 })
                 processed += 1
-                if processed % 100 == 0:
-                    print(f"[{split}] {processed} done.")
             except Exception as e:
                 print(f"[{split}] Failed: {pdb_file.name}, {e}")
                 with open(pdb_file, "r") as f:
@@ -156,7 +154,7 @@ for split in ["val", "test", "train"]:
         print(f"[{split}] Finished processing {processed} proteins in {time.time() - total_start:.2f}s")
         print(f"[{split}] Skipped {skipped_singletons} singleton entries.")
 
-    # Save .pkli
+    # Save .pkl
     with open(pickle_path, "wb") as f:
         pickle.dump(entries, f)
 
