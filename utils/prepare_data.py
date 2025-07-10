@@ -1,6 +1,5 @@
 import time
 import os
-
 import tarfile
 import pickle
 import json
@@ -8,6 +7,9 @@ import tempfile
 
 from pathlib import Path
 from models.foldtoken_decoder.foldtoken_decoder import FoldDecoder
+from biotite.structure.io.pdb import PDBFile
+from biotite.structure.filter import _filter_atom_names
+
 
 DEVICE = "cuda"
 model = FoldDecoder(device=DEVICE)
@@ -45,15 +47,17 @@ def get_seq_from_lines(lines):
             break
     return seq
 
+
 for split in ["val", "test", "train"]:
     output_dir = base_output / split
     output_dir.mkdir(parents=True, exist_ok=True)
 
     jsonl_path = output_dir / "proteins.jsonl"
     pickle_path = output_dir / "proteins.pkl"
-    entries = []
 
-    # === TRAIN ===
+    json_entries = []
+    protein_structures = []
+
     if split == "train":
         tar_path = Path("/mnt/data/large/zip_file/final_data_PDB/train/rostlab_subset.tar")
         with tarfile.open(tar_path, "r") as tar:
@@ -74,7 +78,6 @@ for split in ["val", "test", "train"]:
                     continue
 
                 try:
-                    start = time.time()
                     f = tar.extractfile(member)
                     if not f:
                         continue
@@ -90,22 +93,21 @@ for split in ["val", "test", "train"]:
 
                     try:
                         vq_ids = model.encode_pdb(tmp_path)
+                        protein = model.decode_single_prot(vq_ids, tmp_path)
+                        structure, _, _ = protein.to_XCS(all_atom=False)
+                        protein_structures.append(structure)
                     finally:
                         os.remove(tmp_path)
 
-                    parts = member.name.split("-")
-                    if len(parts) < 2:
-                        print(f"[train] Skipped invalid name: {member.name}")
-                        continue
-                    protein_id = parts[1]
-
-                    entries.append({
+                    protein_id = mid
+                    json_entries.append({
                         "id": protein_id,
                         "sequence": seq,
                         "vq_ids": vq_ids.tolist()
                     })
+
                     processed += 1
-                    if processed % 1_000 == 0:
+                    if processed % 1000 == 0:
                         elapsed = time.time() - batch_start
                         print(f"[train] {processed} done – Time for last 1000: {elapsed:.2f}s")
                         batch_start = time.time()
@@ -116,7 +118,6 @@ for split in ["val", "test", "train"]:
             print(f"[train] Finished processing {processed} proteins in {time.time() - total_start:.2f}s")
             print(f"[train] Skipped {skipped_singletons} singleton entries.")
 
-    # === VAL / TEST ===
     else:
         pdb_dir = Path(f"/mnt/data/large/zip_file/final_data_PDB/{split}") / f"{split}_pdb"
         processed = 0
@@ -140,13 +141,18 @@ for split in ["val", "test", "train"]:
                 seq = get_seq_from_lines(lines)
                 if not seq:
                     continue
-                vq_ids = model.encode_pdb(str(pdb_file))
 
-                entries.append({
+                vq_ids = model.encode_pdb(str(pdb_file))
+                protein = model.decode_single_prot(vq_ids, str(pdb_file))
+                structure, _, _ = protein.to_XCS(all_atom=False)
+                protein_structures.append(structure)
+
+                json_entries.append({
                     "id": protein_id,
                     "sequence": seq,
                     "vq_ids": vq_ids.tolist()
                 })
+
                 processed += 1
             except Exception as e:
                 print(f"[{split}] Failed: {pdb_file.name}, {e}")
@@ -156,13 +162,13 @@ for split in ["val", "test", "train"]:
         print(f"[{split}] Finished processing {processed} proteins in {time.time() - total_start:.2f}s")
         print(f"[{split}] Skipped {skipped_singletons} singleton entries.")
 
-    # Save .pkl
-    with open(pickle_path, "wb") as f:
-        pickle.dump(entries, f)
-
-    # Save .jsonl
+    # Save JSONL
     with open(jsonl_path, "w") as f:
-        for entry in entries:
+        for entry in json_entries:
             f.write(json.dumps(entry) + "\n")
+    print(f"[{split}] Saved {len(json_entries)} json entries to {jsonl_path}")
 
-    print(f"[{split}] Done: {len(entries)} entries written to {jsonl_path}")
+    # Save Pickle (Biotite protein structures only)
+    with open(pickle_path, "wb") as f:
+        pickle.dump(protein_structures, f)
+    print(f"[{split}] Saved {len(protein_structures)} Biotite protein structures to {pickle_path}")
