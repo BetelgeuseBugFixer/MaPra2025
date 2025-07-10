@@ -1,9 +1,9 @@
 import os
 import io
-
 import tarfile
 import pickle
 import json
+import tempfile
 
 from pathlib import Path
 from biotite.structure.io.pdb import PDBFile
@@ -61,7 +61,7 @@ for split in ["val", "test", "train"]:
     pdbs = []
     entries = []
 
-## TRAIN
+    # === TRAIN ===
     if split == "train":
         tar_path = Path("/mnt/data/large/zip_file/final_data_PDB/train/rostlab_subset.tar")
         with tarfile.open(tar_path, "r") as tar:
@@ -82,20 +82,28 @@ for split in ["val", "test", "train"]:
                     print(f"seq: {seq}\n")
                     if not seq:
                         continue
-                    # tokenize
                     struct = load_structure_from_lines(lines)
-                    vq_ids = model.encode_pdb(io.StringIO("\n".join(lines)))
+
+                    # Write to temp file to avoid StringIO issues
+                    with tempfile.NamedTemporaryFile("w+", suffix=".pdb", delete=True) as tmp:
+                        tmp.write("\n".join(lines))
+                        tmp.flush()
+                        vq_ids = model.encode_pdb(tmp.name)
+
                     print(f"vq_ids: {vq_ids}\n")
 
-                    # append for files
                     protein_id = member.name.rsplit("/", 1)[-1].rsplit(".", 1)[0]
                     pdbs.append((protein_id, struct))
-                    entries.append({"id": protein_id, "sequence": seq, "vq_ids": vq_ids.tolist()})
+                    entries.append({
+                        "id": protein_id,
+                        "sequence": seq,
+                        "vq_ids": vq_ids.tolist()
+                    })
                     processed += 1
                 except Exception as e:
                     print(f"[{split}] Failed: {member.name}, {e}")
 
-## VAL AND TEST
+    # === VAL / TEST ===
     else:
         pdb_dir = Path(f"/mnt/data/large/zip_file/final_data_PDB/{split}") / f"{split}_pdb"
         for pdb_file in pdb_dir.glob("*.pdb"):
@@ -107,17 +115,18 @@ for split in ["val", "test", "train"]:
                     lines = f.readlines()
                 seq = get_seq_from_lines(lines)
                 print(f"seq: {seq}\n")
-
                 if not seq:
                     continue
-                # tokenize
                 struct = load_structure_from_lines(lines)
                 vq_ids = model.encode_pdb(str(pdb_file))
                 print(f"vq_ids: {vq_ids}\n")
 
-                # append for files
                 pdbs.append((pdb_file.stem, struct))
-                entries.append({"id": pdb_file.stem, "sequence": seq, "vq_ids": vq_ids.tolist()})
+                entries.append({
+                    "id": pdb_file.stem,
+                    "sequence": seq,
+                    "vq_ids": vq_ids.tolist()
+                })
             except Exception as e:
                 print(f"[{split}] Failed: {pdb_file.name}, {e}")
                 with open(pdb_file, "r") as f:
