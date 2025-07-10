@@ -6,8 +6,6 @@ import json
 import tempfile
 
 from pathlib import Path
-from biotite.structure.io.pdb import PDBFile
-from biotite.structure.filter import _filter_atom_names
 from models.foldtoken_decoder.foldtoken_decoder import FoldDecoder
 
 DEVICE = "cuda"
@@ -46,19 +44,12 @@ def get_seq_from_lines(lines):
             break
     return seq
 
-def load_structure_from_lines(lines):
-    file = PDBFile()
-    file.read(io.StringIO("\n".join(lines)))
-    array_stack = file.get_structure(model=None)
-    return array_stack[_filter_atom_names(array_stack, ["N", "CA", "C", "O"])]
-
 for split in ["val", "test", "train"]:
     output_dir = base_output / split
     output_dir.mkdir(parents=True, exist_ok=True)
 
     jsonl_path = output_dir / "proteins.jsonl"
     pickle_path = output_dir / "proteins.pkl"
-    pdbs = []
     entries = []
 
     # === TRAIN ===
@@ -79,21 +70,17 @@ for split in ["val", "test", "train"]:
                         continue
                     lines = f.read().decode("utf-8").splitlines()
                     seq = get_seq_from_lines(lines)
-                    print(f"seq: {seq}\n")
                     if not seq:
                         continue
-                    struct = load_structure_from_lines(lines)
-
-                    # Write to temp file to avoid StringIO issues
                     with tempfile.NamedTemporaryFile("w+", suffix=".pdb", delete=True) as tmp:
                         tmp.write("\n".join(lines))
                         tmp.flush()
                         vq_ids = model.encode_pdb(tmp.name)
 
-                    print(f"vq_ids: {vq_ids}\n")
+                    print(f"seq: {seq}")
+                    print(f"vq_ids: {vq_ids}")
 
                     protein_id = member.name.rsplit("/", 1)[-1].rsplit(".", 1)[0]
-                    pdbs.append((protein_id, struct))
                     entries.append({
                         "id": protein_id,
                         "sequence": seq,
@@ -114,14 +101,13 @@ for split in ["val", "test", "train"]:
                 with open(pdb_file, "r") as f:
                     lines = f.readlines()
                 seq = get_seq_from_lines(lines)
-                print(f"seq: {seq}\n")
                 if not seq:
                     continue
-                struct = load_structure_from_lines(lines)
-                vq_ids = model.encode_pdb(pdb_file)
-                print(f"vq_ids: {vq_ids}\n")
+                vq_ids = model.encode_pdb(str(pdb_file))
 
-                pdbs.append((pdb_file.stem, struct))
+                print(f"seq: {seq}")
+                print(f"vq_ids: {vq_ids}")
+
                 entries.append({
                     "id": pdb_file.stem,
                     "sequence": seq,
@@ -134,7 +120,7 @@ for split in ["val", "test", "train"]:
 
     # Save .pkl
     with open(pickle_path, "wb") as f:
-        pickle.dump(dict(pdbs), f)
+        pickle.dump(entries, f)
 
     # Save .jsonl
     with open(jsonl_path, "w") as f:
