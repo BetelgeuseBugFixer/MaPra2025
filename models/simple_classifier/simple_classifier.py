@@ -2,7 +2,7 @@ import os.path
 
 import torch
 import torch.nn as nn
-from models.simple_classifier.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir, PAD_LABEL
+from models.datasets.datasets import PAD_LABEL
 from models.model_utils import _masked_accuracy
 
 

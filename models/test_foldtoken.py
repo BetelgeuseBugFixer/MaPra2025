@@ -2,23 +2,20 @@ import json
 from pathlib import Path
 import os
 
-import h5py
 import torch
-import biotite
-import biotite.structure.io.pdb as pdb
 from biotite.structure.io.pdb import PDBFile
-from biotite.structure import lddt, tm_score, filter_canonical_amino_acids
+from biotite.structure import lddt
 from biotite.structure.filter import _filter_atom_names
 from torch import nn
 from torch.nn.utils.rnn import pad_sequence
 
 from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores
 from models.prot_t5.prot_t5 import ProtT5
-from models.simple_classifier.datasets import PAD_LABEL
+from models.datasets.datasets import PAD_LABEL
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
 
 from models.foldtoken_decoder.foldtoken_decoder import FoldDecoder
-from models.whole_model import TFold
+from models.end_to_end.whole_model import TFold
 from transformers import T5EncoderModel, T5Tokenizer
 
 

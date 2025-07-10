@@ -1,5 +1,6 @@
 import json
 import os
+import pickle
 
 import h5py
 import torch
@@ -8,11 +9,47 @@ from torch.utils.data import Dataset
 PAD_LABEL = -100
 
 
+class SeqTokSet(Dataset):
+    def __init__(self, token_and_seq_file):
+        self.sequences = []
+        self.vq_ids = []
+        with open(token_and_seq_file, 'r') as f:
+            for line in f.readlines():
+                values = json.loads(line)
+                self.sequences.append(values['sequence'])
+                self.vq_ids.append(torch.tensor(values['vq_ids'], dtype=torch.long))
+
+    def __len__(self):
+        return len(self.sequences)
+
+    def __getitem__(self, idx):
+        return self.sequences[idx], self.vq_ids[idx]
+
+
+class SeqStrucTokSet(Dataset):
+    def __init__(self, token_and_seq_file, structure_file):
+        self.sequences = []
+        self.vq_ids = []
+        self.structures = pickle.load(open(structure_file, 'rb'))
+        with open(token_and_seq_file, 'r') as f:
+            for line in f.readlines():
+                values = json.loads(line)
+                self.sequences.append(values['sequence'])
+                self.vq_ids.append(torch.tensor(values['vq_ids'], dtype=torch.long))
+
+    def __len__(self):
+        return len(self.sequences)
+
+    def __getitem__(self, idx):
+        return self.sequences[idx], self.vq_ids[idx], self.structures[idx]
+
+
 class ProteinPairJSONL(Dataset):
     """
     Yield `(embedding, vqid_tokens)` pairs from a single HDF5 file containing
     one dataset per protein. Skips proteins with mismatched sequence lengths.
     """
+
     def __init__(self, emb_h5_path: str, tok_jsonl: str, ids: list):
         # Open the shared HDF5 file
         self.emb_file = h5py.File(emb_h5_path, "r")
@@ -43,16 +80,15 @@ class ProteinPairJSONL(Dataset):
 
         self.ids = valid_ids
 
-
-
     def __len__(self):
         return len(self.ids)
 
     def __getitem__(self, idx):
         pid = self.ids[idx]
         emb = torch.from_numpy(self.emb_file[pid][:]).float()  # (L, d_emb)
-        tok = self.vqid_map[pid]                               # (L,)
+        tok = self.vqid_map[pid]  # (L,)
         return emb, tok
+
 
 ### from directory for casp14 dataset
 class ProteinPairJSONL_FromDir(ProteinPairJSONL):
@@ -91,4 +127,3 @@ class ProteinPairJSONL_FromDir(ProteinPairJSONL):
             emb = torch.from_numpy(f[list(f.keys())[0]][:]).float()
         tok = self.vqid_map[pid]
         return emb, tok
-

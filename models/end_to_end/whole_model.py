@@ -7,7 +7,7 @@ from torch import nn
 from models.foldtoken_decoder.foldtoken_decoder import FoldDecoder
 from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores
 from models.prot_t5.prot_t5 import ProtT5
-from models.simple_classifier.datasets import PAD_LABEL
+from models.datasets.datasets import PAD_LABEL
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
 
 
@@ -102,7 +102,7 @@ class TFold(nn.Module):
         self.train()
         total_loss = total_acc = total_samples = 0
         # run through model
-        for sequences, tokens, protein_references in loader:
+        for sequences, tokens in loader:
             tokens = tokens.to(device)
             mask = (tokens != PAD_LABEL)
             logits = self.get_cnn_out_only(sequences)
@@ -119,8 +119,8 @@ class TFold(nn.Module):
             total_samples += bsz
 
         score_dict = {
-            "Train Accuracy": total_acc / total_samples,
-            "Train Loss": total_loss / total_samples,
+            "acc": total_acc / total_samples,
+            "loss": total_loss / total_samples,
         }
         return score_dict
 
@@ -143,9 +143,9 @@ class TFold(nn.Module):
                 total_samples += bsz
             # return scores
             score_dict = {
-                "Validation Accuracy": total_acc / total_samples,
-                "Validation Loss": total_loss / total_samples,
-                "lddt": total_lddt / total_samples
+                "val_acc": total_acc / total_samples,
+                "val_loss": total_loss / total_samples,
+                "val_lddt": total_lddt / total_samples
             }
             return score_dict
 

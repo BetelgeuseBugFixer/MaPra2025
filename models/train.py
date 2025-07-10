@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 
 from models.model_utils import _masked_accuracy
 from models.simple_classifier.simple_classifier import ResidueTokenCNN, ResidueTokenLNN
-from models.simple_classifier.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir, PAD_LABEL
-from models.whole_model import TFold
+from models.datasets.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir, PAD_LABEL, SeqTokSet, SeqStrucTokSet
+from models.end_to_end.whole_model import TFold
 
 
 # ------------------------------------------------------------
@@ -25,27 +25,36 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Train per-residue token classifier (CNN) with early stopping and plots"
     )
-    group = parser.add_mutually_exclusive_group(required=True)
+
+    # data
+    group = parser.add_mutually_exclusive_group()
     group.add_argument("--emb_file", help="HDF5 file with one dataset per protein ID")
     group.add_argument("--emb_dir", help="Directory with per-protein .h5 files")
 
-    parser.add_argument("--tok_jsonl", required=True,
+    parser.add_argument("--tok_jsonl",
                         help="JSONL with per-protein {'<ID>': {..., 'vqid': [...]}}")
-    parser.add_argument("--split_file", required=True,
+    parser.add_argument("--split_file",
                         help="JSON containing the ids split into train, validation and test")
+    parser.add_argument("data_dir", help="Directory with train, validation and test sub directories")
+
+    #model
+    parser.add_argument("--model", type=str, default="cnn", help="type of model to use")
+    # tfold exclusive setting
+    parser.add_argument("--lora_plm", action="store_true", help=" use lora to retrain the plm")
+
+    # cnn exclusive setting
     parser.add_argument("--codebook_size", type=int, default=1024,
                         help="Size of VQ vocabulary")
-
-    parser.add_argument("--lora_plm",  action="store_true", help=" use lora to retrain the plm")
-
-    parser.add_argument("--model", type=str, default="cnn", help="type of model to use")
-    parser.add_argument("--kernel_size", type=int, nargs="+", default=[5], help="kernel size of the cnn")
     parser.add_argument("--d_emb", type=int, default=1024)
+
+    # general settings
+    parser.add_argument("--kernel_size", type=int, nargs="+", default=[5], help="kernel size of the cnn")
     parser.add_argument("--hidden", type=int, nargs="+", default=[2048])
-    parser.add_argument("--dropout", type=float, default=0.1)
+
+    # trainings setting
     parser.add_argument("--batch", type=int, default=1,
                         help="Batch size")
-
+    parser.add_argument("--dropout", type=float, default=0.1)
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
@@ -58,7 +67,21 @@ def parse_args():
     return parser.parse_args()
 
 
-def create_data_loaders(emb_source, tok_jsonl, train_ids, val_ids, test_ids, batch_size, use_single_file):
+def create_tfold_data_loaders(data_dir):
+    # TODO CHANGE ONLY VAL SET IS USED HERE
+    train_dir = os.path.join(data_dir, "val")
+    val_dir = os.path.join(data_dir, "val")
+    test_dir = os.path.join(data_dir, "val")
+    train_dataset = SeqTokSet(os.path.join(train_dir,"proteins.jsonl"))
+    val_dataset = SeqStrucTokSet(os.path.join(val_dir,"proteins.jsonl"),os.path.join(val_dir,"proteins.pkl"))
+    test_dataset = SeqStrucTokSet(os.path.join(test_dir,"proteins.jsonl"),os.path.join(test_dir,"proteins.pkl"))
+    return (
+        DataLoader(train_dataset, batch_size=args.batch,collate_fn=collate_seq_tok_batch),
+        DataLoader(val_dataset,batch_size=args.batch,collate_fn=collate_seq_struc_tok_batch),
+        DataLoader(test_dataset, batch_size=args.batch, collate_fn=collate_seq_struc_tok_batch)
+    )
+
+def create_cnn_data_loaders(emb_source, tok_jsonl, train_ids, val_ids, test_ids, batch_size, use_single_file):
     DSClass = ProteinPairJSONL if use_single_file else ProteinPairJSONL_FromDir
     train_ds = DSClass(emb_source, tok_jsonl, train_ids)
     val_ds = DSClass(emb_source, tok_jsonl, val_ids)
@@ -69,10 +92,12 @@ def create_data_loaders(emb_source, tok_jsonl, train_ids, val_ids, test_ids, bat
         DataLoader(test_ds, batch_size=batch_size, shuffle=False, collate_fn=pad_collate),
     )
 
+
 def build_t_fold(lora_plm, hidden, kernel_size, dropout, lr, device):
     model = TFold(hidden=hidden, kernel_sizes=kernel_size, dropout=dropout, device=device, use_lora=lora_plm)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     return model, optimizer
+
 
 def build_cnn(d_emb, hidden, vocab_size, kernel_size, dropout, lr, device):
     model = ResidueTokenCNN(d_emb, hidden, vocab_size, kernel_size, dropout).to(device)
@@ -86,6 +111,22 @@ def build_nn(d_emb, hidden, vocab_size, dropout, lr, device):
     criterion = nn.CrossEntropyLoss()
     return model, optimizer, criterion
 
+
+def collate_seq_struc_tok_batch(batch):
+    sequences, token_lists, structures = zip(*batch)
+
+    # Padding der VQ-Tokens
+    padded_tokens = pad_sequence(token_lists, batch_first=True, padding_value=PAD_LABEL)
+
+    return list(sequences), padded_tokens, list(structures)
+
+def collate_seq_tok_batch(batch):
+    sequences, token_lists = zip(*batch)
+
+    # Padding der VQ-Tokens
+    padded_tokens = pad_sequence(token_lists, batch_first=True, padding_value=PAD_LABEL)
+
+    return list(sequences), padded_tokens
 
 def pad_collate(batch):
     """
@@ -150,9 +191,8 @@ def get_model(args):
                 args.d_emb, args.hidden, args.codebook_size, args.kernel_size, args.dropout, args.lr, args.device
             )
         case "t_fold":
-            # will not work yet, because nn needs a single token as input, but it will be given s seq
-            return build_t_fold(args.d_emb, args.frozen_plm, args.hidden, args.kernel_size, args.dropout, args.lr, args.device)
-            # return build_nn(args.d_emb, args.hidden, args.codebook_size, args.dropout, args.lr, args.device)
+            return build_t_fold(args.frozen_plm, args.hidden, args.kernel_size, args.dropout, args.lr,
+                                args.device)
         case _:
             raise NotImplementedError
 
@@ -167,24 +207,32 @@ def init_wand_db(args):
             "device": args.device,
             "patience": args.patience,
             "architecture": args.model,
-            "dataset": args.tok_jsonl,
             "epochs": args.epochs,
             "hidden": args.hidden,
             "dropout": args.dropout,
             "batch_size": args.batch,
+            "lora_plm": args.lora_plm
         }
     )
 
 
+def get_dataset(args):
+    if args.model == "cnn":
+        use_file = args.emb_file is not None
+        emb_source = args.emb_file if use_file else args.emb_dir
+
+        train_ids, val_ids, test_ids = load_split_file(args.split_file)
+
+        return create_cnn_data_loaders(
+            emb_source, args.tok_jsonl, train_ids, val_ids, test_ids, args.batch, use_file
+        )
+    elif args.model == "t_fold":
+        return  create_tfold_data_loaders(args.data_dir)
+
+
 def main(args):
-    use_file = args.emb_file is not None
-    emb_source = args.emb_file if use_file else args.emb_dir
-
-    train_ids, val_ids, test_ids = load_split_file(args.split_file)
-
-    train_loader, val_loader, test_loader = create_data_loaders(
-        emb_source, args.tok_jsonl, train_ids, val_ids, test_ids, args.batch, use_file
-    )
+    # load dataset
+    train_loader, val_loader, test_loader = get_dataset(args)
 
     model, optimizer = get_model(args)
 
@@ -216,7 +264,8 @@ def main(args):
         tr_acc = score_dict["acc"]
         val_loss = score_dict["val_loss"]
         val_acc = score_dict["val_acc"]
-        print(f"Epoch {epoch:02d} | train {tr_loss:.4f}/{tr_acc:.4f} | val {val_loss:.4f}/{val_acc:.4f}")
+        lddt_string= f" |{score_dict["val_lddt"]}" if score_dict["val_lddt"] else ""
+        print(f"Epoch {epoch:02d} | train {tr_loss:.4f}/{tr_acc:.4f} | val {val_loss:.4f}/{val_acc:.4f}{lddt_string}")
 
         # Early stopping check
         new_score = score_dict[model.key_metric]
