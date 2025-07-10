@@ -9,10 +9,13 @@
 
 # command to execute and track it
 # sbatch train_tfold.sbatch &  tail -f slurm_out/train_tfold_std_output.out slurm_out/train_tfold_std_err.err
-source /opt/miniconda/etc/profile.d/conda.sh
-conda activate /opt/envs/f_token
-cd /mnt/repro/MaPra2025
-export PYTHONPATH=/mnt/repro/MaPra2025:$PYTHONPATH
-echo "Starting training script..."
-python models/train.py --model t_fold --hidden  2048 2048 --kernel 5 5 --data_dir /mnt/data/large/subset/ --epochs 5 --out_folder train_run --batch 16 --patience 10 --lora_plm
-echo "Training script finished."
+source ~/.bashrc
+echo "WANDB_API_KEY=$WANDB_API_KEY"
+
+#source /opt/miniconda/etc/profile.d/conda.sh
+#conda activate /opt/envs/f_token
+#cd /mnt/repro/MaPra2025
+#export PYTHONPATH=/mnt/repro/MaPra2025:$PYTHONPATH
+#echo "Starting training script..."
+#python models/train.py --model t_fold --hidden  2048 2048 --kernel 5 5 --data_dir /mnt/data/large/subset/ --epochs 5 --out_folder train_run --batch 16 --patience 10 --lora_plm
+#echo "Training script finished."
