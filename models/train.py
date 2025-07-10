@@ -191,7 +191,7 @@ def get_model(args):
                 args.d_emb, args.hidden, args.codebook_size, args.kernel_size, args.dropout, args.lr, args.device
             )
         case "t_fold":
-            return build_t_fold(args.frozen_plm, args.hidden, args.kernel_size, args.dropout, args.lr,
+            return build_t_fold(args.lora_plm, args.hidden, args.kernel_size, args.dropout, args.lr,
                                 args.device)
         case _:
             raise NotImplementedError
