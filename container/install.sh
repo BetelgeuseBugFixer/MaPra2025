@@ -31,4 +31,4 @@ pip install tqdm
 pip install h5py
 pip install biotite
 pip install peft
-
+pip install matplotlib
