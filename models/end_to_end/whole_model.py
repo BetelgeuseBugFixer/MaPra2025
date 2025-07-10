@@ -39,6 +39,10 @@ class TFold(nn.Module):
         kernel_sizes_string = "_".join(str(i) for i in kernel_sizes)
         self.model_name = f"t_fold_k{kernel_sizes_string}_h{hidden_layers_string}"
 
+        # define most important metric and whether it needs to be minimized or maximized
+        self.key_metric = "val_loss"
+        self.maximize = False
+
     def save(self, output_dir: str):
         os.makedirs(output_dir, exist_ok=True)
         save_path = os.path.join(output_dir, f"{self.model_name}.pt")
