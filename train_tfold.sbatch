@@ -9,6 +9,8 @@
 
 # command to execute and track it
 # sbatch train_tfold.sbatch &  tail -f slurm_out/train_tfold_std_output.out slurm_out/train_tfold_std_err.err
+source /opt/miniconda/etc/profile.d/conda.sh
+conda activate /opt/envs/f_token
 cd /mnt/repro/MaPra2025
 export PYTHONPATH=/mnt/repro/MaPra2025:$PYTHONPATH
 echo "Starting training script..."
