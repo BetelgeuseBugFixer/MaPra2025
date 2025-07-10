@@ -104,7 +104,7 @@ for split in ["val", "test", "train"]:
                         "vq_ids": vq_ids.tolist()
                     })
                     processed += 1
-                    if processed % 10_000 == 0:
+                    if processed % 1_000 == 0:
                         print(f"[train] {processed} done – Time: {time.time() - start:.2f}s")
 
                 except Exception as e:
