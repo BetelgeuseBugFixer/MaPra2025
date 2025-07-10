@@ -58,6 +58,7 @@ for split in ["val", "test", "train"]:
         tar_path = Path("/mnt/data/large/zip_file/final_data_PDB/train/rostlab_subset.tar")
         with tarfile.open(tar_path, "r") as tar:
             processed = 0
+            skipped_singletons = 0  # NEW
             total_start = time.time()
 
             for member in tar:
@@ -68,12 +69,11 @@ for split in ["val", "test", "train"]:
 
                 mid = member.name.split("-")[1]
                 if mid in singleton_ids:
-                    print(f"[train] Skipped singleton: {mid} from file {member.name}")
+                    skipped_singletons += 1
                     continue
 
                 try:
                     start = time.time()
-                    print(f"[train] Processing {member.name}")
                     f = tar.extractfile(member)
                     if not f:
                         continue
@@ -90,7 +90,6 @@ for split in ["val", "test", "train"]:
                     try:
                         print(f"[train] Encoding: {member.name}")
                         vq_ids = model.encode_pdb(tmp_path)
-                        print(f"[train] Done encoding: {member.name}")
                     finally:
                         os.remove(tmp_path)
 
@@ -113,13 +112,16 @@ for split in ["val", "test", "train"]:
                     print(f"[train] Failed: {member.name}, {e}")
 
             print(f"[train] Finished processing {processed} proteins in {time.time() - total_start:.2f}s")
-
+            print(f"[train] Skipped {skipped_singletons} singleton entries.")
 
     # === VAL / TEST ===
     else:
         pdb_dir = Path(f"/mnt/data/large/zip_file/final_data_PDB/{split}") / f"{split}_pdb"
-        for pdb_file in pdb_dir.glob("*.pdb"):
+        processed = 0
+        skipped_singletons = 0
+        total_start = time.time()
 
+        for pdb_file in pdb_dir.glob("*.pdb"):
             parts = pdb_file.stem.split("-")
             if len(parts) < 2:
                 print(f"[{split}] Skipped invalid filename: {pdb_file.name}")
@@ -127,8 +129,9 @@ for split in ["val", "test", "train"]:
             protein_id = parts[1]
 
             if protein_id in singleton_ids:
-                print(f"[{split}] Skipped singleton: {protein_id} from file {pdb_file.name}")
+                skipped_singletons += 1
                 continue
+
             try:
                 with open(pdb_file, "r") as f:
                     lines = f.readlines()
@@ -137,20 +140,23 @@ for split in ["val", "test", "train"]:
                     continue
                 vq_ids = model.encode_pdb(str(pdb_file))
 
-                #print(f"seq: {seq}")
-                #print(f"vq_ids: {vq_ids}")
-
                 entries.append({
                     "id": protein_id,
                     "sequence": seq,
                     "vq_ids": vq_ids.tolist()
                 })
+                processed += 1
+                if processed % 100 == 0:
+                    print(f"[{split}] {processed} done.")
             except Exception as e:
                 print(f"[{split}] Failed: {pdb_file.name}, {e}")
                 with open(pdb_file, "r") as f:
                     print("".join(f.readlines()[:30]))
 
-    # Save .pkl
+        print(f"[{split}] Finished processing {processed} proteins in {time.time() - total_start:.2f}s")
+        print(f"[{split}] Skipped {skipped_singletons} singleton entries.")
+
+    # Save .pkli
     with open(pickle_path, "wb") as f:
         pickle.dump(entries, f)
 
