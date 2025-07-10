@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 from models.model_utils import _masked_accuracy
 from models.simple_classifier.simple_classifier import ResidueTokenCNN, ResidueTokenLNN
 from models.simple_classifier.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir, PAD_LABEL
+from models.whole_model import TFold
 
 
 # ------------------------------------------------------------
@@ -35,11 +36,13 @@ def parse_args():
     parser.add_argument("--codebook_size", type=int, default=1024,
                         help="Size of VQ vocabulary")
 
+    parser.add_argument("--lora_plm",  action="store_true", help=" use lora to retrain the plm")
+
     parser.add_argument("--model", type=str, default="cnn", help="type of model to use")
     parser.add_argument("--kernel_size", type=int, nargs="+", default=[5], help="kernel size of the cnn")
     parser.add_argument("--d_emb", type=int, default=1024)
     parser.add_argument("--hidden", type=int, nargs="+", default=[2048])
-    parser.add_argument("--dropout", type=float, default=0.3)
+    parser.add_argument("--dropout", type=float, default=0.1)
     parser.add_argument("--batch", type=int, default=1,
                         help="Batch size")
 
@@ -66,6 +69,10 @@ def create_data_loaders(emb_source, tok_jsonl, train_ids, val_ids, test_ids, bat
         DataLoader(test_ds, batch_size=batch_size, shuffle=False, collate_fn=pad_collate),
     )
 
+def build_t_fold(lora_plm, hidden, kernel_size, dropout, lr, device):
+    model = TFold(hidden=hidden, kernel_sizes=kernel_size, dropout=dropout, device=device, use_lora=lora_plm)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    return model, optimizer
 
 def build_cnn(d_emb, hidden, vocab_size, kernel_size, dropout, lr, device):
     model = ResidueTokenCNN(d_emb, hidden, vocab_size, kernel_size, dropout).to(device)
@@ -142,9 +149,9 @@ def get_model(args):
             return build_cnn(
                 args.d_emb, args.hidden, args.codebook_size, args.kernel_size, args.dropout, args.lr, args.device
             )
-        case "NN":
+        case "t_fold":
             # will not work yet, because nn needs a single token as input, but it will be given s seq
-            raise NotImplementedError
+            return build_t_fold(args.d_emb, args.frozen_plm, args.hidden, args.kernel_size, args.dropout, args.lr, args.device)
             # return build_nn(args.d_emb, args.hidden, args.codebook_size, args.dropout, args.lr, args.device)
         case _:
             raise NotImplementedError

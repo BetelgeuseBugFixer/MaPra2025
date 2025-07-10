@@ -12,7 +12,7 @@ from biotite.structure.filter import _filter_atom_names
 from torch import nn
 from torch.nn.utils.rnn import pad_sequence
 
-from models.model_utils import _masked_accuracy
+from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores
 from models.prot_t5.prot_t5 import ProtT5
 from models.simple_classifier.datasets import PAD_LABEL
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
@@ -127,7 +127,7 @@ def get_seq_from_pdb(pdb_file: str) -> str | None:
 def sample_workflow():
     device = "cuda"
     # init models
-    plm = ProtT5().to(device)
+    plm = ProtT5(device=device).to(device)
     decoder = FoldDecoder(device=device)
 
     # define input
@@ -255,17 +255,7 @@ def test_loading():
         print(lddt(ref_protein, X))
 
 
-def calc_lddt_scores(protein_predictions, ref_protein):
-    lddt_scores = []
-    for protein_prediction, protein_ref in zip(protein_predictions, ref_protein):
-        X, _, _ = protein_prediction.to_XCS(all_atom=False)
-        X = X.detach().squeeze(0).reshape(-1, 3).cpu().numpy()
-        lddt_scores.append(lddt(protein_ref, X))
-    return lddt_scores
 
-
-def calc_token_loss(criterion, tokens_predictions, tokens_reference):
-    return criterion(tokens_predictions.transpose(1, 2), tokens_reference)
 
 
 def training_test():

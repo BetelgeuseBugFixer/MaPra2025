@@ -5,7 +5,7 @@ import torch
 from torch import nn
 
 from models.foldtoken_decoder.foldtoken_decoder import FoldDecoder
-from models.model_utils import _masked_accuracy
+from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores
 from models.prot_t5.prot_t5 import ProtT5
 from models.simple_classifier.datasets import PAD_LABEL
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
@@ -15,7 +15,7 @@ class TFold(nn.Module):
     def __init__(self, hidden: list, device="cpu", kernel_sizes=[5], dropout: float = 0.3,use_lora= False):
         super().__init__()
         self.device = device
-        self.plm = ProtT5(use_lora=use_lora).to(self.device)
+        self.plm = ProtT5(use_lora=use_lora,device=device).to(self.device)
         embeddings_size = 1024
         codebook_size = 1024
         self.cnn = ResidueTokenCNN(embeddings_size, hidden, codebook_size, kernel_sizes, dropout).to(device)
@@ -88,32 +88,70 @@ class TFold(nn.Module):
         # return proteins and tokens
         return proteins, x
 
-    def run_epoch(self, loader, optimizer=None, device="cpu"):
-        is_train = optimizer is not None
-        self.train() if is_train else self.eval()
+    def get_cnn_out_only(self,seqs: List[str]):
+        # prepare seqs
+        x = [" ".join(seq.translate(str.maketrans('UZO', 'XXX'))) for seq in seqs]
+        # generate embeddings
+        x = self.plm(x)
+        # generate tokens
+        x = self.cnn(x)  # shape: (B, L, vocab_size)
+        return x
+
+    def run_train_epoch(self,loader, optimizer=None, device="cpu"):
+        # prepare model for training
+        self.train()
         total_loss = total_acc = total_samples = 0
-        torch.set_grad_enabled(is_train)
-
-        for sequences, tokens, ref_atom in loader:
-            sequences, tokens = sequences.to(device), tokens.to(device)
+        # run through model
+        for sequences, tokens, protein_references in loader:
+            tokens = tokens.to(device)
             mask = (tokens != PAD_LABEL)
-            protein_predictions, token_predictions = self(sequences)
-            loss = self.criterion(token_predictions.transpose(1, 2), tokens)
-
-            if is_train:
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
-
+            logits = self.get_cnn_out_only(sequences)
+            # get token loss
+            loss = calc_token_loss(self.cnn.criterion, logits, tokens)
+            #back propagate
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            # update scores
             bsz = len(sequences)
             total_loss += loss.item() * bsz
-            total_acc += _masked_accuracy(token_predictions, tokens, mask) * bsz
+            total_acc += _masked_accuracy(logits, tokens, mask) * bsz
             total_samples += bsz
-        set_prefix = ""
-        if not is_train:
-            set_prefix = "val_"
+
         score_dict = {
-            f"{set_prefix}acc": total_acc / total_samples,
-            f"{set_prefix}loss": total_loss / total_samples,
+            "Train Accuracy": total_acc / total_samples,
+            "Train Loss": total_loss / total_samples,
         }
         return score_dict
+
+    def run_val_epoch(self,loader, device="cpu"):
+        self.eval()
+        total_loss = total_acc = total_samples = total_lddt = 0
+
+        with torch.no_grad():
+            for sequences, tokens, protein_references in loader:
+                # get predictions
+                sequences, tokens = sequences.to(device), tokens.to(device)
+                mask = (tokens != PAD_LABEL)
+                protein_predictions, logits = self(sequences)
+                # get loss and score
+                loss = calc_token_loss(self.cnn.criterion, logits, tokens)
+                bsz = len(sequences)
+                total_lddt += sum(calc_lddt_scores(protein_predictions, protein_references))
+                total_loss += loss.detach().item() * bsz
+                total_acc += _masked_accuracy(logits, tokens, mask) * bsz
+                total_samples += bsz
+            # return scores
+            score_dict = {
+                "Validation Accuracy": total_acc / total_samples,
+                "Validation Loss": total_loss / total_samples,
+                "lddt": total_lddt / total_samples
+            }
+            return score_dict
+
+    def run_epoch(self, loader, optimizer=None, device="cpu"):
+        if optimizer is None:
+            return self.run_val_epoch(loader, device)
+        else:
+            return self.run_train_epoch(loader, optimizer, device)
+
