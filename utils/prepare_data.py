@@ -49,7 +49,7 @@ def get_seq_from_lines(lines):
 def load_structure_from_lines(lines):
     file = PDBFile()
     file.read(io.StringIO("\n".join(lines)))
-    array_stack = file.get_structure()
+    array_stack = file.get_structure(model=None)
     return array_stack[_filter_atom_names(array_stack, ["N", "CA", "C", "O"])]
 
 for split in ["val", "test", "train"]:
@@ -120,6 +120,8 @@ for split in ["val", "test", "train"]:
                 entries.append({"id": pdb_file.stem, "sequence": seq, "vq_ids": vq_ids.tolist()})
             except Exception as e:
                 print(f"[{split}] Failed: {pdb_file.name}, {e}")
+                with open(pdb_file, "r") as f:
+                    print("".join(f.readlines()[:30]))
 
     # Save .pkl
     with open(pickle_path, "wb") as f:
