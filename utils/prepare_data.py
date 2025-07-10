@@ -49,6 +49,16 @@ def get_seq_from_lines(lines):
 
 
 for split in ["val", "test", "train"]:
+    print("=" * 60)
+    print(f"[{split.upper()}] Starting processing")
+    print(f"[{split.upper()}] Output dir: {base_output / split}")
+    if split == "train":
+        print(f"[{split.upper()}] Input archive: /mnt/data/large/zip_file/final_data_PDB/train/rostlab_subset.tar")
+    else:
+        print(f"[{split.upper()}] Input folder: /mnt/data/large/zip_file/final_data_PDB/{split}/{split}_pdb")
+    print(f"[{split.upper()}] Total singleton IDs loaded: {len(singleton_ids)}")
+    print("=" * 60)
+
     output_dir = base_output / split
     output_dir.mkdir(parents=True, exist_ok=True)
 
