@@ -309,13 +309,13 @@ def training_test():
         print(lddt_scores)
 
 
-if __name__ == '__main__':
+def protT5_test():
     device = "cuda"
     transformer_link = "Rostlab/prot_t5_xl_half_uniref50-enc"
     tokenizer = T5Tokenizer.from_pretrained(transformer_link, do_lower_case=False, use_fast=False)
     model = T5EncoderModel.from_pretrained(transformer_link).to(device)
 
-    seqs=["AGHGFEFF","FGTGAD"]
+    seqs = ["AGHGFEFF", "FGTGAD"]
     true_lengths = [len(seq) for seq in seqs]
     print(f"lengths: {true_lengths}")
     # prepare seqs
@@ -329,14 +329,17 @@ if __name__ == '__main__':
     print(f"encoding:\n{encoding}")
     input_ids = encoding['input_ids'].to(device)
     attention_mask = encoding['attention_mask'].to(device)
-    
+
     print(f"attention_mask:\n{attention_mask}")
     relevant_mask = ((input_ids != 0) & (input_ids != 1)).unsqueeze(-1)
     outputs = model(input_ids, attention_mask=attention_mask)
     hidden = outputs.last_hidden_state
     print(f"hidden.shape{hidden.shape}")
     print(hidden)
-    new_hidden= hidden * relevant_mask
+    new_hidden = hidden * relevant_mask
     new_hidden = new_hidden[:, :-1, :]
     print(f"new_hidden.shape{new_hidden.shape}")
     print(new_hidden)
+
+if __name__ == '__main__':
+    sample_workflow()
