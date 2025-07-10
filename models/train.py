@@ -239,7 +239,7 @@ def main(args):
     # init wand db
     run = None
     if not args.no_wandb:
-        wandb.login(key=open("wandb_key").read().strip())
+        #wandb.login(key=open("wandb_key").read().strip())
         run = init_wand_db(args)
 
     # init important metric based on if the models need to optimize or minimize
