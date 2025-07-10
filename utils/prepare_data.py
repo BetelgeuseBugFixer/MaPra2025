@@ -49,7 +49,7 @@ def get_seq_from_lines(lines):
 def load_structure_from_lines(lines):
     file = PDBFile()
     file.read(io.StringIO("\n".join(lines)))
-    array_stack = file.get_structure(model=1)
+    array_stack = file.get_structure()
     return array_stack[_filter_atom_names(array_stack, ["N", "CA", "C", "O"])]
 
 for split in ["val", "test", "train"]:
