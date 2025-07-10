@@ -1,4 +1,5 @@
 import os
+import io
 import tarfile
 import pickle
 from pathlib import Path
@@ -78,9 +79,11 @@ if tar_path.is_file():
             try:
                 f = tar.extractfile(member)
                 if f:
-                    file_bytes = f.read()
+                    # handle pdb from .tar
+                    text_stream = io.StringIO(f.read().decode("utf-8"))
                     pdb_file = PDBFile()
-                    pdb_file.read(file_bytes.decode("utf-8").splitlines())
+                    pdb_file.read(text_stream)
+
                     array_stack = pdb_file.get_structure(model=1)
                     prot = array_stack[_filter_atom_names(array_stack, ["N", "CA", "C", "O"])]
                     pdbs[member.name.rsplit("/", 1)[-1].rsplit(".", 1)[0]] = prot
