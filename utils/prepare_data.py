@@ -47,6 +47,10 @@ def get_seq_from_lines(lines):
             break
     return seq
 
+def load_prot_from_pdb(pdb_file):
+    file = PDBFile.read(pdb_file)
+    array_stack = file.get_structure(model=1)
+    return array_stack[_filter_atom_names(array_stack, ["N", "CA", "C", "O"])]
 
 for split in ["val", "test", "train"]:
     print("=" * 60)
@@ -103,8 +107,8 @@ for split in ["val", "test", "train"]:
 
                     try:
                         vq_ids = model.encode_pdb(tmp_path)
-                        protein = model.decode_single_prot(vq_ids, tmp_path)
-                        structure, _, _ = protein.to_XCS(all_atom=False)
+
+                        structure = load_prot_from_pdb(tmp_path)  # original PDB structure
                         protein_structures.append(structure)
                     finally:
                         os.remove(tmp_path)
@@ -153,8 +157,8 @@ for split in ["val", "test", "train"]:
                     continue
 
                 vq_ids = model.encode_pdb(str(pdb_file))
-                protein = model.decode_single_prot(vq_ids, str(pdb_file))
-                structure, _, _ = protein.to_XCS(all_atom=False)
+
+                structure = load_prot_from_pdb(str(pdb_file))  # original PDB structure
                 protein_structures.append(structure)
 
                 json_entries.append({
