@@ -118,7 +118,7 @@ for split in ["val", "test", "train"]:
                 if not seq:
                     continue
                 struct = load_structure_from_lines(lines)
-                vq_ids = model.encode_pdb(str(pdb_file))
+                vq_ids = model.encode_pdb(pdb_file)
                 print(f"vq_ids: {vq_ids}\n")
 
                 pdbs.append((pdb_file.stem, struct))
