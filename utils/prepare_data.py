@@ -68,6 +68,7 @@ for split in ["val", "test", "train"]:
 
                 mid = member.name.split("-")[1]
                 if mid in singleton_ids:
+                    print(f"[train] Skipped singleton: {mid} from file {member.name}")
                     continue
 
                 try:
@@ -126,6 +127,7 @@ for split in ["val", "test", "train"]:
             protein_id = parts[1]
 
             if protein_id in singleton_ids:
+                print(f"[{split}] Skipped singleton: {protein_id} from file {pdb_file.name}")
                 continue
             try:
                 with open(pdb_file, "r") as f:
