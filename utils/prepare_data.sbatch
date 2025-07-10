@@ -12,4 +12,4 @@ conda activate /opt/envs/f_token
 
 cd /mnt/repro/MaPra2025
 export PYTHONPATH=/mnt/repro/MaPra2025:$PYTHONPATH
-python utils/prepare_data.py
+python -u utils/prepare_data.py
