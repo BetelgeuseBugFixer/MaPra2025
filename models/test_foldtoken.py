@@ -361,7 +361,7 @@ if __name__ == '__main__':
     batch = compute_masks(batch, structure_track=True)
     batch = {k: v[None].to(device) for k, v in batch.items()}
     batch = model.encoder(batch)
-    print(f"5 batch:\nindices-{batch['indices'].shape}\n{batch['indices']}\nencodings-{batch['encodings'].shape}\n{batch['encodings']}\neos_mask-{batch['eos_pad_mask'].shape}\n{batch['eos_pad_mask']}")
+    print(f"5 batch:\nindices-{batch['indices'].shape}\n{batch['indices']}\nencoding-{batch['encoding'].shape}\n{batch['encoding']}\neos_mask-{batch['eos_pad_mask'].shape}\n{batch['eos_pad_mask']}")
     batch= model.decoder(batch)
     print(f"6 batch:\n{batch['decoding'].shape}\n{batch['decoding']}")
 
