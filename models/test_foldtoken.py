@@ -48,7 +48,7 @@ def decode_atom_coordinates(vq_codes, foldtoken_model):
     return X
 
 
-def read_fasta(fasta_path: Path) -> pdb_dict:
+def read_fasta(fasta_path: Path) -> dict:
     """
     Read a FASTA file and return a dict {seq_id: sequence_string}.
     """
