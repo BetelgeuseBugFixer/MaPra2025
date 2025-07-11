@@ -75,12 +75,9 @@ def create_tfold_data_loaders(data_dir):
     val_dataset = SeqStrucTokSet(os.path.join(val_dir, "proteins.jsonl"), os.path.join(val_dir, "proteins.pkl"))
     test_dataset = SeqStrucTokSet(os.path.join(test_dir, "proteins.jsonl"), os.path.join(test_dir, "proteins.pkl"))
     return (
-        DataLoader(train_dataset, batch_size=args.batch, collate_fn=collate_seq_tok_batch, pin_memory=True,
-                   persistent_workers=True),
-        DataLoader(val_dataset, batch_size=args.batch, collate_fn=collate_seq_struc_tok_batch, pin_memory=True,
-                   persistent_workers=True),
-        DataLoader(test_dataset, batch_size=args.batch, collate_fn=collate_seq_struc_tok_batch, pin_memory=True,
-                   persistent_workers=True)
+        DataLoader(train_dataset, batch_size=args.batch, collate_fn=collate_seq_tok_batch, pin_memory=True),
+        DataLoader(val_dataset, batch_size=args.batch, collate_fn=collate_seq_struc_tok_batch, pin_memory=True),
+        DataLoader(test_dataset, batch_size=args.batch, collate_fn=collate_seq_struc_tok_batch, pin_memory=True)
     )
 
 
