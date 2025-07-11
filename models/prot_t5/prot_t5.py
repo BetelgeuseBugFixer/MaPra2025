@@ -49,8 +49,9 @@ class ProtT5(nn.Module):
         outputs = self.model(input_ids, attention_mask=attention_mask)
         hidden = outputs.last_hidden_state  # (B, L+1, D)
         # remove embeddings from eos and padding
-        residue_mask_mask = ((input_ids != 0) & (input_ids != 1)).unsqueeze(-1)
-        hidden = hidden * residue_mask_mask
+        valid_positions = (input_ids != 0) & (input_ids != 1)
+        # Apply mask directly without materializing full-size tensor
+        hidden = hidden * valid_positions.unsqueeze(-1).to(hidden.dtype)
         # remove last "residue" embeddings, because it is the eos from the longest seq
         hidden = hidden[:, :-1, :]
         return hidden

@@ -37,7 +37,7 @@ def parse_args():
                         help="JSON containing the ids split into train, validation and test")
     parser.add_argument("--data_dir", help="Directory with train, validation and test sub directories")
 
-    #model
+    # model
     parser.add_argument("--model", type=str, default="cnn", help="type of model to use")
     # tfold exclusive setting
     parser.add_argument("--lora_plm", action="store_true", help=" use lora to retrain the plm")
@@ -71,14 +71,18 @@ def create_tfold_data_loaders(data_dir):
     train_dir = os.path.join(data_dir, "train")
     val_dir = os.path.join(data_dir, "val")
     test_dir = os.path.join(data_dir, "test")
-    train_dataset = SeqTokSet(os.path.join(train_dir,"proteins.jsonl"))
-    val_dataset = SeqStrucTokSet(os.path.join(val_dir,"proteins.jsonl"),os.path.join(val_dir,"proteins.pkl"))
-    test_dataset = SeqStrucTokSet(os.path.join(test_dir,"proteins.jsonl"),os.path.join(test_dir,"proteins.pkl"))
+    train_dataset = SeqTokSet(os.path.join(train_dir, "proteins.jsonl"))
+    val_dataset = SeqStrucTokSet(os.path.join(val_dir, "proteins.jsonl"), os.path.join(val_dir, "proteins.pkl"))
+    test_dataset = SeqStrucTokSet(os.path.join(test_dir, "proteins.jsonl"), os.path.join(test_dir, "proteins.pkl"))
     return (
-        DataLoader(train_dataset, batch_size=args.batch,collate_fn=collate_seq_tok_batch),
-        DataLoader(val_dataset,batch_size=args.batch,collate_fn=collate_seq_struc_tok_batch),
-        DataLoader(test_dataset, batch_size=args.batch, collate_fn=collate_seq_struc_tok_batch)
+        DataLoader(train_dataset, batch_size=args.batch, collate_fn=collate_seq_tok_batch, pin_memory=True,
+                   persistent_workers=True),
+        DataLoader(val_dataset, batch_size=args.batch, collate_fn=collate_seq_struc_tok_batch, pin_memory=True,
+                   persistent_workers=True),
+        DataLoader(test_dataset, batch_size=args.batch, collate_fn=collate_seq_struc_tok_batch, pin_memory=True,
+                   persistent_workers=True)
     )
+
 
 def create_cnn_data_loaders(emb_source, tok_jsonl, train_ids, val_ids, test_ids, batch_size, use_single_file):
     DSClass = ProteinPairJSONL if use_single_file else ProteinPairJSONL_FromDir
@@ -119,6 +123,7 @@ def collate_seq_struc_tok_batch(batch):
 
     return list(sequences), padded_tokens, list(structures)
 
+
 def collate_seq_tok_batch(batch):
     sequences, token_lists = zip(*batch)
 
@@ -126,6 +131,7 @@ def collate_seq_tok_batch(batch):
     padded_tokens = pad_sequence(token_lists, batch_first=True, padding_value=PAD_LABEL)
 
     return list(sequences), padded_tokens
+
 
 def pad_collate(batch):
     """
@@ -226,7 +232,7 @@ def get_dataset(args):
             emb_source, args.tok_jsonl, train_ids, val_ids, test_ids, args.batch, use_file
         )
     elif args.model == "t_fold":
-        return  create_tfold_data_loaders(args.data_dir)
+        return create_tfold_data_loaders(args.data_dir)
 
 
 def main(args):
@@ -238,7 +244,7 @@ def main(args):
     # init wand db
     run = None
     if not args.no_wandb:
-        #wandb.login(key=open("wandb_key").read().strip())
+        # wandb.login(key=open("wandb_key").read().strip())
         run = init_wand_db(args)
 
     # init important metric based on if the models need to optimize or minimize
@@ -263,7 +269,7 @@ def main(args):
         tr_acc = score_dict["acc"]
         val_loss = score_dict["val_loss"]
         val_acc = score_dict["val_acc"]
-        lddt_string= f" |{score_dict["val_lddt"]}" if score_dict["val_lddt"] else ""
+        lddt_string = f" |{score_dict["val_lddt"]}" if score_dict["val_lddt"] else ""
         print(f"Epoch {epoch:02d} | train {tr_loss:.4f}/{tr_acc:.4f} | val {val_loss:.4f}/{val_acc:.4f}{lddt_string}")
 
         # Early stopping check
