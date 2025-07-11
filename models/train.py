@@ -68,10 +68,9 @@ def parse_args():
 
 
 def create_tfold_data_loaders(data_dir):
-    # TODO CHANGE ONLY VAL SET IS USED HERE
-    train_dir = os.path.join(data_dir, "val")
+    train_dir = os.path.join(data_dir, "train")
     val_dir = os.path.join(data_dir, "val")
-    test_dir = os.path.join(data_dir, "val")
+    test_dir = os.path.join(data_dir, "test")
     train_dataset = SeqTokSet(os.path.join(train_dir,"proteins.jsonl"))
     val_dataset = SeqStrucTokSet(os.path.join(val_dir,"proteins.jsonl"),os.path.join(val_dir,"proteins.pkl"))
     test_dataset = SeqStrucTokSet(os.path.join(test_dir,"proteins.jsonl"),os.path.join(test_dir,"proteins.pkl"))
