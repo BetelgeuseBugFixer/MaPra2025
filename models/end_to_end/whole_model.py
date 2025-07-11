@@ -153,8 +153,8 @@ class TFold(nn.Module):
         return score_dict
 
 
-def run_epoch(self, loader, optimizer=None, device="cpu"):
-    if optimizer is None:
-        return self.run_val_epoch(loader, device)
-    else:
-        return self.run_train_epoch(loader, optimizer, device)
+    def run_epoch(self, loader, optimizer=None, device="cpu"):
+        if optimizer is None:
+            return self.run_val_epoch(loader, device)
+        else:
+            return self.run_train_epoch(loader, optimizer, device)
