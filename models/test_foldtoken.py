@@ -343,7 +343,6 @@ if __name__ == '__main__':
         pdb_path,
         None,
     )
-    print(f"dict:\n{pdb_dict}")
     structure, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered = uniform_dataframe(
         pdb_dict["seq"],
         pdb_dict["res_types"],
@@ -358,16 +357,11 @@ if __name__ == '__main__':
         "residue_ids": torch.tensor(residue_ids).long(),
         "token_class": torch.tensor(token_class).long(),
     }
-    print(f"1 batch:\n{batch}")
     batch = {k: v[~batch["unknown_structure"]] for k, v in batch.items()}
-    print(f"2 batch:\n{batch}")
     batch = compute_masks(batch, structure_track=True)
-    print(f"3 batch:\n{batch}")
     batch = {k: v[None].to(device) for k, v in batch.items()}
-    print(f"4 batch:\n{batch}")
-
     batch = model.encoder(batch)
-    print(f"5 batch:\n{batch}")
+    print(f"5 batch:\nindices-{batch['indices'].shape}\n{batch['indices']}\nencodings-{batch['encodings'].shape}\n{batch['encodings']}\neos_mask-{batch['eos_pad_mask'].shape}\n{batch['eos_pad_mask']}")
     batch= model.decoder(batch)
-    print(f"6 batch:\n{batch}")
+    print(f"6 batch:\n{batch['decoding'].shape}\n{batch['decoding']}")
 
