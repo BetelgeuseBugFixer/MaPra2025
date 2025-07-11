@@ -4,7 +4,7 @@ from typing import List
 import torch
 from torch import nn
 
-from models.foldtoken_decoder.foldtoken_decoder import FoldDecoder
+from models.foldtoken_decoder.foldtoken import FoldToken
 from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores
 from models.prot_t5.prot_t5 import ProtT5
 from models.datasets.datasets import PAD_LABEL
@@ -19,7 +19,7 @@ class TFold(nn.Module):
         embeddings_size = 1024
         codebook_size = 1024
         self.cnn = ResidueTokenCNN(embeddings_size, hidden, codebook_size, kernel_sizes, dropout).to(device)
-        self.decoder = FoldDecoder(device=self.device)
+        self.decoder = FoldToken(device=self.device)
 
         # freeze decoder 
         for param in self.decoder.parameters():

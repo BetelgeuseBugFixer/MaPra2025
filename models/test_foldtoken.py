@@ -1,3 +1,4 @@
+import argparse
 import json
 from pathlib import Path
 import os
@@ -9,12 +10,14 @@ from biotite.structure.filter import _filter_atom_names
 from torch import nn
 from torch.nn.utils.rnn import pad_sequence
 
+from models.bio2token.models.autoencoder import AutoencoderConfig, Autoencoder
+from models.bio2token.utils.configs import utilsyaml_to_dict, pi_instantiate
 from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores
 from models.prot_t5.prot_t5 import ProtT5
 from models.datasets.datasets import PAD_LABEL
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
 
-from models.foldtoken_decoder.foldtoken_decoder import FoldDecoder
+from models.foldtoken_decoder.foldtoken import FoldToken
 from models.end_to_end.whole_model import TFold
 from transformers import T5EncoderModel, T5Tokenizer
 
@@ -64,7 +67,7 @@ def read_fasta(fasta_path: Path) -> dict:
 
 def sanity_test():
     device = "cuda"
-    model = FoldDecoder(device=device)
+    model = FoldToken(device=device)
     test_pdb = "tokenizer_benchmark/casps/casp14/T1024-D1.pdb"
     test_tokens = load_casp_tokens("data/casp14_test/casp14_tokens.jsonl")["T1024-D1"]["vqid"]
     # test_pdb = "data/lys6/pdb_files/pdb/AF-A0A0A0AJ30-F1-model_v4.pdb"
@@ -125,7 +128,7 @@ def sample_workflow():
     device = "cuda"
     # init models
     plm = ProtT5(device=device).to(device)
-    decoder = FoldDecoder(device=device)
+    decoder = FoldToken(device=device)
 
     # define input
     # test_pdbs=["tokenizer_benchmark/casps/casp14/T1024-D1.pdb","tokenizer_benchmark/casps/casp14/T1024-D2.pdb"]
@@ -252,16 +255,13 @@ def test_loading():
         print(lddt(ref_protein, X))
 
 
-
-
-
 def training_test():
     device = "cuda"
     # define input
     test_pdbs = ["tokenizer_benchmark/casps/casp14/T1024-D1.pdb", "tokenizer_benchmark/casps/casp14/T1026-D1.pdb"]
     seqs = [get_seq_from_pdb(pdb_path) for pdb_path in test_pdbs]
     ref_proteins = [load_prot_from_pdb(test_pdb) for test_pdb in test_pdbs]
-    fold_model = FoldDecoder(device=device)
+    fold_model = FoldToken(device=device)
     tokens_reference = [fold_model.encode_pdb(test_pdb) for test_pdb in test_pdbs]
     tokens_reference_padded = pad_sequence(tokens_reference, batch_first=True, padding_value=PAD_LABEL)
     protein_reference = [load_prot_from_pdb(test_pdb) for test_pdb in test_pdbs]
@@ -323,5 +323,16 @@ def protT5_test():
     print(f"new_hidden.shape{new_hidden.shape}")
     print(new_hidden)
 
+
 if __name__ == '__main__':
-    sample_workflow()
+    device = "cuda"
+    test_pdbs = ["tokenizer_benchmark/casps/casp14/T1024-D1.pdb", "tokenizer_benchmark/casps/casp14/T1026-D1.pdb"]
+    model_configs = utilsyaml_to_dict("models/bio2token/files/model.yaml")
+    model_config = pi_instantiate(AutoencoderConfig, model_configs)
+    model = Autoencoder(model_config)
+    state_dict = torch.load("models/bio2token/files/epoch=0243-val_loss_epoch=0.71-best-checkpoint.ckpt")["state_dict"]
+    # Remove 'model.' prefix from keys if present
+    state_dict_bis = {k.replace("model.", ""): v for k, v in state_dict.items()}
+    model.load_state_dict(state_dict_bis)
+
+

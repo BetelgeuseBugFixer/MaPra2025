@@ -6,13 +6,13 @@ import json
 import tempfile
 
 from pathlib import Path
-from models.foldtoken_decoder.foldtoken_decoder import FoldDecoder
+from models.foldtoken_decoder.foldtoken import FoldToken
 from biotite.structure.io.pdb import PDBFile
 from biotite.structure.filter import _filter_atom_names
 
 
 DEVICE = "cuda"
-model = FoldDecoder(device=DEVICE)
+model = FoldToken(device=DEVICE)
 
 SINGLETON_ID_PATH = "/mnt/data/large/prostt5_IDs/afdb50best_foldseek_clu_singleton.ids"
 with open(SINGLETON_ID_PATH, "r") as f:
