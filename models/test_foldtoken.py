@@ -357,16 +357,16 @@ if __name__ == '__main__':
         "residue_ids": torch.tensor(residue_ids).long(),
         "token_class": torch.tensor(token_class).long(),
     }
-    print(f"1 batch{batch.shape}:\n{batch}")
+    print(f"1 batch:\n{batch}")
     batch = {k: v[~batch["unknown_structure"]] for k, v in batch.items()}
-    print(f"2 batch{batch.shape}:\n{batch}")
+    print(f"2 batch:\n{batch}")
     batch = compute_masks(batch, structure_track=True)
-    print(f"3 batch{batch.shape}:\n{batch}")
+    print(f"3 batch:\n{batch}")
     batch = {k: v[None].to(device) for k, v in batch.items()}
-    print(f"4 batch{batch.shape}:\n{batch}")
+    print(f"4 batch:\n{batch}")
 
     batch = model.encoder(batch)
-    print(f"5 batch{batch.shape}:\n{batch}")
+    print(f"5 batch:\n{batch}")
     batch= model.decoder(batch)
-    print(f"6 batch{batch.shape}:\n{batch}")
+    print(f"6 batch:\n{batch}")
 
