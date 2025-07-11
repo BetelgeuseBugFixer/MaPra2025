@@ -144,30 +144,6 @@ def pad_collate(batch):
     return embs_padded, toks_padded
 
 
-def run_epoch(model, loader, criterion, optimizer=None, device="cpu"):
-    is_train = optimizer is not None
-    model.train() if is_train else model.eval()
-    total_loss = total_acc = total_samples = 0
-    torch.set_grad_enabled(is_train)
-
-    for emb, tok in tqdm(loader, desc="train" if is_train else "val", leave=False):
-        emb, tok = emb.to(device), tok.to(device)
-        mask = (tok != PAD_LABEL)
-        logits = model(emb)
-        loss = criterion(logits.transpose(1, 2), tok)
-
-        if is_train:
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-        bsz = emb.size(0)
-        total_loss += loss.item() * bsz
-        total_acc += _masked_accuracy(logits, tok, mask) * bsz
-        total_samples += bsz
-
-    return total_loss / total_samples, total_acc / total_samples
-
 
 def load_split_file(split_file):
     with open(split_file) as f:
