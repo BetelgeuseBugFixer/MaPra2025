@@ -328,7 +328,7 @@ def protT5_test():
 
 if __name__ == '__main__':
     device = "cuda"
-    model_configs = load_from_yaml("models/bio2token/files/model.yaml")
+    model_configs = load_from_yaml("models/bio2token/files/model.yaml")["model"]
     model_config = pi_instantiate(AutoencoderConfig, model_configs)
     model = Autoencoder(model_config)
     state_dict = torch.load("models/bio2token/files/epoch=0243-val_loss_epoch=0.71-best-checkpoint.ckpt")["state_dict"]
