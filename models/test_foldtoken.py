@@ -335,6 +335,7 @@ if __name__ == '__main__':
     # Remove 'model.' prefix from keys if present
     state_dict_bis = {k.replace("model.", ""): v for k, v in state_dict.items()}
     model.load_state_dict(state_dict_bis)
+    model.to(device)
     print("inited model")
 
     pdb_path = "tokenizer_benchmark/casps/casp14/T1024-D1.pdb"
