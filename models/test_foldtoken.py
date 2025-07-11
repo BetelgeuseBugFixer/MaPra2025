@@ -16,10 +16,12 @@ from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scor
 from models.prot_t5.prot_t5 import ProtT5
 from models.datasets.datasets import PAD_LABEL
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
+from models.bio2token.data.utils.utils import pdb_2_dict, uniform_dataframe, compute_masks
 
 from models.foldtoken_decoder.foldtoken import FoldToken
 from models.end_to_end.whole_model import TFold
 from transformers import T5EncoderModel, T5Tokenizer
+from hydra_zen import load_from_yaml, builds, instantiate
 
 
 def load_prot_from_pdb(pdb_file):
@@ -46,7 +48,7 @@ def decode_atom_coordinates(vq_codes, foldtoken_model):
     return X
 
 
-def read_fasta(fasta_path: Path) -> dict:
+def read_fasta(fasta_path: Path) -> pdb_dict:
     """
     Read a FASTA file and return a dict {seq_id: sequence_string}.
     """
@@ -326,13 +328,45 @@ def protT5_test():
 
 if __name__ == '__main__':
     device = "cuda"
-    test_pdbs = ["tokenizer_benchmark/casps/casp14/T1024-D1.pdb", "tokenizer_benchmark/casps/casp14/T1026-D1.pdb"]
-    model_configs = utilsyaml_to_dict("models/bio2token/files/model.yaml")
+    model_configs = load_from_yaml("models/bio2token/files/model.yaml")
     model_config = pi_instantiate(AutoencoderConfig, model_configs)
     model = Autoencoder(model_config)
     state_dict = torch.load("models/bio2token/files/epoch=0243-val_loss_epoch=0.71-best-checkpoint.ckpt")["state_dict"]
     # Remove 'model.' prefix from keys if present
     state_dict_bis = {k.replace("model.", ""): v for k, v in state_dict.items()}
     model.load_state_dict(state_dict_bis)
+    print("inited model")
 
+    pdb_path = "tokenizer_benchmark/casps/casp14/T1024-D1.pdb"
+    pdb_dict = pdb_2_dict(
+        pdb_path,
+        None,
+    )
+    print(f"dict:\n{pdb_dict}")
+    structure, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered = uniform_dataframe(
+        pdb_dict["seq"],
+        pdb_dict["res_types"],
+        pdb_dict["coords_groundtruth"],
+        pdb_dict["atom_names"],
+        pdb_dict["res_atom_start"],
+        pdb_dict["res_atom_end"],
+    )
+    batch = {
+        "structure": torch.tensor(structure).float(),
+        "unknown_structure": torch.tensor(unknown_structure).bool(),
+        "residue_ids": torch.tensor(residue_ids).long(),
+        "token_class": torch.tensor(token_class).long(),
+    }
+    print(f"1 batch{batch.shape}:\n{batch}")
+    batch = {k: v[~batch["unknown_structure"]] for k, v in batch.items()}
+    print(f"2 batch{batch.shape}:\n{batch}")
+    batch = compute_masks(batch, structure_track=True)
+    print(f"3 batch{batch.shape}:\n{batch}")
+    batch = {k: v[None].to(device) for k, v in batch.items()}
+    print(f"4 batch{batch.shape}:\n{batch}")
+
+    batch = model.encoder(batch)
+    print(f"5 batch{batch.shape}:\n{batch}")
+    batch= model.decoder(batch)
+    print(f"6 batch{batch.shape}:\n{batch}")
 

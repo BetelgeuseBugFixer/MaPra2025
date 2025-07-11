@@ -35,3 +35,15 @@ pip install matplotlib
 pip install wandb
 
  pip install https://github.com/state-spaces/mamba/releases/download/v2.2.4/mamba_ssm-2.2.4+cu12torch2.6cxx11abiTRUE-cp312-cp312-linux_x86_64.whl
+ pip install python-box
+pip install biopython
+ pip install nglview
+ pip install dill
+pip install invariant-point-attention
+ pip install kaleido
+pip install pytest
+pip install seaborn
+pip install hydra-zen
+pip install loguru
+pip install mmtf-python
+
