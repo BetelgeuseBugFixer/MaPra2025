@@ -390,7 +390,6 @@ if __name__ == '__main__':
     batch_atom_names_reordered = []
     batch_residue_names = []
     batch_dicts = []
-    batch_fasta_dicts = []
     # read to dicts
     dicts = [pdb_2_dict(pdb) for pdb in test_pdbs]
     for pdb_dict in dicts:
@@ -409,7 +408,6 @@ if __name__ == '__main__':
         batch_atom_names_reordered.append(atom_names_reordered)
         batch_residue_names.append(residue_name)
         batch_dicts.append(pdb_dict)
-        batch_fasta_dicts.append(pdb_dict["fasta_seqs"])
 
         max_len = max([s.shape[0] for s in batch_structures])
 
