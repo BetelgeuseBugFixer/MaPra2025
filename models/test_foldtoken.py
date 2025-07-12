@@ -16,7 +16,7 @@ from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scor
 from models.prot_t5.prot_t5 import ProtT5
 from models.datasets.datasets import PAD_LABEL
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
-from models.bio2token.data.utils.utils import pdb_2_dict, uniform_dataframe, compute_masks
+from models.bio2token.data.utils.utils import pdb_2_dict, uniform_dataframe, compute_masks, pad_and_stack_batch
 
 from models.foldtoken_decoder.foldtoken import FoldToken
 from models.end_to_end.whole_model import TFold
@@ -398,37 +398,38 @@ if __name__ == '__main__':
 
     # read to dicts
     dicts = [pdb_2_dict(pdb) for pdb in test_pdbs]
-    for pdb_dict in dicts:
-        structure, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered = uniform_dataframe(
-            pdb_dict["seq"],
-            pdb_dict["res_types"],
-            pdb_dict["coords_groundtruth"],
-            pdb_dict["atom_names"],
-            pdb_dict["res_atom_start"],
-            pdb_dict["res_atom_end"],
-        )
-        batch_structures.append(torch.tensor(structure).float())
-        batch_unknown_structures.append(torch.tensor(unknown_structure).bool())
-        batch_residue_names.append(residue_name)
-        batch_residue_ids.append(torch.tensor(residue_ids).long())
-        batch_token_class.append(torch.tensor(token_class).long())
-        batch_atom_names_reordered.append(atom_names_reordered)
+    # for pdb_dict in dicts:
+    #     structure, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered = uniform_dataframe(
+    #         pdb_dict["seq"],
+    #         pdb_dict["res_types"],
+    #         pdb_dict["coords_groundtruth"],
+    #         pdb_dict["atom_names"],
+    #         pdb_dict["res_atom_start"],
+    #         pdb_dict["res_atom_end"],
+    #     )
+    #     batch_structures.append(torch.tensor(structure).float())
+    #     batch_unknown_structures.append(torch.tensor(unknown_structure).bool())
+    #     batch_residue_names.append(residue_name)
+    #     batch_residue_ids.append(torch.tensor(residue_ids).long())
+    #     batch_token_class.append(torch.tensor(token_class).long())
+    #     batch_atom_names_reordered.append(atom_names_reordered)
+    #
+    #
+    # max_len = max([s.shape[0] for s in batch_structures])
+    #
+    # structure = pad_tensor_list(batch_structures,max_len, pad_value=0)
+    # unknown_structure = pad_tensor_list(batch_unknown_structures,max_len, pad_value=True)
+    # residue_ids = pad_tensor_list(batch_residue_ids,max_len, pad_value=0)
+    # token_class = pad_tensor_list(batch_token_class,max_len, pad_value=0)
 
+    # batch = {
+    #     "structure": structure,
+    #     "unknown_structure": unknown_structure,
+    #     "residue_ids": residue_ids,
+    #     "token_class": token_class,
+    # }
+    batch=pad_and_stack_batch(dicts)
 
-    max_len = max([s.shape[0] for s in batch_structures])
-
-    structure = pad_tensor_list(batch_structures,max_len, pad_value=0)
-    unknown_structure = pad_tensor_list(batch_unknown_structures,max_len, pad_value=True)
-    residue_ids = pad_tensor_list(batch_residue_ids,max_len, pad_value=0)
-    token_class = pad_tensor_list(batch_token_class,max_len, pad_value=0)
-
-    batch = {
-        "structure": structure,
-        "unknown_structure": unknown_structure,
-        "residue_ids": residue_ids,
-        "token_class": token_class,
-    }
-    print()
     print(f"batch:\n{batch}")
     batch = compute_masks(batch, structure_track=True)
     batch = {k: v.to(device) for k, v in batch.items()}

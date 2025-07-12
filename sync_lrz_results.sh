@@ -1,1 +1,1 @@
-scp -r lrz:~MaPra2025/slurm_out .
+scp -r lrz:~/MaPra2025/slurm_out .
