@@ -177,8 +177,22 @@ def process_split(split: str):
         if torch.cuda.is_available(): torch.cuda.empty_cache()
         gc.collect()
 
+    if split != 'train':
+        dir_in = INPUT_DIR / split / f"{split}_pdb"
+        for pdb_file in dir_in.glob('*.pdb'):
+            pid = pdb_file.stem.split('-')[1] if '-' in pdb_file.stem else None
+            if not pid or pid in singleton_ids:
+                skipped += 1 if pid else 0
+                continue
+            try:
+                lines = open(pdb_file).read().splitlines()
+                seq = get_seq_from_lines(lines)
+                if not seq: continue
+                handle_protein(pid, seq, str(pdb_file))
+            except Exception as e:
+                print(f"[WARN] {pdb_file.name} -> {e}", flush=True)
     # Eingabe iterieren
-    if split == 'train':
+    else:
         tar = tarfile.open(INPUT_DIR / 'train' / 'rostlab_subset.tar', 'r')
         for member in tar:
             if processed >= BATCH_LIMIT: break
@@ -201,20 +215,6 @@ def process_split(split: str):
             finally:
                 os.remove(path)
         tar.close()
-    else:
-        dir_in = INPUT_DIR / split / f"{split}_pdb"
-        for pdb_file in dir_in.glob('*.pdb'):
-            pid = pdb_file.stem.split('-')[1] if '-' in pdb_file.stem else None
-            if not pid or pid in singleton_ids:
-                skipped += 1 if pid else 0
-                continue
-            try:
-                lines = open(pdb_file).read().splitlines()
-                seq = get_seq_from_lines(lines)
-                if not seq: continue
-                handle_protein(pid, seq, str(pdb_file))
-            except Exception as e:
-                print(f"[WARN] {pdb_file.name} -> {e}", flush=True)
 
     # Abschluss
     jsonl_file.close()
