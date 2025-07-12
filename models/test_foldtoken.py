@@ -441,8 +441,9 @@ if __name__ == '__main__':
         "residue_ids": -1
     }
     batch = [pdb_2_dict(pdb) for pdb in test_pdbs]
+    print(f"2 batch:\n{batch}")
     batch = filter_batch(batch, sequences_to_pad.keys())
-
+    print(f"1 batch:\n{batch}")
     batch = pad_and_stack_batch(
         batch,
         sequences_to_pad,
