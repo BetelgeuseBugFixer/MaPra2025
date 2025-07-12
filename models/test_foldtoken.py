@@ -16,7 +16,8 @@ from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scor
 from models.prot_t5.prot_t5 import ProtT5
 from models.datasets.datasets import PAD_LABEL
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
-from models.bio2token.data.utils.utils import pdb_2_dict, uniform_dataframe, compute_masks, pad_and_stack_batch
+from models.bio2token.data.utils.utils import pdb_2_dict, uniform_dataframe, compute_masks, pad_and_stack_batch, \
+    filter_batch
 
 from models.foldtoken_decoder.foldtoken import FoldToken
 from models.end_to_end.whole_model import TFold
@@ -397,7 +398,7 @@ if __name__ == '__main__':
     batch_atom_names_reordered = []
 
     # read to dicts
-    dicts = [pdb_2_dict(pdb) for pdb in test_pdbs]
+    # dicts = [pdb_2_dict(pdb) for pdb in test_pdbs]
     # for pdb_dict in dicts:
     #     structure, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered = uniform_dataframe(
     #         pdb_dict["seq"],
@@ -428,7 +429,26 @@ if __name__ == '__main__':
     #     "residue_ids": residue_ids,
     #     "token_class": token_class,
     # }
-    batch=pad_and_stack_batch(dicts)
+
+    #taken from config
+    sequences_to_pad={
+        "structure": 0,
+        "eos_pad_mask": 1,
+        "structure_known_all_atom_mask": 0,
+        "bb_atom_known_structure_mask": 0,
+        "sc_atom_known_structure_mask": 0,
+        "cref_atom_known_structure_mask": 0,
+        "residue_ids": -1
+    }
+    batch = [pdb_2_dict(pdb) for pdb in test_pdbs]
+    batch = filter_batch(batch, sequences_to_pad.keys())
+
+    batch = pad_and_stack_batch(
+        batch,
+        sequences_to_pad,
+        1
+    )
+
 
     print(f"batch:\n{batch}")
     batch = compute_masks(batch, structure_track=True)
