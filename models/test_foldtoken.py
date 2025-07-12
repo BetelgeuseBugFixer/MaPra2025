@@ -23,8 +23,6 @@ from models.end_to_end.whole_model import TFold
 from transformers import T5EncoderModel, T5Tokenizer
 from hydra_zen import load_from_yaml, builds, instantiate
 
-from utils.prepare_data import batch_start
-
 
 def load_prot_from_pdb(pdb_file):
     # load
