@@ -14,9 +14,6 @@ conda activate /opt/envs/f_token
 cd ~/MaPra2025
 export PYTHONPATH=~/MaPra2025:$PYTHONPATH
 
-# Move to code directory
-cd /mnt/repro/MaPra2025
-export PYTHONPATH=/mnt/repro/MaPra2025:$PYTHONPATH
 
 # Step 1: Generate proteins.jsonl + proteins.pkl
 python -u utils/prepare_data.py

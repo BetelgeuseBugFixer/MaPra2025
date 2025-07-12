@@ -77,17 +77,6 @@ def load_prot_from_pdb(pdb_file):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
 for split in ["val", "test", "train"]:
     print("=" * 60)
     print(f"[{split.upper()}] Starting processing")
@@ -195,71 +184,71 @@ for split in ["val", "test", "train"]:
             print(f"[train] Skipped {skipped_singletons} singleton entries.")
 
     else:
-        pdb_dir = Path(f"/mnt/data/large/zip_file/final_data_PDB/{split}") / f"{split}_pdb"
-        processed = 0
-        skipped_singletons = 0
-        total_start = time.time()
-
-        for pdb_file in pdb_dir.glob("*.pdb"):
-            parts = pdb_file.stem.split("-")
-            if len(parts) < 2:
-                print(f"[{split}] Skipped invalid filename: {pdb_file.name}")
-                continue
-            protein_id = parts[1]
-
-            if protein_id in singleton_ids:
-                skipped_singletons += 1
-                continue
-
-            try:
-                with open(pdb_file, "r") as f:
-                    lines = f.readlines()
-                seq = get_seq_from_lines(lines)
-                if not seq:
-                    continue
-
-                vq_ids = foldtoken_model.encode_pdb(str(pdb_file))
-
-                with contextlib.redirect_stdout(open(os.devnull, 'w')):
-                    pdb_dict = pdb_2_dict(str(pdb_file), None)
-                structure_b2t, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered = uniform_dataframe(
-                    pdb_dict["seq"],
-                    pdb_dict["res_types"],
-                    pdb_dict["coords_groundtruth"],
-                    pdb_dict["atom_names"],
-                    pdb_dict["res_atom_start"],
-                    pdb_dict["res_atom_end"],
-                )
-                batch = {
-                    "structure": torch.tensor(structure_b2t).float(),
-                    "unknown_structure": torch.tensor(unknown_structure).bool(),
-                    "residue_ids": torch.tensor(residue_ids).long(),
-                    "token_class": torch.tensor(token_class).long(),
-                }
-                batch = {k: v[~batch["unknown_structure"]] for k, v in batch.items()}
-                batch = compute_masks(batch, structure_track=True)
-                batch = {k: v[None].to(DEVICE) for k, v in batch.items()}
-                batch = bio2token_model.encoder(batch)
-
-                encoding = batch["encoding"].squeeze(0).cpu().tolist()
-                indices = batch["indices"].squeeze(0).cpu().tolist()
-
-                structure = load_prot_from_pdb(str(pdb_file))  # original PDB structure
-                protein_structures.append(structure)
-
-                json_entries.append({
-                    "id": protein_id,
-                    "sequence": seq,
-                    "vq_ids": vq_ids.tolist(),
-                    "bio2tokens": indices,
-                    "bio2token_encoding": encoding
-                })
-
-                processed += 1
-            except Exception as e:
-                print(f"[{split}] Failed: {pdb_file.name}, {e}")
-                with open(pdb_file, "r") as f:
-                    print("".join(f.readlines()[:30]))
+        # pdb_dir = Path(f"/mnt/data/large/zip_file/final_data_PDB/{split}") / f"{split}_pdb"
+        # processed = 0
+        # skipped_singletons = 0
+        # total_start = time.time()
+        #
+        # for pdb_file in pdb_dir.glob("*.pdb"):
+        #     parts = pdb_file.stem.split("-")
+        #     if len(parts) < 2:
+        #         print(f"[{split}] Skipped invalid filename: {pdb_file.name}")
+        #         continue
+        #     protein_id = parts[1]
+        #
+        #     if protein_id in singleton_ids:
+        #         skipped_singletons += 1
+        #         continue
+        #
+        #     try:
+        #         with open(pdb_file, "r") as f:
+        #             lines = f.readlines()
+        #         seq = get_seq_from_lines(lines)
+        #         if not seq:
+        #             continue
+        #
+        #         vq_ids = foldtoken_model.encode_pdb(str(pdb_file))
+        #
+        #         with contextlib.redirect_stdout(open(os.devnull, 'w')):
+        #             pdb_dict = pdb_2_dict(str(pdb_file), None)
+        #         structure_b2t, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered = uniform_dataframe(
+        #             pdb_dict["seq"],
+        #             pdb_dict["res_types"],
+        #             pdb_dict["coords_groundtruth"],
+        #             pdb_dict["atom_names"],
+        #             pdb_dict["res_atom_start"],
+        #             pdb_dict["res_atom_end"],
+        #         )
+        #         batch = {
+        #             "structure": torch.tensor(structure_b2t).float(),
+        #             "unknown_structure": torch.tensor(unknown_structure).bool(),
+        #             "residue_ids": torch.tensor(residue_ids).long(),
+        #             "token_class": torch.tensor(token_class).long(),
+        #         }
+        #         batch = {k: v[~batch["unknown_structure"]] for k, v in batch.items()}
+        #         batch = compute_masks(batch, structure_track=True)
+        #         batch = {k: v[None].to(DEVICE) for k, v in batch.items()}
+        #         batch = bio2token_model.encoder(batch)
+        #
+        #         encoding = batch["encoding"].squeeze(0).cpu().tolist()
+        #         indices = batch["indices"].squeeze(0).cpu().tolist()
+        #
+        #         structure = load_prot_from_pdb(str(pdb_file))  # original PDB structure
+        #         protein_structures.append(structure)
+        #
+        #         json_entries.append({
+        #             "id": protein_id,
+        #             "sequence": seq,
+        #             "vq_ids": vq_ids.tolist(),
+        #             "bio2tokens": indices,
+        #             "bio2token_encoding": encoding
+        #         })
+        #
+        #         processed += 1
+        #     except Exception as e:
+        #         print(f"[{split}] Failed: {pdb_file.name}, {e}")
+        #         with open(pdb_file, "r") as f:
+        #             print("".join(f.readlines()[:30]))
 
         print(f"[{split}] Finished processing {processed} proteins in {time.time() - total_start:.2f}s")
         print(f"[{split}] Skipped {skipped_singletons} singleton entries.")
