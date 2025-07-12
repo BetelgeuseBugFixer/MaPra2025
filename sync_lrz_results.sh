@@ -1,1 +1,1 @@
-scp -r lrz:/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/repro/MaPra2025/slurm_out .
+scp -r lrz:~MaPra2025/slurm_out .
