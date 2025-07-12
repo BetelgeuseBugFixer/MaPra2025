@@ -46,4 +46,5 @@ pip install seaborn
 pip install hydra-zen
 pip install loguru
 pip install mmtf-python
+pip install pandas
 
