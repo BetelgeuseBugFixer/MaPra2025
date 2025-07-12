@@ -39,6 +39,7 @@ def parse_args():
 
     # model
     parser.add_argument("--model", type=str, default="cnn", help="type of model to use")
+    parser.add_argument("--resume",type=str,help="path to an existing model to resume training")
     # tfold exclusive setting
     parser.add_argument("--lora_plm", action="store_true", help=" use lora to retrain the plm")
 
@@ -93,14 +94,20 @@ def create_cnn_data_loaders(emb_source, tok_jsonl, train_ids, val_ids, test_ids,
     )
 
 
-def build_t_fold(lora_plm, hidden, kernel_size, dropout, lr, device):
-    model = TFold(hidden=hidden, kernel_sizes=kernel_size, dropout=dropout, device=device, use_lora=lora_plm)
+def build_t_fold(lora_plm, hidden, kernel_size, dropout, lr, device,resume):
+    if resume:
+        model=TFold.load(resume)
+    else:
+        model = TFold(hidden=hidden, kernel_sizes=kernel_size, dropout=dropout, device=device, use_lora=lora_plm)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     return model, optimizer
 
 
-def build_cnn(d_emb, hidden, vocab_size, kernel_size, dropout, lr, device):
-    model = ResidueTokenCNN(d_emb, hidden, vocab_size, kernel_size, dropout).to(device)
+def build_cnn(d_emb, hidden, vocab_size, kernel_size, dropout, lr, device, resume):
+    if resume:
+        model = ResidueTokenCNN.load_cnn(resume)
+    else:
+        model = ResidueTokenCNN(d_emb, hidden, vocab_size, kernel_size, dropout).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     return model, optimizer
 
@@ -190,11 +197,11 @@ def get_model(args):
     match args.model:
         case "cnn":
             return build_cnn(
-                args.d_emb, args.hidden, args.codebook_size, args.kernel_size, args.dropout, args.lr, args.device
+                args.d_emb, args.hidden, args.codebook_size, args.kernel_size, args.dropout, args.lr, args.device,args.resume
             )
         case "t_fold":
             return build_t_fold(args.lora_plm, args.hidden, args.kernel_size, args.dropout, args.lr,
-                                args.device)
+                                args.device,args.resume)
         case _:
             raise NotImplementedError
 
