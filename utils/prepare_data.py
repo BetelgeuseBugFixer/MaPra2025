@@ -2,7 +2,7 @@
 """
 prepare_data_memory_efficient.py
 --------------------------------
-Speicheroptimierte Version des ursprünglichen prepare_data-memory_efficient-Skripts.
+Speicheroptimierte Version des ursprünglichen prepare_data-memory_efficient-Skripts mit korrigiertem Device-Handling.
 
 Ziele
 -----
@@ -124,7 +124,6 @@ def process_split(split: str):
     out_dir = OUTPUT_BASE / split
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Für train: Streaming Writes; für val/test: Bulk sammeln
     stream_json = (split == 'train')
     jsonl_path = out_dir / "proteins.jsonl"
     pickle_path = out_dir / "proteins.pkl"
@@ -144,26 +143,33 @@ def process_split(split: str):
         nonlocal processed, chunk_start
         # FoldToken
         vq = foldtoken_model.encode_pdb(pdb_path)
-        # Bio2Token
+        # Bio2Token auf CPU: Grab dict und uniforme Arrays
         with contextlib.redirect_stdout(DEVNULL):
             pdb_d = pdb_2_dict(pdb_path, None)
         st, unk, _, res_ids, tok, _ = uniform_dataframe(
             pdb_d['seq'], pdb_d['res_types'], pdb_d['coords_groundtruth'],
             pdb_d['atom_names'], pdb_d['res_atom_start'], pdb_d['res_atom_end']
         )
-        batch = {k: torch.tensor(v).to(DEVICE) for k,v in {
-            'structure':st, 'unknown_structure':unk,
-            'residue_ids':res_ids, 'token_class':tok
-        }.items()}
-        batch = {k:v[~batch['unknown_structure']] for k,v in batch.items()}
-        batch = compute_masks(batch, structure_track=True)
-        batch = {k:v[None] for k,v in batch.items()}
+        # CPU-Tensors erstellen und filtern
+        cpu_batch = {
+            'structure': torch.tensor(st, dtype=torch.float32),
+            'unknown_structure': torch.tensor(unk, dtype=torch.bool),
+            'residue_ids': torch.tensor(res_ids, dtype=torch.int64),
+            'token_class': torch.tensor(tok, dtype=torch.int64),
+        }
+        cpu_batch = {k: v[~cpu_batch['unknown_structure']] for k,v in cpu_batch.items()}
+        # Masken auf CPU berechnen
+        cpu_batch = compute_masks(cpu_batch, structure_track=True)
+        # Auf GPU verschieben und Batch-Dimension
+        batch = {k: v.unsqueeze(0).to(DEVICE) for k,v in cpu_batch.items()}
+        # Encoder
         enc = bio2token_model.encoder(batch)
         encoding = enc['encoding'].squeeze(0).cpu().tolist()
         indices = enc['indices'].squeeze(0).cpu().tolist()
-        # Ergebnis zusammenstellen
+        # Ergebnis-Entry
         entry = {
-            'id': pid, 'sequence': seq,
+            'id': pid,
+            'sequence': seq,
             'vq_ids': vq.tolist(),
             'bio2tokens': indices,
             'bio2token_encoding': encoding
@@ -179,18 +185,16 @@ def process_split(split: str):
             buffer_structs.append(struct)
 
         processed += 1
-        # Fortschritt & Cleanup
         if processed % CHUNK_SIZE == 0:
             dur = time.time() - chunk_start
             print(f"[{split}] {processed:,} in {dur:.1f}s", flush=True)
             chunk_start = time.time()
-            # seltener GC / Cache clear
             gc.collect()
             if torch.cuda.is_available(): torch.cuda.empty_cache()
-        # temporäre Objekte löschen
-        del batch, enc, struct, vq
+        # Cleanup
+        del cpu_batch, batch, enc, struct, vq
 
-    # Iteration
+    # Iterate splits
     if split == 'train':
         tar = tarfile.open(INPUT_DIR / 'train' / 'rostlab_subset.tar', 'r')
         for mem in tar:
@@ -226,14 +230,13 @@ def process_split(split: str):
             except Exception as e:
                 print(f"[WARN] {pdb_file.name} -> {e}", flush=True)
 
-    # Bulk write für val/test
+    # Bulk-Dumps für val/test
     if not stream_json:
         with open(jsonl_path, 'w') as jf:
             for e in buffer_json: jf.write(json.dumps(e)+"\n")
         with open(pickle_path, 'wb') as pf:
             pickle.dump(buffer_structs, pf, protocol=pickle.HIGHEST_PROTOCOL)
 
-    # Abschluss
     if stream_json:
         json_f.close(); pickle_f.close()
     total = time.time() - start
