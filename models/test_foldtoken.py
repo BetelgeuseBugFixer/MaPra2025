@@ -366,6 +366,12 @@ def bio2token_test():
     batch = model.decoder(batch)
     print(f"6 batch:\n{batch['decoding'].shape}\n{batch['decoding']}")
 
+def pad_tensor_list(tensor_list,max_len ,pad_value=0):
+    return torch.stack([
+        torch.cat([t, torch.full((max_len - t.shape[0],) + t.shape[1:], pad_value, dtype=t.dtype)]) if t.shape[0] < max_len else t
+        for t in tensor_list
+    ])
+
 
 if __name__ == '__main__':
     device = "cuda"
@@ -411,18 +417,10 @@ if __name__ == '__main__':
 
     max_len = max([s.shape[0] for s in batch_structures])
 
-
-    def pad_tensor_list(tensor_list, pad_value=0):
-        return torch.stack([
-            torch.cat([t, torch.full((max_len - t.shape[0],) + t.shape[1:], pad_value, dtype=t.dtype)]) if t.shape[0] < max_len else t
-            for t in tensor_list
-        ])
-
-
-    structure = pad_tensor_list(batch_structures, pad_value=0)
-    unknown_structure = pad_tensor_list(batch_unknown_structures, pad_value=True)
-    residue_ids = pad_tensor_list(batch_residue_ids, pad_value=0)
-    token_class = pad_tensor_list(batch_token_class, pad_value=0)
+    structure = pad_tensor_list(batch_structures,max_len, pad_value=0)
+    unknown_structure = pad_tensor_list(batch_unknown_structures,max_len, pad_value=True)
+    residue_ids = pad_tensor_list(batch_residue_ids,max_len, pad_value=0)
+    token_class = pad_tensor_list(batch_token_class,max_len, pad_value=0)
 
     batch = {
         "structure": structure,
@@ -430,7 +428,7 @@ if __name__ == '__main__':
         "residue_ids": residue_ids,
         "token_class": token_class,
     }
-    print(batch)
+    print(f"batch:\n{batch}")
     batch = compute_masks(batch, structure_track=True)
     batch = {k: v.to(device) for k, v in batch.items()}
 
