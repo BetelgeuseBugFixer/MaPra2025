@@ -370,74 +370,75 @@ def bio2token_test():
 
 
 if __name__ == '__main__':
-    device = "cuda"
-    model_configs = load_from_yaml("models/bio2token/files/model.yaml")["model"]
-    model_config = pi_instantiate(AutoencoderConfig, model_configs)
-    model = Autoencoder(model_config)
-    state_dict = torch.load("models/bio2token/files/epoch=0243-val_loss_epoch=0.71-best-checkpoint.ckpt")["state_dict"]
-    # Remove 'model.' prefix from keys if present
-    state_dict_bis = {k.replace("model.", ""): v for k, v in state_dict.items()}
-    model.load_state_dict(state_dict_bis)
-    model.to(device)
-
-    # define test_pbs
-    test_pdbs = ["tokenizer_benchmark/casps/casp14/T1024-D1.pdb", "tokenizer_benchmark/casps/casp14/T1026-D1.pdb"]
-    # batch
-    # Prepare lists for batch processing
-    # structure, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered
-    batch_structures = []
-    batch_unknown_structures = []
-    batch_residue_names = []
-    batch_residue_ids = []
-    batch_token_class = []
-    batch_atom_names_reordered = []
-
-    # read to dicts
-    dicts = [pdb_2_dict(pdb) for pdb in test_pdbs]
-    for pdb_dict in dicts:
-        structure, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered = uniform_dataframe(
-            pdb_dict["seq"],
-            pdb_dict["res_types"],
-            pdb_dict["coords_groundtruth"],
-            pdb_dict["atom_names"],
-            pdb_dict["res_atom_start"],
-            pdb_dict["res_atom_end"],
-        )
-        batch_structures.append(torch.tensor(structure).float())
-        batch_unknown_structures.append(torch.tensor(unknown_structure).bool())
-        batch_residue_names.append(residue_name)
-        batch_residue_ids.append(torch.tensor(residue_ids).long())
-        batch_token_class.append(torch.tensor(token_class).long())
-        batch_atom_names_reordered.append(atom_names_reordered)
-
-
-        max_len = max([s.shape[0] for s in batch_structures])
-
-
-        def pad_tensor_list(tensor_list, pad_value=0):
-            return torch.stack([
-                torch.cat([t, torch.full((max_len - t.shape[0],) + t.shape[1:], pad_value, dtype=t.dtype)]) if t.shape[0] < max_len else t
-                for t in tensor_list
-            ])
-
-
-        structure = pad_tensor_list(batch_structures, pad_value=0)
-        unknown_structure = pad_tensor_list(batch_unknown_structures, pad_value=True)
-        residue_ids = pad_tensor_list(batch_residue_ids, pad_value=0)
-        token_class = pad_tensor_list(batch_token_class, pad_value=0)
-
-        batch = {
-            "structure": structure,
-            "unknown_structure": unknown_structure,
-            "residue_ids": residue_ids,
-            "token_class": token_class,
-        }
-
-        batch = compute_masks(batch, structure_track=True)
-        batch = {k: v.to(device) for k, v in batch.items()}
-
-
-        batch = model.encoder(batch)
-        print(f"middle batch:\nindices-{batch['indices'].shape}\n{batch['indices']}\nencoding-{batch['encoding'].shape}\n{batch['encoding']}\neos_mask-{batch['eos_pad_mask'].shape}\n{batch['eos_pad_mask']}")
-        batch = model.decoder(batch)
-        print(f"processed batch:\n{batch['decoding'].shape}\n{batch['decoding']}")
+    bio2token_test()
+    # device = "cuda"
+    # model_configs = load_from_yaml("models/bio2token/files/model.yaml")["model"]
+    # model_config = pi_instantiate(AutoencoderConfig, model_configs)
+    # model = Autoencoder(model_config)
+    # state_dict = torch.load("models/bio2token/files/epoch=0243-val_loss_epoch=0.71-best-checkpoint.ckpt")["state_dict"]
+    # # Remove 'model.' prefix from keys if present
+    # state_dict_bis = {k.replace("model.", ""): v for k, v in state_dict.items()}
+    # model.load_state_dict(state_dict_bis)
+    # model.to(device)
+    #
+    # # define test_pbs
+    # test_pdbs = ["tokenizer_benchmark/casps/casp14/T1024-D1.pdb", "tokenizer_benchmark/casps/casp14/T1026-D1.pdb"]
+    # # batch
+    # # Prepare lists for batch processing
+    # # structure, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered
+    # batch_structures = []
+    # batch_unknown_structures = []
+    # batch_residue_names = []
+    # batch_residue_ids = []
+    # batch_token_class = []
+    # batch_atom_names_reordered = []
+    #
+    # # read to dicts
+    # dicts = [pdb_2_dict(pdb) for pdb in test_pdbs]
+    # for pdb_dict in dicts:
+    #     structure, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered = uniform_dataframe(
+    #         pdb_dict["seq"],
+    #         pdb_dict["res_types"],
+    #         pdb_dict["coords_groundtruth"],
+    #         pdb_dict["atom_names"],
+    #         pdb_dict["res_atom_start"],
+    #         pdb_dict["res_atom_end"],
+    #     )
+    #     batch_structures.append(torch.tensor(structure).float())
+    #     batch_unknown_structures.append(torch.tensor(unknown_structure).bool())
+    #     batch_residue_names.append(residue_name)
+    #     batch_residue_ids.append(torch.tensor(residue_ids).long())
+    #     batch_token_class.append(torch.tensor(token_class).long())
+    #     batch_atom_names_reordered.append(atom_names_reordered)
+    #
+    #
+    #     max_len = max([s.shape[0] for s in batch_structures])
+    #
+    #
+    #     def pad_tensor_list(tensor_list, pad_value=0):
+    #         return torch.stack([
+    #             torch.cat([t, torch.full((max_len - t.shape[0],) + t.shape[1:], pad_value, dtype=t.dtype)]) if t.shape[0] < max_len else t
+    #             for t in tensor_list
+    #         ])
+    #
+    #
+    #     structure = pad_tensor_list(batch_structures, pad_value=0)
+    #     unknown_structure = pad_tensor_list(batch_unknown_structures, pad_value=True)
+    #     residue_ids = pad_tensor_list(batch_residue_ids, pad_value=0)
+    #     token_class = pad_tensor_list(batch_token_class, pad_value=0)
+    #
+    #     batch = {
+    #         "structure": structure,
+    #         "unknown_structure": unknown_structure,
+    #         "residue_ids": residue_ids,
+    #         "token_class": token_class,
+    #     }
+    #
+    #     batch = compute_masks(batch, structure_track=True)
+    #     batch = {k: v.to(device) for k, v in batch.items()}
+    #
+    #
+    #     batch = model.encoder(batch)
+    #     print(f"middle batch:\nindices-{batch['indices'].shape}\n{batch['indices']}\nencoding-{batch['encoding'].shape}\n{batch['encoding']}\neos_mask-{batch['eos_pad_mask'].shape}\n{batch['eos_pad_mask']}")
+    #     batch = model.decoder(batch)
+    #     print(f"processed batch:\n{batch['decoding'].shape}\n{batch['decoding']}")
