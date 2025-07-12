@@ -428,6 +428,7 @@ if __name__ == '__main__':
         "residue_ids": residue_ids,
         "token_class": token_class,
     }
+    print()
     print(f"batch:\n{batch}")
     batch = compute_masks(batch, structure_track=True)
     batch = {k: v.to(device) for k, v in batch.items()}
