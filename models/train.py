@@ -40,6 +40,7 @@ def parse_args():
     # model
     parser.add_argument("--model", type=str, default="cnn", help="type of model to use")
     parser.add_argument("--resume",type=str,help="path to an existing model to resume training")
+    parser.add_argument("--wandb_resume_id",type=str,help="W&B id of an existing wandb run")
     # tfold exclusive setting
     parser.add_argument("--lora_plm", action="store_true", help=" use lora to retrain the plm")
 
@@ -207,10 +208,7 @@ def get_model(args):
 
 
 def init_wand_db(args):
-    return wandb.init(
-        entity="MaPra",
-        project="monomer-structure-prediction",
-        config={
+    config={
             "learning_rate": args.lr,
             "kernel_size": args.kernel_size,
             "device": args.device,
@@ -222,6 +220,18 @@ def init_wand_db(args):
             "batch_size": args.batch,
             "lora_plm": args.lora_plm
         }
+    if args.resume:
+        return wandb.init(
+            entity="MaPra",
+            project="monomer-structure-prediction",
+            id=args.wandb_resume_id,
+            resume="must",
+            config=config,
+        )
+    return wandb.init(
+        entity="MaPra",
+        project="monomer-structure-prediction",
+        config=config
     )
 
 
