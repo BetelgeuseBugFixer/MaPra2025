@@ -97,7 +97,7 @@ def create_cnn_data_loaders(emb_source, tok_jsonl, train_ids, val_ids, test_ids,
 
 def build_t_fold(lora_plm, hidden, kernel_size, dropout, lr, device,resume):
     if resume:
-        model=TFold.load(resume)
+        model=TFold.load_tfold(resume)
     else:
         model = TFold(hidden=hidden, kernel_sizes=kernel_size, dropout=dropout, device=device, use_lora=lora_plm)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
