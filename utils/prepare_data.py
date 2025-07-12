@@ -4,15 +4,37 @@ import tarfile
 import pickle
 import json
 import tempfile
+import torch
+
 
 from pathlib import Path
 from models.foldtoken_decoder.foldtoken import FoldToken
 from biotite.structure.io.pdb import PDBFile
 from biotite.structure.filter import _filter_atom_names
 
+from models.bio2token.data.utils.utils import pdb_2_dict, uniform_dataframe, compute_masks
+from models.bio2token.models.autoencoder import AutoencoderConfig, Autoencoder
+from models.bio2token.utils.configs import utilsyaml_to_dict, pi_instantiate
+
+from hydra_zen import load_from_yaml, builds, instantiate
+
 
 DEVICE = "cuda"
-model = FoldToken(device=DEVICE)
+
+# FoldToken model for vq_ids
+foldtoken_model = FoldToken(device=DEVICE)
+
+# Bio2Token model for encoding + indices
+model_configs = load_from_yaml("models/bio2token/files/model.yaml")["model"]
+model_config = pi_instantiate(AutoencoderConfig, model_configs)
+bio2token_model = Autoencoder(model_config)
+state_dict = torch.load("models/bio2token/files/epoch=0243-val_loss_epoch=0.71-best-checkpoint.ckpt")["state_dict"]
+state_dict_bis = {k.replace("model.", ""): v for k, v in state_dict.items()}
+bio2token_model.load_state_dict(state_dict_bis)
+bio2token_model.to(DEVICE)
+
+print("Initialized both FoldToken and Bio2Token models.")
+
 
 SINGLETON_ID_PATH = "/mnt/data/large/prostt5_IDs/afdb50best_foldseek_clu_singleton.ids"
 with open(SINGLETON_ID_PATH, "r") as f:
@@ -51,6 +73,20 @@ def load_prot_from_pdb(pdb_file):
     file = PDBFile.read(pdb_file)
     array_stack = file.get_structure(model=1)
     return array_stack[_filter_atom_names(array_stack, ["N", "CA", "C", "O"])]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 for split in ["val", "test", "train"]:
     print("=" * 60)
@@ -106,7 +142,30 @@ for split in ["val", "test", "train"]:
                         tmp_path = tmp.name
 
                     try:
-                        vq_ids = model.encode_pdb(tmp_path)
+                        vq_ids = foldtoken_model.encode_pdb(tmp_path)
+
+                        pdb_dict = pdb_2_dict(tmp_path, None)
+                        structure_b2t, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered = uniform_dataframe(
+                            pdb_dict["seq"],
+                            pdb_dict["res_types"],
+                            pdb_dict["coords_groundtruth"],
+                            pdb_dict["atom_names"],
+                            pdb_dict["res_atom_start"],
+                            pdb_dict["res_atom_end"],
+                        )
+                        batch = {
+                            "structure": torch.tensor(structure_b2t).float(),
+                            "unknown_structure": torch.tensor(unknown_structure).bool(),
+                            "residue_ids": torch.tensor(residue_ids).long(),
+                            "token_class": torch.tensor(token_class).long(),
+                        }
+                        batch = {k: v[~batch["unknown_structure"]] for k, v in batch.items()}
+                        batch = compute_masks(batch, structure_track=True)
+                        batch = {k: v[None].to(DEVICE) for k, v in batch.items()}
+                        batch = bio2token_model.encoder(batch)
+
+                        encoding = batch["encoding"].squeeze(0).cpu().tolist()
+                        indices = batch["indices"].squeeze(0).cpu().tolist()
 
                         structure = load_prot_from_pdb(tmp_path)  # original PDB structure
                         protein_structures.append(structure)
@@ -117,7 +176,9 @@ for split in ["val", "test", "train"]:
                     json_entries.append({
                         "id": protein_id,
                         "sequence": seq,
-                        "vq_ids": vq_ids.tolist()
+                        "vq_ids": vq_ids.tolist(),
+                        "bio2tokens": indices,
+                        "bio2token_encoding": encoding
                     })
 
                     processed += 1
@@ -156,7 +217,30 @@ for split in ["val", "test", "train"]:
                 if not seq:
                     continue
 
-                vq_ids = model.encode_pdb(str(pdb_file))
+                vq_ids = foldtoken_model.encode_pdb(str(pdb_file))
+
+                pdb_dict = pdb_2_dict(str(pdb_file), None)
+                structure_b2t, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered = uniform_dataframe(
+                    pdb_dict["seq"],
+                    pdb_dict["res_types"],
+                    pdb_dict["coords_groundtruth"],
+                    pdb_dict["atom_names"],
+                    pdb_dict["res_atom_start"],
+                    pdb_dict["res_atom_end"],
+                )
+                batch = {
+                    "structure": torch.tensor(structure_b2t).float(),
+                    "unknown_structure": torch.tensor(unknown_structure).bool(),
+                    "residue_ids": torch.tensor(residue_ids).long(),
+                    "token_class": torch.tensor(token_class).long(),
+                }
+                batch = {k: v[~batch["unknown_structure"]] for k, v in batch.items()}
+                batch = compute_masks(batch, structure_track=True)
+                batch = {k: v[None].to(DEVICE) for k, v in batch.items()}
+                batch = bio2token_model.encoder(batch)
+
+                encoding = batch["encoding"].squeeze(0).cpu().tolist()
+                indices = batch["indices"].squeeze(0).cpu().tolist()
 
                 structure = load_prot_from_pdb(str(pdb_file))  # original PDB structure
                 protein_structures.append(structure)
@@ -164,7 +248,9 @@ for split in ["val", "test", "train"]:
                 json_entries.append({
                     "id": protein_id,
                     "sequence": seq,
-                    "vq_ids": vq_ids.tolist()
+                    "vq_ids": vq_ids.tolist(),
+                    "bio2tokens": indices,
+                    "bio2token_encoding": encoding
                 })
 
                 processed += 1
