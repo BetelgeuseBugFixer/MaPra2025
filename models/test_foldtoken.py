@@ -22,6 +22,7 @@ from models.foldtoken_decoder.foldtoken import FoldToken
 from models.end_to_end.whole_model import TFold
 from transformers import T5EncoderModel, T5Tokenizer
 from hydra_zen import load_from_yaml, builds, instantiate
+from Bio.PDB import PDBParser
 
 
 def load_prot_from_pdb(pdb_file):
