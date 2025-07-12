@@ -1,3 +1,4 @@
+import contextlib
 import time
 import os
 import tarfile
@@ -143,7 +144,8 @@ for split in ["val", "test", "train"]:
                     try:
                         vq_ids = foldtoken_model.encode_pdb(tmp_path)
 
-                        pdb_dict = pdb_2_dict(tmp_path, None)
+                        with contextlib.redirect_stdout(open(os.devnull, 'w')):
+                            pdb_dict = pdb_2_dict(tmp_path, None)
                         structure_b2t, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered = uniform_dataframe(
                             pdb_dict["seq"],
                             pdb_dict["res_types"],
@@ -218,7 +220,8 @@ for split in ["val", "test", "train"]:
 
                 vq_ids = foldtoken_model.encode_pdb(str(pdb_file))
 
-                pdb_dict = pdb_2_dict(str(pdb_file), None)
+                with contextlib.redirect_stdout(open(os.devnull, 'w')):
+                    pdb_dict = pdb_2_dict(str(pdb_file), None)
                 structure_b2t, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered = uniform_dataframe(
                     pdb_dict["seq"],
                     pdb_dict["res_types"],
