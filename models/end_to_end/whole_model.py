@@ -120,6 +120,9 @@ class TFold(nn.Module):
             total_loss += loss.item() * bsz
             total_acc += _masked_accuracy(logits, tokens, mask) * bsz
             total_samples += bsz
+            # empty cache
+            del logits, loss
+            torch.cuda.empty_cache()
 
         score_dict = {
             "acc": total_acc / total_samples,
@@ -144,6 +147,9 @@ class TFold(nn.Module):
             total_loss += loss.detach().item() * bsz
             total_acc += _masked_accuracy(logits, tokens, mask) * bsz
             total_samples += bsz
+            # empty cache
+            del logits, loss
+            torch.cuda.empty_cache()
         # return scores
         score_dict = {
             "val_acc": total_acc / total_samples,

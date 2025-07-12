@@ -37,8 +37,10 @@ def parse_args():
                         help="JSON containing the ids split into train, validation and test")
     parser.add_argument("--data_dir", help="Directory with train, validation and test sub directories")
 
-    #model
+    # model
     parser.add_argument("--model", type=str, default="cnn", help="type of model to use")
+    parser.add_argument("--resume",type=str,help="path to an existing model to resume training")
+    parser.add_argument("--wandb_resume_id",type=str,help="W&B id of an existing wandb run")
     # tfold exclusive setting
     parser.add_argument("--lora_plm", action="store_true", help=" use lora to retrain the plm")
 
@@ -71,14 +73,15 @@ def create_tfold_data_loaders(data_dir):
     train_dir = os.path.join(data_dir, "train")
     val_dir = os.path.join(data_dir, "val")
     test_dir = os.path.join(data_dir, "test")
-    train_dataset = SeqTokSet(os.path.join(train_dir,"proteins.jsonl"))
-    val_dataset = SeqStrucTokSet(os.path.join(val_dir,"proteins.jsonl"),os.path.join(val_dir,"proteins.pkl"))
-    test_dataset = SeqStrucTokSet(os.path.join(test_dir,"proteins.jsonl"),os.path.join(test_dir,"proteins.pkl"))
+    train_dataset = SeqTokSet(os.path.join(train_dir, "proteins.jsonl"))
+    val_dataset = SeqStrucTokSet(os.path.join(val_dir, "proteins.jsonl"), os.path.join(val_dir, "proteins.pkl"))
+    test_dataset = SeqStrucTokSet(os.path.join(test_dir, "proteins.jsonl"), os.path.join(test_dir, "proteins.pkl"))
     return (
-        DataLoader(train_dataset, batch_size=args.batch,collate_fn=collate_seq_tok_batch),
-        DataLoader(val_dataset,batch_size=args.batch,collate_fn=collate_seq_struc_tok_batch),
-        DataLoader(test_dataset, batch_size=args.batch, collate_fn=collate_seq_struc_tok_batch)
+        DataLoader(train_dataset, batch_size=args.batch, collate_fn=collate_seq_tok_batch, pin_memory=True),
+        DataLoader(val_dataset, batch_size=args.batch, collate_fn=collate_seq_struc_tok_batch, pin_memory=True),
+        DataLoader(test_dataset, batch_size=args.batch, collate_fn=collate_seq_struc_tok_batch, pin_memory=True)
     )
+
 
 def create_cnn_data_loaders(emb_source, tok_jsonl, train_ids, val_ids, test_ids, batch_size, use_single_file):
     DSClass = ProteinPairJSONL if use_single_file else ProteinPairJSONL_FromDir
@@ -92,14 +95,20 @@ def create_cnn_data_loaders(emb_source, tok_jsonl, train_ids, val_ids, test_ids,
     )
 
 
-def build_t_fold(lora_plm, hidden, kernel_size, dropout, lr, device):
-    model = TFold(hidden=hidden, kernel_sizes=kernel_size, dropout=dropout, device=device, use_lora=lora_plm)
+def build_t_fold(lora_plm, hidden, kernel_size, dropout, lr, device,resume):
+    if resume:
+        model=TFold.load_tfold(resume,device=device).to(device)
+    else:
+        model = TFold(hidden=hidden, kernel_sizes=kernel_size, dropout=dropout, device=device, use_lora=lora_plm).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     return model, optimizer
 
 
-def build_cnn(d_emb, hidden, vocab_size, kernel_size, dropout, lr, device):
-    model = ResidueTokenCNN(d_emb, hidden, vocab_size, kernel_size, dropout).to(device)
+def build_cnn(d_emb, hidden, vocab_size, kernel_size, dropout, lr, device, resume):
+    if resume:
+        model = ResidueTokenCNN.load_cnn(resume)
+    else:
+        model = ResidueTokenCNN(d_emb, hidden, vocab_size, kernel_size, dropout).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     return model, optimizer
 
@@ -119,6 +128,7 @@ def collate_seq_struc_tok_batch(batch):
 
     return list(sequences), padded_tokens, list(structures)
 
+
 def collate_seq_tok_batch(batch):
     sequences, token_lists = zip(*batch)
 
@@ -126,6 +136,7 @@ def collate_seq_tok_batch(batch):
     padded_tokens = pad_sequence(token_lists, batch_first=True, padding_value=PAD_LABEL)
 
     return list(sequences), padded_tokens
+
 
 def pad_collate(batch):
     """
@@ -163,20 +174,17 @@ def get_model(args):
     match args.model:
         case "cnn":
             return build_cnn(
-                args.d_emb, args.hidden, args.codebook_size, args.kernel_size, args.dropout, args.lr, args.device
+                args.d_emb, args.hidden, args.codebook_size, args.kernel_size, args.dropout, args.lr, args.device,args.resume
             )
         case "t_fold":
             return build_t_fold(args.lora_plm, args.hidden, args.kernel_size, args.dropout, args.lr,
-                                args.device)
+                                args.device,args.resume)
         case _:
             raise NotImplementedError
 
 
 def init_wand_db(args):
-    return wandb.init(
-        entity="MaPra",
-        project="monomer-structure-prediction",
-        config={
+    config={
             "learning_rate": args.lr,
             "kernel_size": args.kernel_size,
             "device": args.device,
@@ -188,6 +196,18 @@ def init_wand_db(args):
             "batch_size": args.batch,
             "lora_plm": args.lora_plm
         }
+    if args.resume:
+        return wandb.init(
+            entity="MaPra",
+            project="monomer-structure-prediction",
+            id=args.wandb_resume_id,
+            resume="must",
+            config=config,
+        )
+    return wandb.init(
+        entity="MaPra",
+        project="monomer-structure-prediction",
+        config=config
     )
 
 
@@ -202,7 +222,7 @@ def get_dataset(args):
             emb_source, args.tok_jsonl, train_ids, val_ids, test_ids, args.batch, use_file
         )
     elif args.model == "t_fold":
-        return  create_tfold_data_loaders(args.data_dir)
+        return create_tfold_data_loaders(args.data_dir)
 
 
 def main(args):
@@ -214,7 +234,7 @@ def main(args):
     # init wand db
     run = None
     if not args.no_wandb:
-        #wandb.login(key=open("wandb_key").read().strip())
+        # wandb.login(key=open("wandb_key").read().strip())
         run = init_wand_db(args)
 
     # init important metric based on if the models need to optimize or minimize
@@ -239,7 +259,7 @@ def main(args):
         tr_acc = score_dict["acc"]
         val_loss = score_dict["val_loss"]
         val_acc = score_dict["val_acc"]
-        lddt_string= f" |{score_dict["val_lddt"]}" if score_dict["val_lddt"] else ""
+        lddt_string = f" |{score_dict["val_lddt"]}" if score_dict["val_lddt"] else ""
         print(f"Epoch {epoch:02d} | train {tr_loss:.4f}/{tr_acc:.4f} | val {val_loss:.4f}/{val_acc:.4f}{lddt_string}")
 
         # Early stopping check
