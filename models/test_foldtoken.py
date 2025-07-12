@@ -430,12 +430,12 @@ if __name__ == '__main__':
             "residue_ids": residue_ids,
             "token_class": token_class,
         }
-
+        print(batch)
         batch = compute_masks(batch, structure_track=True)
         batch = {k: v.to(device) for k, v in batch.items()}
 
 
         batch = model.encoder(batch)
-        print(f"middle batch:\nindices-{batch['indices'].shape}\n{batch['indices']}\nencoding-{batch['encoding'].shape}\n{batch['encoding']}\neos_mask-{batch['eos_pad_mask'].shape}\n{batch['eos_pad_mask']}")
+        print(f"preprocessed batch:\nindices-{batch['indices'].shape}\n{batch['indices']}\nencoding-{batch['encoding'].shape}\n{batch['encoding']}\neos_mask-{batch['eos_pad_mask'].shape}\n{batch['eos_pad_mask']}")
         batch = model.decoder(batch)
         print(f"processed batch:\n{batch['decoding'].shape}\n{batch['decoding']}")
