@@ -12,7 +12,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 from models.model_utils import _masked_accuracy
-from models.simple_classifier.simple_classifier import ResidueTokenCNN, ResidueTokenLNN
+from models.simple_classifier.simple_classifier import ResidueTokenCNN
 from models.datasets.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir, PAD_LABEL, SeqTokSet, SeqStrucTokSet
 from models.end_to_end.whole_model import TFold
 
