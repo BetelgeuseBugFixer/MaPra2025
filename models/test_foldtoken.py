@@ -394,7 +394,7 @@ if __name__ == '__main__':
     # read to dicts
     dicts = [pdb_2_dict(pdb) for pdb in test_pdbs]
     for pdb_dict in dicts:
-        structure, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered, ca_indices = uniform_dataframe(
+        structure, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered = uniform_dataframe(
             pdb_dict["seq"],
             pdb_dict["res_types"],
             pdb_dict["coords_groundtruth"],
@@ -406,7 +406,6 @@ if __name__ == '__main__':
         batch_unknown_structures.append(torch.tensor(unknown_structure).bool())
         batch_residue_ids.append(torch.tensor(residue_ids).long())
         batch_token_class.append(torch.tensor(token_class).long())
-        batch_ca_indices.append(ca_indices)
         batch_atom_names_reordered.append(atom_names_reordered)
         batch_residue_names.append(residue_name)
         batch_dicts.append(pdb_dict)
