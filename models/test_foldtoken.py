@@ -409,33 +409,33 @@ if __name__ == '__main__':
         batch_atom_names_reordered.append(atom_names_reordered)
 
 
-        max_len = max([s.shape[0] for s in batch_structures])
+    max_len = max([s.shape[0] for s in batch_structures])
 
 
-        def pad_tensor_list(tensor_list, pad_value=0):
-            return torch.stack([
-                torch.cat([t, torch.full((max_len - t.shape[0],) + t.shape[1:], pad_value, dtype=t.dtype)]) if t.shape[0] < max_len else t
-                for t in tensor_list
-            ])
+    def pad_tensor_list(tensor_list, pad_value=0):
+        return torch.stack([
+            torch.cat([t, torch.full((max_len - t.shape[0],) + t.shape[1:], pad_value, dtype=t.dtype)]) if t.shape[0] < max_len else t
+            for t in tensor_list
+        ])
 
 
-        structure = pad_tensor_list(batch_structures, pad_value=0)
-        unknown_structure = pad_tensor_list(batch_unknown_structures, pad_value=True)
-        residue_ids = pad_tensor_list(batch_residue_ids, pad_value=0)
-        token_class = pad_tensor_list(batch_token_class, pad_value=0)
+    structure = pad_tensor_list(batch_structures, pad_value=0)
+    unknown_structure = pad_tensor_list(batch_unknown_structures, pad_value=True)
+    residue_ids = pad_tensor_list(batch_residue_ids, pad_value=0)
+    token_class = pad_tensor_list(batch_token_class, pad_value=0)
 
-        batch = {
-            "structure": structure,
-            "unknown_structure": unknown_structure,
-            "residue_ids": residue_ids,
-            "token_class": token_class,
-        }
-        print(batch)
-        batch = compute_masks(batch, structure_track=True)
-        batch = {k: v.to(device) for k, v in batch.items()}
+    batch = {
+        "structure": structure,
+        "unknown_structure": unknown_structure,
+        "residue_ids": residue_ids,
+        "token_class": token_class,
+    }
+    print(batch)
+    batch = compute_masks(batch, structure_track=True)
+    batch = {k: v.to(device) for k, v in batch.items()}
 
 
-        batch = model.encoder(batch)
-        print(f"preprocessed batch:\nindices-{batch['indices'].shape}\n{batch['indices']}\nencoding-{batch['encoding'].shape}\n{batch['encoding']}\neos_mask-{batch['eos_pad_mask'].shape}\n{batch['eos_pad_mask']}")
-        batch = model.decoder(batch)
-        print(f"processed batch:\n{batch['decoding'].shape}\n{batch['decoding']}")
+    batch = model.encoder(batch)
+    print(f"preprocessed batch:\nindices-{batch['indices'].shape}\n{batch['indices']}\nencoding-{batch['encoding'].shape}\n{batch['encoding']}\neos_mask-{batch['eos_pad_mask'].shape}\n{batch['eos_pad_mask']}")
+    batch = model.decoder(batch)
+    print(f"processed batch:\n{batch['decoding'].shape}\n{batch['decoding']}")
