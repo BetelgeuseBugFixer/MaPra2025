@@ -22,4 +22,4 @@ export PYTHONPATH=/mnt/repro/MaPra2025:$PYTHONPATH
 python -u utils/prepare_data.py
 
 # Step 2: Generate ProtT5 embeddings for train/val/test
-python -u utils/generate_embeds_from_jsonl.py
+python -u utils/generate_embeds.py
