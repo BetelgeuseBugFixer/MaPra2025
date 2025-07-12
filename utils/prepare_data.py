@@ -184,6 +184,7 @@ for split in ["val", "test", "train"]:
             print(f"[train] Skipped {skipped_singletons} singleton entries.")
 
     else:
+        ...
         # pdb_dir = Path(f"/mnt/data/large/zip_file/final_data_PDB/{split}") / f"{split}_pdb"
         # processed = 0
         # skipped_singletons = 0
@@ -249,9 +250,9 @@ for split in ["val", "test", "train"]:
         #         print(f"[{split}] Failed: {pdb_file.name}, {e}")
         #         with open(pdb_file, "r") as f:
         #             print("".join(f.readlines()[:30]))
-
-        print(f"[{split}] Finished processing {processed} proteins in {time.time() - total_start:.2f}s")
-        print(f"[{split}] Skipped {skipped_singletons} singleton entries.")
+        #
+        # print(f"[{split}] Finished processing {processed} proteins in {time.time() - total_start:.2f}s")
+        # print(f"[{split}] Skipped {skipped_singletons} singleton entries.")
 
     # Save JSONL
     with open(jsonl_path, "w") as f:
