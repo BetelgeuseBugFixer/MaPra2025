@@ -35,7 +35,6 @@ bio2token_model.to(DEVICE)
 
 print("Initialized both FoldToken and Bio2Token models.")
 
-
 SINGLETON_ID_PATH = "/mnt/data/large/prostt5_IDs/afdb50best_foldseek_clu_singleton.ids"
 with open(SINGLETON_ID_PATH, "r") as f:
     singleton_ids = set(line.strip().split("-")[1] for line in f if "-" in line)
