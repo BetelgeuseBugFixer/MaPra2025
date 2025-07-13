@@ -368,14 +368,7 @@ def bio2token_test():
     batch = model.decoder(batch)
     print(f"6 batch:\n{batch['decoding'].shape}\n{batch['decoding']}")
 
-def pad_tensor_list(tensor_list,max_len ,pad_value=0):
-    return torch.stack([
-        torch.cat([t, torch.full((max_len - t.shape[0],) + t.shape[1:], pad_value, dtype=t.dtype)]) if t.shape[0] < max_len else t
-        for t in tensor_list
-    ])
-
-
-if __name__ == '__main__':
+def batched_bio2token():
     device = "cuda"
     model_configs = load_from_yaml("models/bio2token/files/model.yaml")["model"]
     model_config = pi_instantiate(AutoencoderConfig, model_configs)
@@ -392,7 +385,7 @@ if __name__ == '__main__':
     # Prepare lists for batch processing
     # structure, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered
 
-    batch=[]
+    batch = []
     # read to dicts
     dicts = [pdb_2_dict(pdb) for pdb in test_pdbs]
     for pdb_dict in dicts:
@@ -414,18 +407,8 @@ if __name__ == '__main__':
 
         batch.append(batch_item)
 
-    #
-    #
-    # max_len = max([s.shape[0] for s in batch_structures])
-    #
-    # structure = pad_tensor_list(batch_structures,max_len, pad_value=0)
-    # unknown_structure = pad_tensor_list(batch_unknown_structures,max_len, pad_value=True)
-    # residue_ids = pad_tensor_list(batch_residue_ids,max_len, pad_value=0)
-    # token_class = pad_tensor_list(batch_token_class,max_len, pad_value=0)
-
-
-    #taken from config
-    sequences_to_pad={
+    # taken from config
+    sequences_to_pad = {
         "structure": 0,
         "unknown_structure": True,
         "residue_ids": -1,
@@ -446,13 +429,16 @@ if __name__ == '__main__':
         1
     )
 
-
     print(f"batch:\n{batch}")
     batch = compute_masks(batch, structure_track=True)
     batch = {k: v.to(device) for k, v in batch.items()}
 
-
     batch = model.encoder(batch)
-    print(f"preprocessed batch:\nindices-{batch['indices'].shape}\n{batch['indices']}\nencoding-{batch['encoding'].shape}\n{batch['encoding']}\neos_mask-{batch['eos_pad_mask'].shape}\n{batch['eos_pad_mask']}")
+    print(
+        f"preprocessed batch:\nindices-{batch['indices'].shape}\n{batch['indices']}\nencoding-{batch['encoding'].shape}\n{batch['encoding']}\neos_mask-{batch['eos_pad_mask'].shape}\n{batch['eos_pad_mask']}")
     batch = model.decoder(batch)
     print(f"processed batch:\n{batch['decoding'].shape}\n{batch['decoding']}")
+
+
+if __name__ == '__main__':
+    batched_bio2token()
