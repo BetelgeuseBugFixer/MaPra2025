@@ -476,14 +476,14 @@ if __name__ == '__main__':
     eos_mask = torch.ones(B, L, dtype=torch.bool, device=x.device)  # alle True = gepaddet
     for i, length in enumerate(true_lengths):
         eos_mask[i, :length * 4] = False
-
+    print(f"indices: {x.shape}\n{x}")
+    print(f"eos: {eos_mask.shape}\n{eos_mask}")
     x = quantizer.indices_to_codes(x)
     batch = {
         "encoding": x,
         "eos_pad_mask": eos_mask,
     }
     print(f"x: {x.shape}\n{x}")
-    print(f"eoas: {eos_mask.shape}\n{eos_mask}")
 
     x = decoder(batch)
     print(x)
