@@ -541,6 +541,8 @@ if __name__ == '__main__':
         "mask": eos_mask,
         "losses": {}
     }
+    to_eval = rmsd_metric(to_eval)
+
     loss_value = to_eval["losses"]["rmsd"]  # → Tensor
 
     print(f"loss: {loss_value.item()}")
