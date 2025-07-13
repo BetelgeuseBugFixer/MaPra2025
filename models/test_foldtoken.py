@@ -427,16 +427,18 @@ if __name__ == '__main__':
     #taken from config
     sequences_to_pad={
         "structure": 0,
+        "unknown_structure": True,
+        "residue_ids": -1,
+        "token_class": PAD_CLASS,
         "eos_pad_mask": 1,
         "structure_known_all_atom_mask": 0,
         "bb_atom_known_structure_mask": 0,
         "sc_atom_known_structure_mask": 0,
         "cref_atom_known_structure_mask": 0,
-        "residue_ids": -1
     }
     # batch = [pdb_2_dict(pdb) for pdb in test_pdbs]
-    # print(f"2 batch:\n{batch}")
-    # batch = filter_batch(batch, sequences_to_pad.keys())
+    print(f"2 batch:\n{batch}")
+    batch = filter_batch(batch, sequences_to_pad.keys())
     print(f"1 batch:\n{batch}")
     batch = pad_and_stack_batch(
         batch,
