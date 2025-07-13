@@ -539,7 +539,7 @@ if __name__ == '__main__':
     to_eval={
         "predictions": x["decoding"],
         "targets": targets,
-        "mask": eos_mask,
+        "mask": ~eos_mask,
         "losses": {}
     }
     to_eval = rmsd_metric(to_eval)
