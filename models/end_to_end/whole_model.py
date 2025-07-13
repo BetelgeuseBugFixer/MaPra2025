@@ -12,7 +12,7 @@ from models.simple_classifier.simple_classifier import ResidueTokenCNN
 
 
 class TFold(nn.Module):
-    def __init__(self, hidden: list, device="cpu", kernel_sizes=[5], dropout: float = 0.3, use_lora=False):
+    def __init__(self, hidden: list, device="cpu", kernel_sizes=[5], dropout: float = 0.1, use_lora=False):
         super().__init__()
         self.device = device
         self.plm = ProtT5(use_lora=use_lora, device=device).to(self.device)
@@ -34,15 +34,16 @@ class TFold(nn.Module):
         }
         hidden_layers_string = "_".join(str(i) for i in hidden)
         kernel_sizes_string = "_".join(str(i) for i in kernel_sizes)
-        self.model_name = f"t_fold_k{kernel_sizes_string}_h{hidden_layers_string}"
+        lora_string="_lora" if use_lora else ""
+        self.model_name = f"t_fold_k{kernel_sizes_string}_h{hidden_layers_string}{lora_string}"
 
         # define most important metric and whether it needs to be minimized or maximized
         self.key_metric = "val_loss"
         self.maximize = False
 
-    def save(self, output_dir: str):
+    def save(self, output_dir: str,suffix=""):
         os.makedirs(output_dir, exist_ok=True)
-        save_path = os.path.join(output_dir, f"{self.model_name}.pt")
+        save_path = os.path.join(output_dir, f"{self.model_name}{suffix}.pt")
         torch.save({
             "model_args": self.args,
             "state_dict": self.state_dict()

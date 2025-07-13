@@ -83,11 +83,11 @@ class ResidueTokenCNN(nn.Module):
         out = h.permute(0, 2, 1)  # → (B, L, vocab_size)
         return out
 
-    def save(self, out_put_dir):
+    def save(self, out_put_dir,suffix=""):
         torch.save({
             "model_args": self.args,
             "state_dict": self.state_dict()
-        }, os.path.join(out_put_dir, f"{self.model_name}.pt"))
+        }, os.path.join(out_put_dir, f"{self.model_name}{suffix}.pt"))
 
     @staticmethod
     def load_cnn(path: str):

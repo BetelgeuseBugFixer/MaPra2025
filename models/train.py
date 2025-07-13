@@ -245,7 +245,8 @@ def main(args):
     patience_ctr = 0
 
     # init output
-    os.makedirs(args.out_folder, exist_ok=True)
+    out_folder=(os.path.join(args.out_dir, args.model.name))
+    os.makedirs(out_folder, exist_ok=True)
 
     for epoch in range(1, args.epochs + 1):
         train_score_dict = model.run_epoch(train_loader, optimizer=optimizer, device=args.device)
@@ -262,6 +263,8 @@ def main(args):
         lddt_string = f" |{score_dict["val_lddt"]}" if score_dict["val_lddt"] else ""
         print(f"Epoch {epoch:02d} | train {tr_loss:.4f}/{tr_acc:.4f} | val {val_loss:.4f}/{val_acc:.4f}{lddt_string}")
 
+        # save model
+        model.save(out_folder,suffix="_latest")
         # Early stopping check
         new_score = score_dict[model.key_metric]
         if ((model.maximize and new_score > best_val_score)
@@ -269,7 +272,7 @@ def main(args):
             best_val_score = new_score
             patience_ctr = 0
             # Save best model
-            model.save(args.out_folder)
+            model.save(out_folder)
         else:
             patience_ctr += 1
             if patience_ctr >= args.patience:
