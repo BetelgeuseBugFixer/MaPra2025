@@ -465,22 +465,22 @@ if __name__ == '__main__':
     test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
                  "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
     seqs = [get_seq_from_pdb(pdb) for pdb in test_pdbs]
-    true_lengths=[len(seq) for seq in seqs]
+    true_lengths = [len(seq) for seq in seqs]
     # run through model:
     x = [" ".join(seq.translate(str.maketrans('UZO', 'XXX'))) for seq in seqs]
     x = plm(x)
     x = cnn(x)
     x = x.argmax(dim=-1)
-    x=quantizer.indices_to_codes(x)
-    #construct eos mask:
-    B, L = x.shape
-    eos_mask = torch.ones(B, L, dtype=torch.bool, device=x.device)  # alle True = gepaddet
+    # construct eos mask:
+    B, L, D = x.shape
+    eos_mask = torch.ones(B, L, D, dtype=torch.bool, device=x.device)  # alle True = gepaddet
     for i, length in enumerate(true_lengths):
-        eos_mask[i, :length*4] = False
+        eos_mask[i, :length * 4] = False
 
-    batch={
-        "encoding":x,
-        "eos_pad_mask":eos_mask,
+    x = quantizer.indices_to_codes(x)
+    batch = {
+        "encoding": x,
+        "eos_pad_mask": eos_mask,
     }
     print(f"x: {x.shape}\n{x}")
     print(f"eoas: {eos_mask.shape}\n{eos_mask}")
