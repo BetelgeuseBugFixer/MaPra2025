@@ -497,7 +497,7 @@ if __name__ == '__main__':
     cnn = ResidueTokenCNN(1024, [2048, 2048], 4096, [5, 5], bio2token=True).to(device)
     decoder, quantizer = load_bio2_token_decoder_and_quantizer()
     decoder = decoder.to(device)
-    qunatizer = quantizer.to(device)
+    quantizer = quantizer.to(device)
     # input:
     test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
                  "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
