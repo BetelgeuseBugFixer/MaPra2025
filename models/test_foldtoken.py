@@ -390,13 +390,8 @@ if __name__ == '__main__':
     # batch
     # Prepare lists for batch processing
     # structure, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered
-    batch_structures = []
-    batch_unknown_structures = []
-    batch_residue_names = []
-    batch_residue_ids = []
-    batch_token_class = []
-    batch_atom_names_reordered = []
 
+    batch=[]
     # read to dicts
     dicts = [pdb_2_dict(pdb) for pdb in test_pdbs]
     for pdb_dict in dicts:
@@ -408,12 +403,14 @@ if __name__ == '__main__':
             pdb_dict["res_atom_start"],
             pdb_dict["res_atom_end"],
         )
-        batch_structures.append(torch.tensor(structure).float())
-        batch_unknown_structures.append(torch.tensor(unknown_structure).bool())
-        batch_residue_names.append(residue_name)
-        batch_residue_ids.append(torch.tensor(residue_ids).long())
-        batch_token_class.append(torch.tensor(token_class).long())
-        batch_atom_names_reordered.append(atom_names_reordered)
+        batch_item = {
+            "structure": structure,
+            "unknown_structure": unknown_structure,
+            "residue_ids": residue_ids,
+            "token_class": token_class,
+        }
+        batch.append(batch_item)
+
     #
     #
     # max_len = max([s.shape[0] for s in batch_structures])
@@ -423,12 +420,6 @@ if __name__ == '__main__':
     # residue_ids = pad_tensor_list(batch_residue_ids,max_len, pad_value=0)
     # token_class = pad_tensor_list(batch_token_class,max_len, pad_value=0)
 
-    batch = {
-        "structure": structure,
-        "unknown_structure": unknown_structure,
-        "residue_ids": residue_ids,
-        "token_class": token_class,
-    }
 
     #taken from config
     sequences_to_pad={
