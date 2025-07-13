@@ -441,6 +441,7 @@ if __name__ == '__main__':
         1
     )
 
+    batch = {k: v[~batch["unknown_structure"]] for k, v in batch.items()}
 
     print(f"batch:\n{batch}")
     batch = compute_masks(batch, structure_track=True)
