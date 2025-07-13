@@ -534,6 +534,7 @@ if __name__ == '__main__':
     rmsd_metric = RMSD(config, name="rmsd").to(device)
     #get gt
     targets=get_padded_ground_truths(test_pdbs)
+    targets.to(device)
     print(f"targets: {targets.shape}\n{targets}")
     to_eval={
         "predictions": x["decoding"],
