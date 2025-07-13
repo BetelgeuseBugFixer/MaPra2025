@@ -12,7 +12,8 @@ class ResidueTokenCNN(nn.Module):
     def __init__(self, d_emb: int, hidden: list, vocab_size: int, kernel_sizes=[5], dropout: float = 0.1, bio2token: bool = False):
         super().__init__()
 
-        n_atoms_per_residue = 4 if bio2token else 1 # default = 1 for foldtoken. 4 for bio2token
+        self.n_atoms_per_residue = 4 if bio2token else 1 # default = 1 for foldtoken. 4 for bio2token
+        self.vocab_size = vocab_size
 
         # input conv
         self.conv_in = nn.Conv1d(in_channels=d_emb,
@@ -37,7 +38,7 @@ class ResidueTokenCNN(nn.Module):
 
         # Output projection
         self.conv_out = nn.Conv1d(in_channels=hidden[-1],
-                                  out_channels=vocab_size * n_atoms_per_residue,     # Codebook size * atoms per residue = new output shape
+                                  out_channels=vocab_size * self.n_atoms_per_residue,     # Codebook size * atoms per residue = new output shape
                                   kernel_size=1)
 
         # save args
@@ -76,6 +77,9 @@ class ResidueTokenCNN(nn.Module):
             h = self.drop(h)
 
         h = self.conv_out(h)  # → (B, vocab_size, L)
+        # adapt for multiple atoms per res
+        B, _, L = h.shape
+        h = h.view(B, self.vocab_size, self.n_atoms_per_residue * L)
         out = h.permute(0, 2, 1)  # → (B, L, vocab_size)
         return out
 
