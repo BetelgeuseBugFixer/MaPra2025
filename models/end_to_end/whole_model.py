@@ -25,8 +25,6 @@ class TFold(nn.Module):
         for param in self.decoder.parameters():
             param.requires_grad = False
 
-        print(sum(p.numel() for p in self.plm.parameters() if p.requires_grad))  # sollte klein sein
-
         # save args
         self.args = {
             "hidden": hidden,
