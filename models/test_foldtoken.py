@@ -10,6 +10,7 @@ from biotite.structure.filter import _filter_atom_names
 from torch import nn
 from torch.nn.utils.rnn import pad_sequence
 
+from models.bio2token.data.utils.tokens import PAD_CLASS
 from models.bio2token.models.autoencoder import AutoencoderConfig, Autoencoder
 from models.bio2token.utils.configs import utilsyaml_to_dict, pi_instantiate
 from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores
@@ -426,6 +427,7 @@ if __name__ == '__main__':
     #taken from config
     sequences_to_pad={
         "structure": 0,
+        "token_class": PAD_CLASS,
         "eos_pad_mask": 1,
         "structure_known_all_atom_mask": 0,
         "bb_atom_known_structure_mask": 0,
