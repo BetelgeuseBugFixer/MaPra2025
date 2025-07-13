@@ -404,10 +404,10 @@ if __name__ == '__main__':
             pdb_dict["res_atom_end"],
         )
         batch_item = {
-            "structure": structure,
-            "unknown_structure": unknown_structure,
-            "residue_ids": residue_ids,
-            "token_class": token_class,
+            "structure": torch.tensor(structure).float(),
+            "unknown_structure": torch.tensor(unknown_structure).bool(),
+            "residue_ids": torch.tensor(residue_ids).long(),
+            "token_class": torch.tensor(token_class).long(),
         }
         batch.append(batch_item)
 
