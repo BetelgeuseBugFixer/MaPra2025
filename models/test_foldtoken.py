@@ -496,8 +496,8 @@ if __name__ == '__main__':
     plm = ProtT5(device=device).to(device)
     cnn = ResidueTokenCNN(1024, [2048, 2048], 4096, [5, 5], bio2token=True).to(device)
     decoder, quantizer = load_bio2_token_decoder_and_quantizer()
-    decoder.to(device)
-    quantizer.to(device)
+    decoder = decoder.to(device)
+    qunatizer = quantizer.to(device)
     # input:
     test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
                  "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
@@ -533,8 +533,8 @@ if __name__ == '__main__':
 
     rmsd_metric = RMSD(config, name="rmsd").to(device)
     #get gt
-    targets=get_padded_ground_truths(test_pdbs)
-    targets.to(device)
+    targets=get_padded_ground_truths(test_pdbs).to(device)
+
     print(f"targets: {targets.shape}\n{targets}")
     to_eval={
         "predictions": x["decoding"],
