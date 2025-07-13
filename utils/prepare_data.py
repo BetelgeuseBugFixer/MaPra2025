@@ -1,25 +1,14 @@
 #!/usr/bin/env python3
 """
-prepare_data_memory_efficient.py
+prepare_data_memory_efficient_compressed.py
 --------------------------------
-Speicheroptimierte Version des ursprünglichen prepare_data-memory_efficient-Skripts mit korrigiertem Device-Handling.
-
-Ziele
------
-* **Werte-Identität beibehalten** – keine Down-Casting-Tricks auf FP16/int16
-* **Trotzdem weniger RAM-Spitzen** durch:
-  - `torch.inference_mode()` & `.eval()`
-  - Streaming-Writes (JSONL & Pickle) für 'train', Bulk-Dumps für 'val'/'test'
-  - Selteneres Aufräumen (`gc.collect()` & `torch.cuda.empty_cache()` nur alle CHUNK_SIZE)
-  - Einmalige `devnull`-Datei für stdout-Redirect
-  - Fortschrittsanzeige nach je CHUNK_SIZE Proteinen
-
-Getestet mit Python 3.10, PyTorch 2.2, Biotite 0.40.
+Speicher- und zeitoptimierte Version mit JSONL-Kompression für das Train-Set und BATCH_LIMIT=50k.
 """
 
 import contextlib
 import gc
 import json
+import gzip
 import os
 import pickle
 import tarfile
@@ -41,8 +30,8 @@ from models.bio2token.utils.configs import pi_instantiate
 # Konfiguration
 # ----------------------------------------------------------------------------
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-BATCH_LIMIT = 100_000      # Max. Proteine je Split (nur für train)
-CHUNK_SIZE = 1_000         # Fortschrittsintervalle
+BATCH_LIMIT = 50_000      # Max. Proteine je Split (nur für train)
+CHUNK_SIZE = 1_000        # Fortschrittsintervalle
 
 INPUT_DIR = Path("/mnt/data/large/zip_file/final_data_PDB")
 SINGLETON_ID_PATH = Path(
@@ -124,13 +113,13 @@ def process_split(split: str):
     out_dir = OUTPUT_BASE / split
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    stream_json = (split == 'train')
-    jsonl_path = out_dir / "proteins.jsonl"
-    pickle_path = out_dir / "proteins.pkl"
+    is_train = (split == 'train')
+    jsonl_file = out_dir / ("proteins.jsonl.gz" if is_train else "proteins.jsonl")
+    pickle_file = out_dir / "proteins.pkl"
 
-    if stream_json:
-        json_f = open(jsonl_path, 'w')
-        pickle_f = open(pickle_path, 'wb')
+    if is_train:
+        json_f = gzip.open(str(jsonl_file), 'wt', compresslevel=5)
+        pickle_f = open(pickle_file, 'wb')
     else:
         buffer_json = []
         buffer_structs = []
@@ -141,16 +130,13 @@ def process_split(split: str):
 
     def handle_protein(pid, seq, pdb_path):
         nonlocal processed, chunk_start
-        # FoldToken
         vq = foldtoken_model.encode_pdb(pdb_path)
-        # Bio2Token auf CPU: Grab dict und uniforme Arrays
         with contextlib.redirect_stdout(DEVNULL):
             pdb_d = pdb_2_dict(pdb_path, None)
         st, unk, _, res_ids, tok, _ = uniform_dataframe(
             pdb_d['seq'], pdb_d['res_types'], pdb_d['coords_groundtruth'],
             pdb_d['atom_names'], pdb_d['res_atom_start'], pdb_d['res_atom_end']
         )
-        # CPU-Tensors erstellen und filtern
         cpu_batch = {
             'structure': torch.tensor(st, dtype=torch.float32),
             'unknown_structure': torch.tensor(unk, dtype=torch.bool),
@@ -158,27 +144,17 @@ def process_split(split: str):
             'token_class': torch.tensor(tok, dtype=torch.int64),
         }
         cpu_batch = {k: v[~cpu_batch['unknown_structure']] for k,v in cpu_batch.items()}
-        # Masken auf CPU berechnen
         cpu_batch = compute_masks(cpu_batch, structure_track=True)
-        # Auf GPU verschieben und Batch-Dimension
         batch = {k: v.unsqueeze(0).to(DEVICE) for k,v in cpu_batch.items()}
-        # Encoder
         enc = bio2token_model.encoder(batch)
         encoding = enc['encoding'].squeeze(0).cpu().tolist()
         indices = enc['indices'].squeeze(0).cpu().tolist()
-        # Ergebnis-Entry
-        entry = {
-            'id': pid,
-            'sequence': seq,
-            'vq_ids': vq.tolist(),
-            'bio2tokens': indices,
-            'bio2token_encoding': encoding
-        }
+        entry = {'id': pid, 'sequence': seq, 'vq_ids': vq.tolist(),
+                 'bio2tokens': indices, 'bio2token_encoding': encoding}
         struct = load_prot_from_pdb(pdb_path)
 
-        # Schreiben oder Puffern
-        if stream_json:
-            json.dump(entry, json_f); json_f.write("\n")
+        if is_train:
+            json_f.write(json.dumps(entry) + "\n")
             pickle.dump(struct, pickle_f, protocol=pickle.HIGHEST_PROTOCOL)
         else:
             buffer_json.append(entry)
@@ -191,10 +167,8 @@ def process_split(split: str):
             chunk_start = time.time()
             gc.collect()
             if torch.cuda.is_available(): torch.cuda.empty_cache()
-        # Cleanup
         del cpu_batch, batch, enc, struct, vq
 
-    # Iterate splits
     if split == 'train':
         tar = tarfile.open(INPUT_DIR / 'train' / 'rostlab_subset.tar', 'r')
         for mem in tar:
@@ -230,18 +204,16 @@ def process_split(split: str):
             except Exception as e:
                 print(f"[WARN] {pdb_file.name} -> {e}", flush=True)
 
-    # Bulk-Dumps für val/test
-    if not stream_json:
-        with open(jsonl_path, 'w') as jf:
+    if not is_train:
+        with gzip.open(str(jsonl_file)+'.gz', 'wt', compresslevel=5) if False else open(jsonl_file, 'w') as jf:
             for e in buffer_json: jf.write(json.dumps(e)+"\n")
-        with open(pickle_path, 'wb') as pf:
+        with open(pickle_file, 'wb') as pf:
             pickle.dump(buffer_structs, pf, protocol=pickle.HIGHEST_PROTOCOL)
 
-    if stream_json:
+    if is_train:
         json_f.close(); pickle_f.close()
     total = time.time() - start
     print(f"[{split.upper()}] Fertig: {processed:,} Proteine, {skipped:,} übersprungen in {total:.1f}s", flush=True)
-
 
 if __name__ == '__main__':
     for s in ['val', 'test', 'train']:
