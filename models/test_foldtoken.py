@@ -473,7 +473,7 @@ if __name__ == '__main__':
     x = x.argmax(dim=-1)
     quantizer.indices_to_codes(x)
     #construct eos mask:
-    B, L, D = x.shape
+    B, L = x.shape
     eos_mask = torch.ones(B, L, dtype=torch.bool, device=x.device)  # alle True = gepaddet
     for i, length in enumerate(true_lengths):
         eos_mask[i, :length*4] = False
