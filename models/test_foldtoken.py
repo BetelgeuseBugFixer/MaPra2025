@@ -409,6 +409,8 @@ if __name__ == '__main__':
             "residue_ids": torch.tensor(residue_ids).long(),
             "token_class": torch.tensor(token_class).long(),
         }
+        batch_item = {k: v[~batch_item["unknown_structure"]] for k, v in batch_item.items()}
+
         batch.append(batch_item)
 
     #
@@ -441,7 +443,6 @@ if __name__ == '__main__':
         1
     )
 
-    batch = {k: v[~batch["unknown_structure"]] for k, v in batch.items()}
 
     print(f"batch:\n{batch}")
     batch = compute_masks(batch, structure_track=True)
