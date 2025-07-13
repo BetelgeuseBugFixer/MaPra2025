@@ -368,6 +368,7 @@ def bio2token_test():
     batch = model.decoder(batch)
     print(f"6 batch:\n{batch['decoding'].shape}\n{batch['decoding']}")
 
+
 def batched_bio2token():
     device = "cuda"
     model_configs = load_from_yaml("models/bio2token/files/model.yaml")["model"]
@@ -380,7 +381,8 @@ def batched_bio2token():
     model.to(device)
 
     # define test_pbs
-    test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb", "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
+    test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
+                 "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
     # batch
     # Prepare lists for batch processing
     # structure, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered
@@ -440,5 +442,46 @@ def batched_bio2token():
     print(f"processed batch:\n{batch['decoding'].shape}\n{batch['decoding']}")
 
 
+def load_bio2_token_decoder_and_quantizer():
+    model_configs = load_from_yaml("models/bio2token/files/model.yaml")["model"]
+    model_config = pi_instantiate(AutoencoderConfig, model_configs)
+    model = Autoencoder(model_config)
+    state_dict = torch.load("models/bio2token/files/epoch=0243-val_loss_epoch=0.71-best-checkpoint.ckpt")["state_dict"]
+    # Remove 'model.' prefix from keys if present
+    state_dict_bis = {k.replace("model.", ""): v for k, v in state_dict.items()}
+    model.load_state_dict(state_dict_bis)
+    return model.decoder, model.encoder.quantizer
+
+
 if __name__ == '__main__':
-    batched_bio2token()
+    device = "cuda"
+    # define models
+    plm = ProtT5(device=device).to(device)
+    cnn = ResidueTokenCNN(1024, [2048, 2048], 4096, [5, 5], bio2token=True).to(device)
+    decoder, quantizer = load_bio2_token_decoder_and_quantizer()
+    decoder.to(device)
+    quantizer.to(device)
+    # input:
+    test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
+                 "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
+    seqs = [get_seq_from_pdb(pdb) for pdb in test_pdbs]
+    true_lengths=[len(seq) for seq in seqs]
+    # run through model:
+    x = [" ".join(seq.translate(str.maketrans('UZO', 'XXX'))) for seq in seqs]
+    x = plm(x)
+    x = cnn(x)
+    x.argmax(dim=-1)
+    quantizer.indices_to_codes(x)
+    #construct eos mask:
+    B, L, D = x.shape
+    eos_mask = torch.ones(B, L, dtype=torch.bool, device=x.device)  # alle True = gepaddet
+    for i, length in enumerate(true_lengths):
+        eos_mask[i, :length*4] = False
+
+    batch={
+        "encoding":x,
+        "eos_pad_mask":eos_mask,
+    }
+
+    x = decoder(batch)
+    print(x)
