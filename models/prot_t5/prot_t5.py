@@ -7,13 +7,13 @@ from transformers import T5EncoderModel, T5Tokenizer
 
 class ProtT5(nn.Module):
     def __init__(
-        self,
-        device="cpu",
-        transformer_link="Rostlab/prot_t5_xl_half_uniref50-enc",
-        use_lora: bool = False,
-        lora_r: int = 8,
-        lora_alpha: int = 16,
-        lora_dropout: float = 0.1,
+            self,
+            device="cpu",
+            transformer_link="Rostlab/prot_t5_xl_half_uniref50-enc",
+            use_lora: bool = False,
+            lora_r: int = 8,
+            lora_alpha: int = 16,
+            lora_dropout: float = 0.1,
     ):
         super().__init__()
         self.device = device
@@ -34,7 +34,6 @@ class ProtT5(nn.Module):
             for param in base_model.parameters():
                 param.requires_grad = False
             self.model = base_model.to(device).eval()
-
 
     def forward(self, seqs: list[str]) -> torch.Tensor:
         encoding = self.tokenizer.batch_encode_plus(

@@ -121,7 +121,7 @@ class TFold(nn.Module):
             total_samples += bsz
             # empty cache
             del logits, loss
-            torch.cuda.empty_cache()
+            #torch.cuda.empty_cache()
 
         score_dict = {
             "acc": total_acc / total_samples,
@@ -148,7 +148,7 @@ class TFold(nn.Module):
             total_samples += bsz
             # empty cache
             del logits, loss
-            torch.cuda.empty_cache()
+            #torch.cuda.empty_cache()
         # return scores
         score_dict = {
             "val_acc": total_acc / total_samples,
