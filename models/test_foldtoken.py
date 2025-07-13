@@ -470,7 +470,7 @@ if __name__ == '__main__':
     x = [" ".join(seq.translate(str.maketrans('UZO', 'XXX'))) for seq in seqs]
     x = plm(x)
     x = cnn(x)
-    x.argmax(dim=-1)
+    x = x.argmax(dim=-1)
     quantizer.indices_to_codes(x)
     #construct eos mask:
     B, L, D = x.shape
