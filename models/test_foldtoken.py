@@ -380,7 +380,7 @@ def batched_bio2token():
     model.to(device)
 
     # define test_pbs
-    test_pdbs = ["tokenizer_benchmark/casps/casp14/T1024-D1.pdb", "tokenizer_benchmark/casps/casp14/T1026-D1.pdb"]
+    test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb", "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
     # batch
     # Prepare lists for batch processing
     # structure, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered
