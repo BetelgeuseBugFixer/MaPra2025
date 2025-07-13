@@ -482,6 +482,8 @@ if __name__ == '__main__':
         "encoding":x,
         "eos_pad_mask":eos_mask,
     }
+    print(f"x: {x.shape}\nx")
+    print(f"eoas: {eos_mask.shape}\n{eos_mask}")
 
     x = decoder(batch)
     print(x)
