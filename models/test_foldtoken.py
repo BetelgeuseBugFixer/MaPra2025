@@ -536,7 +536,7 @@ if __name__ == '__main__':
     targets=get_padded_ground_truths(test_pdbs)
     print(f"targets: {targets.shape}\n{targets}")
     to_eval={
-        "predictions": x["decoder"],
+        "predictions": x["decoding"],
         "targets": targets,
         "mask": eos_mask,
         "losses": {}
