@@ -398,22 +398,22 @@ if __name__ == '__main__':
     batch_atom_names_reordered = []
 
     # read to dicts
-    # dicts = [pdb_2_dict(pdb) for pdb in test_pdbs]
-    # for pdb_dict in dicts:
-    #     structure, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered = uniform_dataframe(
-    #         pdb_dict["seq"],
-    #         pdb_dict["res_types"],
-    #         pdb_dict["coords_groundtruth"],
-    #         pdb_dict["atom_names"],
-    #         pdb_dict["res_atom_start"],
-    #         pdb_dict["res_atom_end"],
-    #     )
-    #     batch_structures.append(torch.tensor(structure).float())
-    #     batch_unknown_structures.append(torch.tensor(unknown_structure).bool())
-    #     batch_residue_names.append(residue_name)
-    #     batch_residue_ids.append(torch.tensor(residue_ids).long())
-    #     batch_token_class.append(torch.tensor(token_class).long())
-    #     batch_atom_names_reordered.append(atom_names_reordered)
+    dicts = [pdb_2_dict(pdb) for pdb in test_pdbs]
+    for pdb_dict in dicts:
+        structure, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered = uniform_dataframe(
+            pdb_dict["seq"],
+            pdb_dict["res_types"],
+            pdb_dict["coords_groundtruth"],
+            pdb_dict["atom_names"],
+            pdb_dict["res_atom_start"],
+            pdb_dict["res_atom_end"],
+        )
+        batch_structures.append(torch.tensor(structure).float())
+        batch_unknown_structures.append(torch.tensor(unknown_structure).bool())
+        batch_residue_names.append(residue_name)
+        batch_residue_ids.append(torch.tensor(residue_ids).long())
+        batch_token_class.append(torch.tensor(token_class).long())
+        batch_atom_names_reordered.append(atom_names_reordered)
     #
     #
     # max_len = max([s.shape[0] for s in batch_structures])
@@ -423,12 +423,12 @@ if __name__ == '__main__':
     # residue_ids = pad_tensor_list(batch_residue_ids,max_len, pad_value=0)
     # token_class = pad_tensor_list(batch_token_class,max_len, pad_value=0)
 
-    # batch = {
-    #     "structure": structure,
-    #     "unknown_structure": unknown_structure,
-    #     "residue_ids": residue_ids,
-    #     "token_class": token_class,
-    # }
+    batch = {
+        "structure": structure,
+        "unknown_structure": unknown_structure,
+        "residue_ids": residue_ids,
+        "token_class": token_class,
+    }
 
     #taken from config
     sequences_to_pad={
@@ -440,7 +440,7 @@ if __name__ == '__main__':
         "cref_atom_known_structure_mask": 0,
         "residue_ids": -1
     }
-    batch = [pdb_2_dict(pdb) for pdb in test_pdbs]
+    # batch = [pdb_2_dict(pdb) for pdb in test_pdbs]
     print(f"2 batch:\n{batch}")
     batch = filter_batch(batch, sequences_to_pad.keys())
     print(f"1 batch:\n{batch}")
