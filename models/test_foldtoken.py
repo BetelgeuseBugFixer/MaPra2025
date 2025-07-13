@@ -11,6 +11,7 @@ from torch import nn
 from torch.nn.utils.rnn import pad_sequence
 
 from models.bio2token.data.utils.tokens import PAD_CLASS
+from models.bio2token.losses.rmsd import RMSDConfig, RMSD
 from models.bio2token.models.autoencoder import AutoencoderConfig, Autoencoder
 from models.bio2token.utils.configs import utilsyaml_to_dict, pi_instantiate
 from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores
@@ -452,6 +453,42 @@ def load_bio2_token_decoder_and_quantizer():
     model.load_state_dict(state_dict_bis)
     return model.decoder, model.encoder.quantizer
 
+def get_padded_ground_truths(pdbs):
+    batch = []
+    dicts = [pdb_2_dict(pdb) for pdb in pdbs]
+    for pdb_dict in dicts:
+        structure, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered = uniform_dataframe(
+            pdb_dict["seq"],
+            pdb_dict["res_types"],
+            pdb_dict["coords_groundtruth"],
+            pdb_dict["atom_names"],
+            pdb_dict["res_atom_start"],
+            pdb_dict["res_atom_end"],
+        )
+        batch_item = {
+            "structure": torch.tensor(structure).float(),
+            "unknown_structure": torch.tensor(unknown_structure).bool(),
+            "residue_ids": torch.tensor(residue_ids).long(),
+            "token_class": torch.tensor(token_class).long(),
+        }
+        batch_item = {k: v[~batch_item["unknown_structure"]] for k, v in batch_item.items()}
+
+        batch.append(batch_item)
+
+    # taken from config
+    sequences_to_pad = {
+        "structure": 0,
+    }
+    # batch = [pdb_2_dict(pdb) for pdb in test_pdbs]
+    print(f"2 batch:\n{batch}")
+    batch = filter_batch(batch, sequences_to_pad.keys())
+    print(f"1 batch:\n{batch}")
+    batch = pad_and_stack_batch(
+        batch,
+        sequences_to_pad,
+        1
+    )
+    return batch["structure"]
 
 if __name__ == '__main__':
     device = "cuda"
@@ -486,4 +523,24 @@ if __name__ == '__main__':
     print(f"x: {x.shape}\n{x}")
 
     x = decoder(batch)
-    print(x)
+
+    # define loss
+    config = RMSDConfig(
+        prediction_name="predictions",  # Key for accessing prediction data in the batch
+        target_name="targets",  # Key for accessing target data in the batch
+        mask_name="mask",  # Key for accessing an optional mask in the batch
+    )
+
+    rmsd_metric = RMSD(config, name="rmsd").to(device)
+    #get gt
+    targets=get_padded_ground_truths(test_pdbs)
+    print(f"targets: {targets.shape}\n{targets}")
+    to_eval={
+        "predictions": x["decoder"],
+        "targets": targets,
+        "mask": eos_mask,
+        "losses": {}
+    }
+    loss_value = to_eval["losses"]["rmsd"]  # → Tensor
+
+    print(f"loss: {loss_value.item()}")
