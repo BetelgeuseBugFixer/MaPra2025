@@ -471,7 +471,7 @@ if __name__ == '__main__':
     x = plm(x)
     x = cnn(x)
     x = x.argmax(dim=-1)
-    quantizer.indices_to_codes(x)
+    x=quantizer.indices_to_codes(x)
     #construct eos mask:
     B, L = x.shape
     eos_mask = torch.ones(B, L, dtype=torch.bool, device=x.device)  # alle True = gepaddet
@@ -482,7 +482,7 @@ if __name__ == '__main__':
         "encoding":x,
         "eos_pad_mask":eos_mask,
     }
-    print(f"x: {x.shape}\nx")
+    print(f"x: {x.shape}\n{x}")
     print(f"eoas: {eos_mask.shape}\n{eos_mask}")
 
     x = decoder(batch)
