@@ -546,4 +546,5 @@ if __name__ == '__main__':
 
     loss_value = to_eval["losses"]["rmsd"]  # → Tensor
 
-    print(f"loss: {loss_value.item()}")
+    for i, val in enumerate(loss_value):
+        print(f"loss[{i}]: {val.item()}")
