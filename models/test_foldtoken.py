@@ -472,8 +472,8 @@ if __name__ == '__main__':
     x = cnn(x)
     x = x.argmax(dim=-1)
     # construct eos mask:
-    B, L, D = x.shape
-    eos_mask = torch.ones(B, L, D, dtype=torch.bool, device=x.device)  # alle True = gepaddet
+    B, L = x.shape
+    eos_mask = torch.ones(B, L, dtype=torch.bool, device=x.device)  # alle True = gepaddet
     for i, length in enumerate(true_lengths):
         eos_mask[i, :length * 4] = False
 
