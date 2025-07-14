@@ -263,7 +263,7 @@ def main(args):
     model, optimizer = get_model(args)
 
     # init output
-    out_folder = (os.path.join(args.out_dir, args.model.name))
+    out_folder = (os.path.join(args.out_folder, args.model.name))
     os.makedirs(out_folder, exist_ok=True)
 
     # init wand db

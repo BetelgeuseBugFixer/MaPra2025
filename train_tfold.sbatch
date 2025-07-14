@@ -15,5 +15,5 @@ conda activate /opt/envs/f_token
 cd ~/MaPra2025
 export PYTHONPATH=~/MaPra2025:$PYTHONPATH
 echo "Starting training script..."
-python -u models/train.py --model t_fold --hidden 10000 8000 4000 --kernel 19 1 1 --data_dir /mnt/data/large/subset/ --epochs 10 --out_folder train_run --batch 800 --val_batch 8 --patience 10 --out_folder train_run
+python -u models/train.py --model t_fold --hidden 10000 8000 4000 --kernel 19 1 1 --data_dir /mnt/data/large/subset/ --epochs 10 --out_folder train_run --batch 800 --val_batch 8 --patience 10
 echo "Training script finished."
