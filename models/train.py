@@ -94,8 +94,8 @@ def create_tfold_data_loaders(data_dir, batch_size,val_batchsize, fine_tune_plm,
         train_dataset = SeqTokSet(train_json)
         val_dataset = SeqStrucTokSet(val_json, val_pkl)
         return (
-            DataLoader(train_dataset, batch_size=batch_size, collate_fn=collate_seq_tok_batch, pin_memory=True),
-            DataLoader(val_dataset, batch_size=batch_size, collate_fn=collate_seq_struc_tok_batch, pin_memory=True)
+            DataLoader(train_dataset, batch_size=batch_size, collate_fn=collate_seq_tok_batch),
+            DataLoader(val_dataset, batch_size=batch_size, collate_fn=collate_seq_struc_tok_batch)
         )
     else:
         #set batch size for plm
@@ -103,9 +103,9 @@ def create_tfold_data_loaders(data_dir, batch_size,val_batchsize, fine_tune_plm,
         train_dataset = EmbTokSet(val_json, batch_size=16, device=device)
         val_dataset = EmbStrucTokSet(val_json, val_pkl, batch_size=16, device=device)
         return (
-            DataLoader(train_dataset, batch_size=batch_size, collate_fn=pad_collate, pin_memory=True),
+            DataLoader(train_dataset, batch_size=batch_size, collate_fn=pad_collate),
             # use different batch size to account for decoder
-            DataLoader(val_dataset, batch_size=val_batchsize, collate_fn=collate_emb_struc_tok_batch, pin_memory=True)
+            DataLoader(val_dataset, batch_size=val_batchsize, collate_fn=collate_emb_struc_tok_batch)
         )
 
 
