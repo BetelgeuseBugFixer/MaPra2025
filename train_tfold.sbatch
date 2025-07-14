@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH -p lrz-hgx-h100-94x4
 #SBATCH --gres=gpu:1
-#SBATCH -o slurm_out/train_tfold_std_output_resume1.out
-#SBATCH -e slurm_out/train_tfold_std_err_resume1.err
+#SBATCH -o slurm_out/train_tfold_std_output_resume.out
+#SBATCH -e slurm_out/train_tfold_std_err_resume0.err
 #SBATCH --container-image="/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/container/final.sqsh"
 #SBATCH --container-mounts=/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/data:/mnt/data
 #SBATCH --time=9:00:00
@@ -15,5 +15,5 @@ conda activate /opt/envs/f_token
 cd ~/MaPra2025
 export PYTHONPATH=~/MaPra2025:$PYTHONPATH
 echo "Starting training script..."
-python -u models/train.py --model t_fold --hidden 10000 8000 4000 --kernel 19 1 1 --data_dir /mnt/data/large/subset/ --epochs 25 --out_folder train_run --batch 100 --val_batch 8 --patience 10
+python -u models/train.py --model t_fold --hidden 16384 8192 2048 --kernel 21 3 31 --data_dir /mnt/data/large/subset/ --epochs 25 --out_folder train_run --batch 100 --val_batch 8 --patience 10
 echo "Training script finished."
