@@ -490,7 +490,8 @@ def get_padded_ground_truths(pdbs):
     )
     return batch["structure"]
 
-if __name__ == '__main__':
+
+def bio2token_workflow():
     device = "cuda"
     # define models
     plm = ProtT5(device=device).to(device)
@@ -532,11 +533,11 @@ if __name__ == '__main__':
     )
 
     rmsd_metric = RMSD(config, name="rmsd").to(device)
-    #get gt
-    targets=get_padded_ground_truths(test_pdbs).to(device)
+    # get gt
+    targets = get_padded_ground_truths(test_pdbs).to(device)
 
     print(f"targets: {targets.shape}\n{targets}")
-    to_eval={
+    to_eval = {
         "predictions": x["decoding"],
         "targets": targets,
         "mask": ~eos_mask,
@@ -548,3 +549,19 @@ if __name__ == '__main__':
 
     for i, val in enumerate(loss_value):
         print(f"loss[{i}]: {val.item()}")
+
+if __name__ == '__main__':
+    device = "cuda"
+    # define models
+    plm = ProtT5(device=device).to(device)
+    test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
+                 "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
+    seqs = [get_seq_from_pdb(pdb) for pdb in test_pdbs]
+    true_lengths = [len(seq) for seq in seqs]
+    # run through model:
+    x = [" ".join(seq.translate(str.maketrans('UZO', 'XXX'))) for seq in seqs]
+    x = plm(x)
+
+    true_lengths2 = (x.abs().sum(-1) > 0).sum(dim=1)
+    print(true_lengths)
+    print(true_lengths2)
