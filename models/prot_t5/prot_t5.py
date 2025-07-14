@@ -1,3 +1,5 @@
+import sys
+
 import torch
 from torch import nn
 from peft import get_peft_model, LoraConfig, TaskType
@@ -76,6 +78,10 @@ class ProtT5(nn.Module):
             hidden_states = outputs.last_hidden_state
 
             for idx,l in enumerate(true_seq_length):
-                res.append(hidden_states[idx, :l])
+                embeddings=hidden_states[idx,:l]
+                res.append(embeddings)
+                print(l)
+                print(embeddings.shape)
+            sys.exit()
             i += batch_size
         return res
