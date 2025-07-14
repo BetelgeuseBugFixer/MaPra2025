@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import time
 
 import wandb
 import torch
@@ -13,7 +14,8 @@ import matplotlib.pyplot as plt
 
 from models.model_utils import _masked_accuracy
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
-from models.datasets.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir, PAD_LABEL, SeqTokSet, SeqStrucTokSet
+from models.datasets.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir, PAD_LABEL, SeqTokSet, SeqStrucTokSet, \
+    EmbTokSet, EmbStrucTokSet
 from models.end_to_end.whole_model import TFold
 
 
@@ -68,19 +70,38 @@ def parse_args():
                         required=True)
     return parser.parse_args()
 
+def _find_protein_file(dir_path):
+    for name in ["proteins.jsonl", "proteins.jsonl.gz"]:
+        path = os.path.join(dir_path, name)
+        if os.path.isfile(path):
+            return path
+    raise FileNotFoundError(f"Keine protein.jsonl(.gz) Datei in {dir_path} gefunden.")
 
-def create_tfold_data_loaders(data_dir):
+def create_tfold_data_loaders(data_dir,batch_size,fine_tune_plm,device):
     train_dir = os.path.join(data_dir, "train")
     val_dir = os.path.join(data_dir, "val")
-    test_dir = os.path.join(data_dir, "test")
-    train_dataset = SeqTokSet(os.path.join(train_dir, "proteins.jsonl"))
-    val_dataset = SeqStrucTokSet(os.path.join(val_dir, "proteins.jsonl"), os.path.join(val_dir, "proteins.pkl"))
-    test_dataset = SeqStrucTokSet(os.path.join(test_dir, "proteins.jsonl"), os.path.join(test_dir, "proteins.pkl"))
-    return (
-        DataLoader(train_dataset, batch_size=args.batch, collate_fn=collate_seq_tok_batch, pin_memory=True),
-        DataLoader(val_dataset, batch_size=args.batch, collate_fn=collate_seq_struc_tok_batch, pin_memory=True),
-        DataLoader(test_dataset, batch_size=args.batch, collate_fn=collate_seq_struc_tok_batch, pin_memory=True)
-    )
+
+    # Datei-Pfade automatisch erkennen
+    train_json = _find_protein_file(train_dir)
+    val_json = _find_protein_file(val_dir)
+    val_pkl = os.path.join(val_dir, "proteins.pkl")
+
+    if fine_tune_plm:
+        train_dataset = SeqTokSet(train_json)
+        val_dataset = SeqStrucTokSet(val_json, val_pkl)
+        return (
+            DataLoader(train_dataset, batch_size=batch_size, collate_fn=collate_seq_tok_batch, pin_memory=True),
+            DataLoader(val_dataset, batch_size=batch_size, collate_fn=collate_seq_struc_tok_batch, pin_memory=True),
+            None
+        )
+    else:
+        train_dataset = EmbTokSet(train_json, batch_size=batch_size, device=device)
+        val_dataset = EmbStrucTokSet(val_json, val_pkl, batch_size=batch_size, device=device)
+        return (
+            DataLoader(train_dataset, batch_size=batch_size, collate_fn=pad_collate, pin_memory=True),
+            DataLoader(val_dataset, batch_size=batch_size, collate_fn=collate_emb_struc_tok_batch, pin_memory=True),
+        )
+
 
 
 def create_cnn_data_loaders(emb_source, tok_jsonl, train_ids, val_ids, test_ids, batch_size, use_single_file):
@@ -113,13 +134,6 @@ def build_cnn(d_emb, hidden, vocab_size, kernel_size, dropout, lr, device, resum
     return model, optimizer
 
 
-def build_nn(d_emb, hidden, vocab_size, dropout, lr, device):
-    model = ResidueTokenLNN(d_emb, hidden, vocab_size, dropout).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    criterion = nn.CrossEntropyLoss()
-    return model, optimizer, criterion
-
-
 def collate_seq_struc_tok_batch(batch):
     sequences, token_lists, structures = zip(*batch)
 
@@ -136,6 +150,15 @@ def collate_seq_tok_batch(batch):
     padded_tokens = pad_sequence(token_lists, batch_first=True, padding_value=PAD_LABEL)
 
     return list(sequences), padded_tokens
+
+def collate_emb_struc_tok_batch(batch):
+    embs, toks, structures = zip(*batch)
+
+    # pad embeddings along the sequence dimension
+    embs_padded = pad_sequence(embs, batch_first=True)  # pad with 0.0 by default
+    # pad tokens along the sequence dimension, with PAD_LABEL
+    toks_padded = pad_sequence(toks, batch_first=True, padding_value=PAD_LABEL)
+    return embs_padded, toks_padded, list(structures)
 
 
 def pad_collate(batch):
@@ -222,20 +245,30 @@ def get_dataset(args):
             emb_source, args.tok_jsonl, train_ids, val_ids, test_ids, args.batch, use_file
         )
     elif args.model == "t_fold":
-        return create_tfold_data_loaders(args.data_dir)
+        return create_tfold_data_loaders(args.data_dir,args.lora_plm)
 
 
 def main(args):
+    start = time.time()
+    print("preparing data...")
     # load dataset
     train_loader, val_loader, test_loader = get_dataset(args)
-
+    print(f"done: {time.time()-start}")
+    print("preparing model...")
     model, optimizer = get_model(args)
+
+
+
+    # init output
+    out_folder=(os.path.join(args.out_dir, args.model.name))
+    os.makedirs(out_folder, exist_ok=True)
 
     # init wand db
     run = None
     if not args.no_wandb:
         # wandb.login(key=open("wandb_key").read().strip())
         run = init_wand_db(args)
+
 
     # init important metric based on if the models need to optimize or minimize
     if model.maximize:
@@ -244,11 +277,10 @@ def main(args):
         best_val_score = float('inf')
     patience_ctr = 0
 
-    # init output
-    out_folder=(os.path.join(args.out_dir, args.model.name))
-    os.makedirs(out_folder, exist_ok=True)
-
+    #start training
+    print("starting training...")
     for epoch in range(1, args.epochs + 1):
+        start = time.time()
         train_score_dict = model.run_epoch(train_loader, optimizer=optimizer, device=args.device)
         val_score_dict = model.run_epoch(val_loader, device=args.device)
         score_dict = train_score_dict | val_score_dict
@@ -261,7 +293,7 @@ def main(args):
         val_loss = score_dict["val_loss"]
         val_acc = score_dict["val_acc"]
         lddt_string = f" |{score_dict["val_lddt"]}" if score_dict["val_lddt"] else ""
-        print(f"Epoch {epoch:02d} | train {tr_loss:.4f}/{tr_acc:.4f} | val {val_loss:.4f}/{val_acc:.4f}{lddt_string}")
+        print(f"Epoch {epoch:02d} | duration {time.time()-start:.2f}s | train {tr_loss:.4f}/{tr_acc:.4f} | val {val_loss:.4f}/{val_acc:.4f}{lddt_string}")
 
         # save model
         model.save(out_folder,suffix="_latest")

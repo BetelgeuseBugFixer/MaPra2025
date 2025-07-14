@@ -1,19 +1,67 @@
 import json
 import os
 import pickle
-
+import gzip
+import builtins
 import h5py
 import torch
 from torch.utils.data import Dataset
 
+from models.prot_t5.prot_t5 import ProtT5
+
 PAD_LABEL = -100
+
+
+
+
+class EmbTokSet(Dataset):
+    def __init__(self, token_and_seq_file,batch_size,device):
+        plm=ProtT5(device=device).to(device)
+        sequences=[]
+        self.vq_ids = []
+        open_func = gzip.open if token_and_seq_file.endswith('.gz') else builtins.open
+        with open_func(token_and_seq_file, 'rt') as f:
+            for line in f.readlines():
+                values = json.loads(line)
+                sequences.append(values['sequence'])
+                self.vq_ids.append(torch.tensor(values['vq_ids'], dtype=torch.long))
+
+        self.embeddings = plm.encode_list_of_seqs(sequences,batch_size)
+
+    def __len__(self):
+        return len(self.embeddings)
+
+    def __getitem__(self, idx):
+        return self.embeddings[idx], self.vq_ids[idx]
+
+class EmbStrucTokSet(Dataset):
+    def __init__(self, token_and_seq_file, structure_file,batch_size,device):
+        plm=ProtT5(device=device).to(device)
+        sequences = []
+        self.vq_ids = []
+        self.structures = pickle.load(open(structure_file, 'rb'))
+        open_func = gzip.open if token_and_seq_file.endswith('.gz') else builtins.open
+        with open_func(token_and_seq_file, 'rt') as f:
+            for line in f.readlines():
+                values = json.loads(line)
+                sequences.append(values['sequence'])
+                self.vq_ids.append(torch.tensor(values['vq_ids'], dtype=torch.long))
+
+        self.embeddings = plm.encode_list_of_seqs(sequences, batch_size)
+
+    def __len__(self):
+        return len(self.embeddings)
+
+    def __getitem__(self, idx):
+        return self.embeddings[idx], self.vq_ids[idx], self.structures[idx]
 
 
 class SeqTokSet(Dataset):
     def __init__(self, token_and_seq_file):
         self.sequences = []
         self.vq_ids = []
-        with open(token_and_seq_file, 'r') as f:
+        open_func = gzip.open if token_and_seq_file.endswith('.gz') else builtins.open
+        with open_func(token_and_seq_file, 'rt') as f:
             for line in f.readlines():
                 values = json.loads(line)
                 self.sequences.append(values['sequence'])
@@ -31,7 +79,8 @@ class SeqStrucTokSet(Dataset):
         self.sequences = []
         self.vq_ids = []
         self.structures = pickle.load(open(structure_file, 'rb'))
-        with open(token_and_seq_file, 'r') as f:
+        open_func = gzip.open if token_and_seq_file.endswith('.gz') else builtins.open
+        with open_func(token_and_seq_file, 'rt') as f:
             for line in f.readlines():
                 values = json.loads(line)
                 self.sequences.append(values['sequence'])
