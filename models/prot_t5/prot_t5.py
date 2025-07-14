@@ -61,6 +61,8 @@ class ProtT5(nn.Module):
         while i < len(sequences):
             batch = sequences[i:i + batch_size]
             true_seq_length=[len(seq) for seq in batch]
+            batch = [" ".join(seq.translate(str.maketrans('UZO', 'XXX'))) for seq in batch]
+
             encoding = self.tokenizer.batch_encode_plus(
                 batch,
                 add_special_tokens=True,
