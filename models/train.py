@@ -58,6 +58,8 @@ def parse_args():
     # trainings setting
     parser.add_argument("--batch", type=int, default=1,
                         help="Batch size")
+    parser.add_argument("--val_batch", type=int, default=1,
+                        help="Batch size")
     parser.add_argument("--dropout", type=float, default=0.1)
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--lr", type=float, default=1e-3)
@@ -79,7 +81,7 @@ def _find_protein_file(dir_path):
     raise FileNotFoundError(f"Keine protein.jsonl(.gz) Datei in {dir_path} gefunden.")
 
 
-def create_tfold_data_loaders(data_dir, batch_size, fine_tune_plm, device):
+def create_tfold_data_loaders(data_dir, batch_size,val_batchsize, fine_tune_plm, device):
     train_dir = os.path.join(data_dir, "train")
     val_dir = os.path.join(data_dir, "val")
 
@@ -93,15 +95,17 @@ def create_tfold_data_loaders(data_dir, batch_size, fine_tune_plm, device):
         val_dataset = SeqStrucTokSet(val_json, val_pkl)
         return (
             DataLoader(train_dataset, batch_size=batch_size, collate_fn=collate_seq_tok_batch, pin_memory=True),
-            DataLoader(val_dataset, batch_size=batch_size, collate_fn=collate_seq_struc_tok_batch, pin_memory=True),
-            None
+            DataLoader(val_dataset, batch_size=batch_size, collate_fn=collate_seq_struc_tok_batch, pin_memory=True)
         )
     else:
-        train_dataset = EmbTokSet(train_json, batch_size=batch_size, device=device)
-        val_dataset = EmbStrucTokSet(val_json, val_pkl, batch_size=batch_size, device=device)
+        #set batch size for plm
+        # TODO CHANGE TO TRAINg
+        train_dataset = EmbTokSet(val_json, batch_size=16, device=device)
+        val_dataset = EmbStrucTokSet(val_json, val_pkl, batch_size=16, device=device)
         return (
             DataLoader(train_dataset, batch_size=batch_size, collate_fn=pad_collate, pin_memory=True),
-            DataLoader(val_dataset, batch_size=batch_size, collate_fn=collate_emb_struc_tok_batch, pin_memory=True),
+            # use different batch size to account for decoder
+            DataLoader(val_dataset, batch_size=val_batchsize, collate_fn=collate_emb_struc_tok_batch, pin_memory=True)
         )
 
 
@@ -109,11 +113,9 @@ def create_cnn_data_loaders(emb_source, tok_jsonl, train_ids, val_ids, test_ids,
     DSClass = ProteinPairJSONL if use_single_file else ProteinPairJSONL_FromDir
     train_ds = DSClass(emb_source, tok_jsonl, train_ids)
     val_ds = DSClass(emb_source, tok_jsonl, val_ids)
-    test_ds = DSClass(emb_source, tok_jsonl, test_ids)
     return (
         DataLoader(train_ds, batch_size=batch_size, shuffle=True, collate_fn=pad_collate),
         DataLoader(val_ds, batch_size=batch_size, shuffle=False, collate_fn=pad_collate),
-        DataLoader(test_ds, batch_size=batch_size, shuffle=False, collate_fn=pad_collate),
     )
 
 
@@ -248,14 +250,14 @@ def get_dataset(args):
             emb_source, args.tok_jsonl, train_ids, val_ids, test_ids, args.batch, use_file
         )
     elif args.model == "t_fold":
-        return create_tfold_data_loaders(args.data_dir, 8, args.lora_plm, args.device)
+        return create_tfold_data_loaders(args.data_dir, args.batch, args.val_batch, args.lora_plm, args.device)
 
 
 def main(args):
     start = time.time()
     print("preparing data...")
     # load dataset
-    train_loader, val_loader, test_loader = get_dataset(args)
+    train_loader, val_loader = get_dataset(args)
     print(f"done: {time.time() - start}")
     print("preparing model...")
     model, optimizer = get_model(args)
