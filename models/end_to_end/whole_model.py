@@ -1,4 +1,5 @@
 import os
+import sys
 from typing import List
 
 import torch
@@ -118,7 +119,10 @@ class TFold(nn.Module):
             mask = (tokens != PAD_LABEL)
             logits = forward_method(model_in)
             # get token loss
+            print(logits.shape)
+            print(tokens.shape)
             loss = calc_token_loss(self.cnn.criterion, logits, tokens)
+            sys.exit()
             # back propagate
             optimizer.zero_grad()
             loss.backward()
