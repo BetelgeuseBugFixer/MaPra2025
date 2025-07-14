@@ -245,7 +245,7 @@ def get_dataset(args):
             emb_source, args.tok_jsonl, train_ids, val_ids, test_ids, args.batch, use_file
         )
     elif args.model == "t_fold":
-        return create_tfold_data_loaders(args.data_dir,args.lora_plm)
+        return create_tfold_data_loaders(args.data_dir,args.lora_plm,args.lora_plm,args.device)
 
 
 def main(args):
