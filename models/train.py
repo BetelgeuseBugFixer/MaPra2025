@@ -41,8 +41,8 @@ def parse_args():
 
     # model
     parser.add_argument("--model", type=str, default="cnn", help="type of model to use")
-    parser.add_argument("--resume",type=str,help="path to an existing model to resume training")
-    parser.add_argument("--wandb_resume_id",type=str,help="W&B id of an existing wandb run")
+    parser.add_argument("--resume", type=str, help="path to an existing model to resume training")
+    parser.add_argument("--wandb_resume_id", type=str, help="W&B id of an existing wandb run")
     # tfold exclusive setting
     parser.add_argument("--lora_plm", action="store_true", help=" use lora to retrain the plm")
 
@@ -70,6 +70,7 @@ def parse_args():
                         required=True)
     return parser.parse_args()
 
+
 def _find_protein_file(dir_path):
     for name in ["proteins.jsonl", "proteins.jsonl.gz"]:
         path = os.path.join(dir_path, name)
@@ -77,7 +78,8 @@ def _find_protein_file(dir_path):
             return path
     raise FileNotFoundError(f"Keine protein.jsonl(.gz) Datei in {dir_path} gefunden.")
 
-def create_tfold_data_loaders(data_dir,batch_size,fine_tune_plm,device):
+
+def create_tfold_data_loaders(data_dir, batch_size, fine_tune_plm, device):
     train_dir = os.path.join(data_dir, "train")
     val_dir = os.path.join(data_dir, "val")
 
@@ -103,7 +105,6 @@ def create_tfold_data_loaders(data_dir,batch_size,fine_tune_plm,device):
         )
 
 
-
 def create_cnn_data_loaders(emb_source, tok_jsonl, train_ids, val_ids, test_ids, batch_size, use_single_file):
     DSClass = ProteinPairJSONL if use_single_file else ProteinPairJSONL_FromDir
     train_ds = DSClass(emb_source, tok_jsonl, train_ids)
@@ -116,11 +117,12 @@ def create_cnn_data_loaders(emb_source, tok_jsonl, train_ids, val_ids, test_ids,
     )
 
 
-def build_t_fold(lora_plm, hidden, kernel_size, dropout, lr, device,resume):
+def build_t_fold(lora_plm, hidden, kernel_size, dropout, lr, device, resume):
     if resume:
-        model=TFold.load_tfold(resume,device=device).to(device)
+        model = TFold.load_tfold(resume, device=device).to(device)
     else:
-        model = TFold(hidden=hidden, kernel_sizes=kernel_size, dropout=dropout, device=device, use_lora=lora_plm).to(device)
+        model = TFold(hidden=hidden, kernel_sizes=kernel_size, dropout=dropout, device=device, use_lora=lora_plm).to(
+            device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     return model, optimizer
 
@@ -151,6 +153,7 @@ def collate_seq_tok_batch(batch):
 
     return list(sequences), padded_tokens
 
+
 def collate_emb_struc_tok_batch(batch):
     embs, toks, structures = zip(*batch)
 
@@ -178,7 +181,6 @@ def pad_collate(batch):
     return embs_padded, toks_padded
 
 
-
 def load_split_file(split_file):
     with open(split_file) as f:
         split_data = json.load(f)
@@ -197,28 +199,29 @@ def get_model(args):
     match args.model:
         case "cnn":
             return build_cnn(
-                args.d_emb, args.hidden, args.codebook_size, args.kernel_size, args.dropout, args.lr, args.device,args.resume
+                args.d_emb, args.hidden, args.codebook_size, args.kernel_size, args.dropout, args.lr, args.device,
+                args.resume
             )
         case "t_fold":
             return build_t_fold(args.lora_plm, args.hidden, args.kernel_size, args.dropout, args.lr,
-                                args.device,args.resume)
+                                args.device, args.resume)
         case _:
             raise NotImplementedError
 
 
 def init_wand_db(args):
-    config={
-            "learning_rate": args.lr,
-            "kernel_size": args.kernel_size,
-            "device": args.device,
-            "patience": args.patience,
-            "architecture": args.model,
-            "epochs": args.epochs,
-            "hidden": args.hidden,
-            "dropout": args.dropout,
-            "batch_size": args.batch,
-            "lora_plm": args.lora_plm
-        }
+    config = {
+        "learning_rate": args.lr,
+        "kernel_size": args.kernel_size,
+        "device": args.device,
+        "patience": args.patience,
+        "architecture": args.model,
+        "epochs": args.epochs,
+        "hidden": args.hidden,
+        "dropout": args.dropout,
+        "batch_size": args.batch,
+        "lora_plm": args.lora_plm
+    }
     if args.resume:
         return wandb.init(
             entity="MaPra",
@@ -245,7 +248,7 @@ def get_dataset(args):
             emb_source, args.tok_jsonl, train_ids, val_ids, test_ids, args.batch, use_file
         )
     elif args.model == "t_fold":
-        return create_tfold_data_loaders(args.data_dir,args.lora_plm,args.lora_plm,args.device)
+        return create_tfold_data_loaders(args.data_dir, 8, args.lora_plm, args.device)
 
 
 def main(args):
@@ -253,14 +256,12 @@ def main(args):
     print("preparing data...")
     # load dataset
     train_loader, val_loader, test_loader = get_dataset(args)
-    print(f"done: {time.time()-start}")
+    print(f"done: {time.time() - start}")
     print("preparing model...")
     model, optimizer = get_model(args)
 
-
-
     # init output
-    out_folder=(os.path.join(args.out_dir, args.model.name))
+    out_folder = (os.path.join(args.out_dir, args.model.name))
     os.makedirs(out_folder, exist_ok=True)
 
     # init wand db
@@ -269,7 +270,6 @@ def main(args):
         # wandb.login(key=open("wandb_key").read().strip())
         run = init_wand_db(args)
 
-
     # init important metric based on if the models need to optimize or minimize
     if model.maximize:
         best_val_score = -float('inf')
@@ -277,7 +277,7 @@ def main(args):
         best_val_score = float('inf')
     patience_ctr = 0
 
-    #start training
+    # start training
     print("starting training...")
     for epoch in range(1, args.epochs + 1):
         start = time.time()
@@ -293,10 +293,11 @@ def main(args):
         val_loss = score_dict["val_loss"]
         val_acc = score_dict["val_acc"]
         lddt_string = f" |{score_dict["val_lddt"]}" if score_dict["val_lddt"] else ""
-        print(f"Epoch {epoch:02d} | duration {time.time()-start:.2f}s | train {tr_loss:.4f}/{tr_acc:.4f} | val {val_loss:.4f}/{val_acc:.4f}{lddt_string}")
+        print(
+            f"Epoch {epoch:02d} | duration {time.time() - start:.2f}s | train {tr_loss:.4f}/{tr_acc:.4f} | val {val_loss:.4f}/{val_acc:.4f}{lddt_string}")
 
         # save model
-        model.save(out_folder,suffix="_latest")
+        model.save(out_folder, suffix="_latest")
         # Early stopping check
         new_score = score_dict[model.key_metric]
         if ((model.maximize and new_score > best_val_score)
