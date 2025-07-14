@@ -99,8 +99,7 @@ def create_tfold_data_loaders(data_dir, batch_size,val_batchsize, fine_tune_plm,
         )
     else:
         #set batch size for plm
-        # TODO CHANGE TO TRAINg
-        train_dataset = EmbTokSet(val_json, batch_size=16, device=device)
+        train_dataset = EmbTokSet(train_json, batch_size=16, device=device)
         val_dataset = EmbStrucTokSet(val_json, val_pkl, batch_size=16, device=device)
         return (
             DataLoader(train_dataset, batch_size=batch_size, collate_fn=pad_collate),
