@@ -21,7 +21,7 @@ class EmbTokSet(Dataset):
         self.vq_ids = []
         open_func = gzip.open if token_and_seq_file.endswith('.gz') else builtins.open
         with open_func(token_and_seq_file, 'rt') as f:
-            for line in f.readlines():
+            for line in f:
                 values = json.loads(line)
                 sequences.append(values['sequence'])
                 self.vq_ids.append(torch.tensor(values['vq_ids'], dtype=torch.long))
@@ -42,7 +42,7 @@ class EmbStrucTokSet(Dataset):
         self.structures = pickle.load(open(structure_file, 'rb'))
         open_func = gzip.open if token_and_seq_file.endswith('.gz') else builtins.open
         with open_func(token_and_seq_file, 'rt') as f:
-            for line in f.readlines():
+            for line in f:
                 values = json.loads(line)
                 sequences.append(values['sequence'])
                 self.vq_ids.append(torch.tensor(values['vq_ids'], dtype=torch.long))
@@ -62,7 +62,7 @@ class SeqTokSet(Dataset):
         self.vq_ids = []
         open_func = gzip.open if token_and_seq_file.endswith('.gz') else builtins.open
         with open_func(token_and_seq_file, 'rt') as f:
-            for line in f.readlines():
+            for line in f:
                 values = json.loads(line)
                 self.sequences.append(values['sequence'])
                 self.vq_ids.append(torch.tensor(values['vq_ids'], dtype=torch.long))
@@ -81,7 +81,7 @@ class SeqStrucTokSet(Dataset):
         self.structures = pickle.load(open(structure_file, 'rb'))
         open_func = gzip.open if token_and_seq_file.endswith('.gz') else builtins.open
         with open_func(token_and_seq_file, 'rt') as f:
-            for line in f.readlines():
+            for line in f:
                 values = json.loads(line)
                 self.sequences.append(values['sequence'])
                 self.vq_ids.append(torch.tensor(values['vq_ids'], dtype=torch.long))
