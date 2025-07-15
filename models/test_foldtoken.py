@@ -528,7 +528,7 @@ def bio2token_workflow():
 
     x = decoder(batch)
 
-    # define losswa
+    # define losses
     config = RMSDConfig(
         prediction_name="predictions",  # Key for accessing prediction data in the batch
         target_name="targets",  # Key for accessing target data in the batch
