@@ -81,6 +81,6 @@ class ProtT5(nn.Module):
 
                 for idx,l in enumerate(true_seq_length):
                     embeddings=hidden_states[idx,:l]
-                    res.append(embeddings)
+                    res.append(embeddings.cpu().detach())
                 i += batch_size
             return res
