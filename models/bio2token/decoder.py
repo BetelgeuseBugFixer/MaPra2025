@@ -18,10 +18,6 @@ def load_bio2_token_decoder_and_quantizer():
     return model.decoder, model.encoder.quantizer
 
 
-class LoraConfig:
-    pass
-
-
 class bio2token_decoder(nn.Module):
     def __init__(self, device="cpu", use_lora=False):
         super().__init__()
@@ -29,7 +25,7 @@ class bio2token_decoder(nn.Module):
         self.decoder, self.quantizer = load_bio2_token_decoder_and_quantizer()
 
         # freeze quantizer
-        self.quantizer = self.quantizer.to(self.device)
+        self.quantizer = self.quantizer.to(device)
         for param in self.quantizer.parameters():
             param.requires_grad = False
         self.quantizer.eval()
@@ -56,8 +52,6 @@ class bio2token_decoder(nn.Module):
                 param.requires_grad = False
             self.decoder.eval()
 
-        # Auf Zielgerät verschieben
-        self.to(device)
 
     def forward(self, x,eos_mask):
         encoding = self.quantizer.indices_to_codes(x)

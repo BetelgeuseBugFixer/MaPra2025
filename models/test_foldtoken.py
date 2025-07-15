@@ -500,7 +500,7 @@ def bio2token_workflow():
     # define models
     plm = ProtT5(device=device).to(device)
     cnn = ResidueTokenCNN(1024, [2048, 2048], 4096, [5, 5], bio2token=True).to(device)
-    decoder=bio2token_decoder(device=device)
+    decoder=bio2token_decoder(device=device).to(device)
     # input:
     test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
                  "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
