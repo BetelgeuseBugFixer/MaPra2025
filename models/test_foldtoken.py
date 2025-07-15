@@ -537,7 +537,7 @@ def bio2token_workflow():
     #rmsd
     print(f"targets: {targets.shape}\n{targets}")
     to_eval = {
-        "predictions": x["decoding"],
+        "predictions": x,
         "targets": targets,
         "mask": target_mask,
         "losses": {}
@@ -551,7 +551,7 @@ def bio2token_workflow():
     # lddt
     is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
     is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
-    lddt_loss=lddt_loss_module(x["decoding"],targets,is_dna,is_rna,target_mask)
+    lddt_loss=lddt_loss_module(x,targets,is_dna,is_rna,target_mask)
     print(f"loss: {lddt_loss.item()}")
 
 
