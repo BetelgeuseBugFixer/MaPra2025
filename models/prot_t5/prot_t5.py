@@ -60,25 +60,27 @@ class ProtT5(nn.Module):
     def encode_list_of_seqs(self, sequences, batch_size):
         res=[]
         i = 0
-        while i < len(sequences):
-            batch = sequences[i:i + batch_size]
-            true_seq_length=[len(seq) for seq in batch]
-            batch = [" ".join(seq.translate(str.maketrans('UZO', 'XXX'))) for seq in batch]
+        self.model.eval()
+        with torch.no_grad():
+            while i < len(sequences):
+                batch = sequences[i:i + batch_size]
+                true_seq_length=[len(seq) for seq in batch]
+                batch = [" ".join(seq.translate(str.maketrans('UZO', 'XXX'))) for seq in batch]
 
-            encoding = self.tokenizer.batch_encode_plus(
-                batch,
-                add_special_tokens=True,
-                padding='longest',
-                return_tensors='pt'
-            )
-            input_ids = encoding['input_ids'].to(self.model.device)
-            attention_mask = encoding['attention_mask'].to(self.model.device)
+                encoding = self.tokenizer.batch_encode_plus(
+                    batch,
+                    add_special_tokens=True,
+                    padding='longest',
+                    return_tensors='pt'
+                )
+                input_ids = encoding['input_ids'].to(self.model.device)
+                attention_mask = encoding['attention_mask'].to(self.model.device)
 
-            outputs = self.model(input_ids, attention_mask=attention_mask)
-            hidden_states = outputs.last_hidden_state
+                outputs = self.model(input_ids, attention_mask=attention_mask)
+                hidden_states = outputs.last_hidden_state
 
-            for idx,l in enumerate(true_seq_length):
-                embeddings=hidden_states[idx,:l]
-                res.append(embeddings)
-            i += batch_size
-        return res
+                for idx,l in enumerate(true_seq_length):
+                    embeddings=hidden_states[idx,:l]
+                    res.append(embeddings)
+                i += batch_size
+            return res
