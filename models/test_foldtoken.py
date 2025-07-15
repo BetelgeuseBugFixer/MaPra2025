@@ -14,7 +14,7 @@ from models.bio2token.data.utils.tokens import PAD_CLASS
 from models.bio2token.losses.rmsd import RMSDConfig, RMSD
 from models.bio2token.models.autoencoder import AutoencoderConfig, Autoencoder
 from models.bio2token.utils.configs import utilsyaml_to_dict, pi_instantiate
-from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores
+from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores, SmoothLDDTLoss
 from models.prot_t5.prot_t5 import ProtT5
 from models.datasets.datasets import PAD_LABEL
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
@@ -528,7 +528,7 @@ def bio2token_workflow():
 
     x = decoder(batch)
 
-    # define loss
+    # define losswa
     config = RMSDConfig(
         prediction_name="predictions",  # Key for accessing prediction data in the batch
         target_name="targets",  # Key for accessing target data in the batch
@@ -536,14 +536,18 @@ def bio2token_workflow():
     )
 
     rmsd_metric = RMSD(config, name="rmsd").to(device)
+
+    lddt_loss_module= SmoothLDDTLoss().to(device)
     # get gt
     targets = get_padded_ground_truths(test_pdbs).to(device)
-
+    target_mask=~eos_mask
+    #eval
+    #rmsd
     print(f"targets: {targets.shape}\n{targets}")
     to_eval = {
         "predictions": x["decoding"],
         "targets": targets,
-        "mask": ~eos_mask,
+        "mask": target_mask,
         "losses": {}
     }
     to_eval = rmsd_metric(to_eval)
@@ -552,6 +556,10 @@ def bio2token_workflow():
 
     for i, val in enumerate(loss_value):
         print(f"loss[{i}]: {val.item()}")
+    # lddt
+    lddt_loss=lddt_loss_module(x["decoding"],targets,target_mask)
+    print(f"loss: {lddt_loss.item()}")
+
 
 if __name__ == '__main__':
-    batched_bio2token()
+    bio2token_workflow()
