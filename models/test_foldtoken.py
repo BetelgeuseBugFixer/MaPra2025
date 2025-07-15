@@ -11,6 +11,7 @@ from torch import nn
 from torch.nn.utils.rnn import pad_sequence
 
 from models.bio2token.data.utils.tokens import PAD_CLASS
+from models.bio2token.decoder import bio2token_decoder
 from models.bio2token.losses.rmsd import RMSDConfig, RMSD
 from models.bio2token.models.autoencoder import AutoencoderConfig, Autoencoder
 from models.bio2token.utils.configs import utilsyaml_to_dict, pi_instantiate
@@ -499,9 +500,7 @@ def bio2token_workflow():
     # define models
     plm = ProtT5(device=device).to(device)
     cnn = ResidueTokenCNN(1024, [2048, 2048], 4096, [5, 5], bio2token=True).to(device)
-    decoder, quantizer, encoder = load_bio2_token_decoder_and_quantizer()
-    decoder = decoder.to(device)
-    quantizer = quantizer.to(device)
+    decoder=bio2token_decoder(device=device)
     # input:
     test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
                  "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
@@ -519,14 +518,7 @@ def bio2token_workflow():
         eos_mask[i, :length * 4] = False
     print(f"indices: {x.shape}\n{x}")
     print(f"eos: {eos_mask.shape}\n{eos_mask}")
-    x = quantizer.indices_to_codes(x)
-    batch = {
-        "encoding": x,
-        "eos_pad_mask": eos_mask,
-    }
-    print(f"x: {x.shape}\n{x}")
-
-    x = decoder(batch)
+    x = decoder(x, eos_mask=eos_mask)
 
     # define losses
     config = RMSDConfig(

@@ -11,6 +11,16 @@ from models.prot_t5.prot_t5 import ProtT5
 from models.datasets.datasets import PAD_LABEL
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
 
+class ProtBioFold(nn.Module):
+    def __init__(self, hidden: list, device="cpu", kernel_sizes=[5], dropout: float = 0.1, use_lora=False):
+        super().__init__()
+        self.device = device
+        self.plm = ProtT5(use_lora=use_lora, device=device).to(self.device)
+        embeddings_size = 1024
+        codebook_size = 1024
+        self.cnn = ResidueTokenCNN(embeddings_size, hidden, codebook_size, kernel_sizes, dropout,bio2token=True).to(device)
+        self.use_lora = use_lora
+
 
 class TFold(nn.Module):
     def __init__(self, hidden: list, device="cpu", kernel_sizes=[5], dropout: float = 0.1, use_lora=False):
