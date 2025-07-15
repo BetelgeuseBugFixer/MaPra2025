@@ -369,28 +369,10 @@ def bio2token_test():
     batch = model.decoder(batch)
     print(f"6 batch:\n{batch['decoding'].shape}\n{batch['decoding']}")
 
-
-def batched_bio2token():
-    device = "cuda"
-    model_configs = load_from_yaml("models/bio2token/files/model.yaml")["model"]
-    model_config = pi_instantiate(AutoencoderConfig, model_configs)
-    model = Autoencoder(model_config)
-    state_dict = torch.load("models/bio2token/files/epoch=0243-val_loss_epoch=0.71-best-checkpoint.ckpt")["state_dict"]
-    # Remove 'model.' prefix from keys if present
-    state_dict_bis = {k.replace("model.", ""): v for k, v in state_dict.items()}
-    model.load_state_dict(state_dict_bis)
-    model.to(device)
-
-    # define test_pbs
-    test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
-                 "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
-    # batch
-    # Prepare lists for batch processing
-    # structure, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered
-
+def batch_pdbs_for_bio2token(pdbs, device):
     batch = []
     # read to dicts
-    dicts = [pdb_2_dict(pdb) for pdb in test_pdbs]
+    dicts = [pdb_2_dict(pdb) for pdb in pdbs]
     for pdb_dict in dicts:
         structure, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered = uniform_dataframe(
             pdb_dict["seq"],
@@ -435,6 +417,27 @@ def batched_bio2token():
     print(f"batch:\n{batch}")
     batch = compute_masks(batch, structure_track=True)
     batch = {k: v.to(device) for k, v in batch.items()}
+    return batch
+
+def batched_bio2token():
+    device = "cuda"
+    model_configs = load_from_yaml("models/bio2token/files/model.yaml")["model"]
+    model_config = pi_instantiate(AutoencoderConfig, model_configs)
+    model = Autoencoder(model_config)
+    state_dict = torch.load("models/bio2token/files/epoch=0243-val_loss_epoch=0.71-best-checkpoint.ckpt")["state_dict"]
+    # Remove 'model.' prefix from keys if present
+    state_dict_bis = {k.replace("model.", ""): v for k, v in state_dict.items()}
+    model.load_state_dict(state_dict_bis)
+    model.to(device)
+
+    # define test_pbs
+    test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
+                 "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
+    # batch
+    # Prepare lists for batch processing
+    # structure, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered
+
+    batch = batch_pdbs_for_bio2token(test_pdbs,device)
 
     batch = model.encoder(batch)
     print(
@@ -451,7 +454,7 @@ def load_bio2_token_decoder_and_quantizer():
     # Remove 'model.' prefix from keys if present
     state_dict_bis = {k.replace("model.", ""): v for k, v in state_dict.items()}
     model.load_state_dict(state_dict_bis)
-    return model.decoder, model.encoder.quantizer
+    return model.decoder, model.encoder.quantizer,model.encoder
 
 def get_padded_ground_truths(pdbs):
     batch = []
@@ -496,7 +499,7 @@ def bio2token_workflow():
     # define models
     plm = ProtT5(device=device).to(device)
     cnn = ResidueTokenCNN(1024, [2048, 2048], 4096, [5, 5], bio2token=True).to(device)
-    decoder, quantizer = load_bio2_token_decoder_and_quantizer()
+    decoder, quantizer, encoder = load_bio2_token_decoder_and_quantizer()
     decoder = decoder.to(device)
     quantizer = quantizer.to(device)
     # input:
@@ -551,17 +554,4 @@ def bio2token_workflow():
         print(f"loss[{i}]: {val.item()}")
 
 if __name__ == '__main__':
-    device = "cuda"
-    # define models
-    plm = ProtT5(device=device).to(device)
-    test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
-                 "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
-    seqs = [get_seq_from_pdb(pdb) for pdb in test_pdbs]
-    true_lengths = [len(seq) for seq in seqs]
-    # run through model:
-    x = [" ".join(seq.translate(str.maketrans('UZO', 'XXX'))) for seq in seqs]
-    x = plm(x)
-
-    true_lengths2 = (x.abs().sum(-1) > 0).sum(dim=1)
-    print(true_lengths)
-    print(true_lengths2)
+    batched_bio2token()
