@@ -10,6 +10,7 @@ def _masked_accuracy(logits, tgt, mask):
     total = mask.sum().item()
     return correct / total if total else 0.0
 
+
 def calc_lddt_scores(protein_predictions, ref_protein):
     lddt_scores = []
     for protein_prediction, protein_ref in zip(protein_predictions, ref_protein):
@@ -22,6 +23,7 @@ def calc_lddt_scores(protein_predictions, ref_protein):
 def calc_token_loss(criterion, tokens_predictions, tokens_reference):
     return criterion(tokens_predictions.transpose(1, 2), tokens_reference)
 
+
 # everything bewlow this line is stolen from
 # https://github.com/lucidrains/alphafold3-pytorch/blob/main/alphafold3_pytorch/alphafold3.py#L226
 
@@ -29,38 +31,39 @@ def calc_token_loss(criterion, tokens_predictions, tokens_reference):
 def exists(v):
     return v is not None
 
+
 def default(v, d):
     return v if exists(v) else d
 
-def to_pairwise_mask(
-    mask_i,
-    mask_j
-) :
 
+def to_pairwise_mask(
+        mask_i,
+        mask_j=None
+):
     mask_j = default(mask_j, mask_i)
     assert mask_i.shape == mask_j.shape
     return einx.logical_and('... i, ... j -> ... i j', mask_i, mask_j)
 
-def masked_average(
-    t,
-    mask,
-    *,
-    dim,
-    eps = 1.
-) :
 
-    num = (t * mask).sum(dim = dim)
-    den = mask.sum(dim = dim)
-    return num / den.clamp(min = eps)
+def masked_average(
+        t,
+        mask,
+        *,
+        dim,
+        eps=1.
+):
+    num = (t * mask).sum(dim=dim)
+    den = mask.sum(dim=dim)
+    return num / den.clamp(min=eps)
+
 
 class SmoothLDDTLoss(Module):
     """ Algorithm 27 """
 
-
     def __init__(
-        self,
-        nucleic_acid_cutoff: float = 30.0,
-        other_cutoff: float = 15.0
+            self,
+            nucleic_acid_cutoff: float = 30.0,
+            other_cutoff: float = 15.0
     ):
         super().__init__()
         self.nucleic_acid_cutoff = nucleic_acid_cutoff
@@ -69,12 +72,12 @@ class SmoothLDDTLoss(Module):
         self.register_buffer('lddt_thresholds', torch.tensor([0.5, 1.0, 2.0, 4.0]))
 
     def forward(
-        self,
-        pred_coords,
-        true_coords,
-        is_dna,
-        is_rna,
-        coords_mask,
+            self,
+            pred_coords,
+            true_coords,
+            is_dna,
+            is_rna,
+            coords_mask,
     ):
         """
         pred_coords: predicted coordinates
@@ -93,7 +96,7 @@ class SmoothLDDTLoss(Module):
         # Compute epsilon values
 
         eps = einx.subtract('thresholds, ... -> ... thresholds', self.lddt_thresholds, dist_diff)
-        eps = eps.sigmoid().mean(dim = -1)
+        eps = eps.sigmoid().mean(dim=-1)
 
         # Restrict to bespoke inclusion radius
         is_nucleotide = is_dna | is_rna
@@ -114,6 +117,6 @@ class SmoothLDDTLoss(Module):
             mask = mask & paired_coords_mask
 
         # Calculate masked averaging
-        lddt = masked_average(eps, mask = mask, dim = (-1, -2), eps = 1)
+        lddt = masked_average(eps, mask=mask, dim=(-1, -2), eps=1)
 
         return 1. - lddt.mean()
