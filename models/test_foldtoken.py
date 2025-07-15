@@ -557,7 +557,9 @@ def bio2token_workflow():
     for i, val in enumerate(loss_value):
         print(f"loss[{i}]: {val.item()}")
     # lddt
-    lddt_loss=lddt_loss_module(x["decoding"],targets,target_mask)
+    is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
+    is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
+    lddt_loss=lddt_loss_module(x["decoding"],targets,is_dna,is_rna,target_mask)
     print(f"loss: {lddt_loss.item()}")
 
 
