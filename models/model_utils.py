@@ -1,6 +1,7 @@
 import torch
 from biotite.structure import lddt
 from torch.nn import Module
+import einx
 
 
 def _masked_accuracy(logits, tgt, mask):
