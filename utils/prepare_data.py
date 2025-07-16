@@ -30,8 +30,8 @@ from models.bio2token.utils.configs import pi_instantiate
 # Konfiguration
 # ----------------------------------------------------------------------------
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-BATCH_LIMIT = 50_000      # Max. Proteine je Split (nur für train)
-CHUNK_SIZE = 1_000        # Fortschrittsintervalle
+BATCH_LIMIT = 50_000  # Max. Proteine je Split (nur für train)
+CHUNK_SIZE = 1_000  # Fortschrittsintervalle
 
 INPUT_DIR = Path("/mnt/data/large/zip_file/final_data_PDB")
 SINGLETON_ID_PATH = Path(
@@ -45,15 +45,21 @@ DEVNULL = open(os.devnull, 'w')
 
 # Aminosäure-Mapping
 three_to_one = {
-    'ALA':'A','ARG':'R','ASN':'N','ASP':'D','CYS':'C',
-    'GLN':'Q','GLU':'E','GLY':'G','HIS':'H','ILE':'I',
-    'LEU':'L','LYS':'K','MET':'M','PHE':'F','PRO':'P',
-    'SER':'S','THR':'T','TRP':'W','TYR':'Y','VAL':'V'
+    'ALA': 'A', 'ARG': 'R', 'ASN': 'N', 'ASP': 'D', 'CYS': 'C',
+    'GLN': 'Q', 'GLU': 'E', 'GLY': 'G', 'HIS': 'H', 'ILE': 'I',
+    'LEU': 'L', 'LYS': 'K', 'MET': 'M', 'PHE': 'F', 'PRO': 'P',
+    'SER': 'S', 'THR': 'T', 'TRP': 'W', 'TYR': 'Y', 'VAL': 'V'
 }
+
 
 # ----------------------------------------------------------------------------
 # Hilfsfunktionen
 # ----------------------------------------------------------------------------
+def get_pdb_structure_and_seq(pdb_path: str):
+    pdb_dict = pdb_2_dict(pdb_path)
+    return pdb_dict["coords_groundtruth"], pdb_dict["sequence"]
+
+
 def get_seq_from_lines(lines):
     seq = []
     chain_id = None
@@ -76,7 +82,8 @@ def get_seq_from_lines(lines):
 def load_prot_from_pdb(pdb_file):
     pdb = PDBFile.read(pdb_file)
     arr = pdb.get_structure(model=1)
-    return arr[_filter_atom_names(arr, ["N","CA","C","O"])]
+    return arr[_filter_atom_names(arr, ["N", "CA", "C", "O"])]
+
 
 # ----------------------------------------------------------------------------
 # Modelle laden
@@ -93,7 +100,7 @@ state = torch.load(
     "models/bio2token/files/epoch=0243-val_loss_epoch=0.71-best-checkpoint.ckpt",
     map_location="cpu"
 )["state_dict"]
-bio2token_model.load_state_dict({k.replace("model.",""):v for k,v in state.items()})
+bio2token_model.load_state_dict({k.replace("model.", ""): v for k, v in state.items()})
 bio2token_model.eval().to(DEVICE)
 print("[INIT] Modelle bereit.", flush=True)
 
@@ -102,12 +109,13 @@ with open(SINGLETON_ID_PATH) as f:
     singleton_ids = {line.strip().split("-")[1] for line in f if "-" in line}
 print(f"[INIT] {len(singleton_ids):,} Singleton-IDs geladen", flush=True)
 
+
 # ----------------------------------------------------------------------------
 # Pipeline
 # ----------------------------------------------------------------------------
 @torch.inference_mode()
 def process_split(split: str):
-    print("="*60, flush=True)
+    print("=" * 60, flush=True)
     print(f"[{split.upper()}] begin", flush=True)
 
     out_dir = OUTPUT_BASE / split
@@ -143,9 +151,9 @@ def process_split(split: str):
             'residue_ids': torch.tensor(res_ids, dtype=torch.int64),
             'token_class': torch.tensor(tok, dtype=torch.int64),
         }
-        cpu_batch = {k: v[~cpu_batch['unknown_structure']] for k,v in cpu_batch.items()}
+        cpu_batch = {k: v[~cpu_batch['unknown_structure']] for k, v in cpu_batch.items()}
         cpu_batch = compute_masks(cpu_batch, structure_track=True)
-        batch = {k: v.unsqueeze(0).to(DEVICE) for k,v in cpu_batch.items()}
+        batch = {k: v.unsqueeze(0).to(DEVICE) for k, v in cpu_batch.items()}
         enc = bio2token_model.encoder(batch)
         encoding = enc['encoding'].squeeze(0).cpu().tolist()
         indices = enc['indices'].squeeze(0).cpu().tolist()
@@ -176,14 +184,17 @@ def process_split(split: str):
             if not mem.name.endswith('.pdb'): continue
             pid = mem.name.split('-')[1]
             if pid in singleton_ids:
-                skipped += 1; continue
+                skipped += 1;
+                continue
             fobj = tar.extractfile(mem)
             if not fobj: continue
             lines = fobj.read().decode().splitlines()
             seq = get_seq_from_lines(lines)
             if not seq: continue
             with tempfile.NamedTemporaryFile('w+', suffix='.pdb', delete=False) as tmp:
-                tmp.write("\n".join(lines)); tmp.flush(); path = tmp.name
+                tmp.write("\n".join(lines));
+                tmp.flush();
+                path = tmp.name
             try:
                 handle_protein(pid, seq, path)
             except Exception as e:
@@ -195,7 +206,8 @@ def process_split(split: str):
         for pdb_file in (INPUT_DIR / split / f"{split}_pdb").glob('*.pdb'):
             pid = pdb_file.stem.split('-')[1] if '-' in pdb_file.stem else None
             if not pid or pid in singleton_ids:
-                skipped += bool(pid); continue
+                skipped += bool(pid);
+                continue
             try:
                 lines = open(pdb_file).read().splitlines()
                 seq = get_seq_from_lines(lines)
@@ -205,15 +217,17 @@ def process_split(split: str):
                 print(f"[WARN] {pdb_file.name} -> {e}", flush=True)
 
     if not is_train:
-        with gzip.open(str(jsonl_file)+'.gz', 'wt', compresslevel=5) if False else open(jsonl_file, 'w') as jf:
-            for e in buffer_json: jf.write(json.dumps(e)+"\n")
+        with gzip.open(str(jsonl_file) + '.gz', 'wt', compresslevel=5) if False else open(jsonl_file, 'w') as jf:
+            for e in buffer_json: jf.write(json.dumps(e) + "\n")
         with open(pickle_file, 'wb') as pf:
             pickle.dump(buffer_structs, pf, protocol=pickle.HIGHEST_PROTOCOL)
 
     if is_train:
-        json_f.close(); pickle_f.close()
+        json_f.close();
+        pickle_f.close()
     total = time.time() - start
     print(f"[{split.upper()}] Fertig: {processed:,} Proteine, {skipped:,} übersprungen in {total:.1f}s", flush=True)
+
 
 if __name__ == '__main__':
     for s in ['val', 'test', 'train']:
