@@ -575,5 +575,25 @@ def get_protein_sizes_in_dataset(data_file="/mnt/data/large/subset/train/protein
 
 
 if __name__ == '__main__':
-   get_protein_sizes_in_dataset()
-   get_protein_sizes_in_dataset(data_file="/mnt/data/large/subset/val/proteins.jsonl")
+    device = "cuda"
+    # define models
+    plm = ProtT5(device=device).to(device)
+    cnn = ResidueTokenCNN(1024, [2048, 2048], 4096, [5, 5], bio2token=True).to(device)
+    decoder = bio2token_decoder(device=device).to(device)
+    # input:
+    test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
+                 "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
+    seqs = [get_seq_from_pdb(pdb) for pdb in test_pdbs]
+    true_lengths = [len(seq) for seq in seqs]
+    # run through model:
+    x = [" ".join(seq.translate(str.maketrans('UZO', 'XXX'))) for seq in seqs]
+    x = plm(x)
+    x = cnn(x)
+    x = x.argmax(dim=-1)
+    # construct eos mask:
+    B, L = x.shape
+    eos_mask = torch.ones(B, L, dtype=torch.bool, device=x.device)  # alle True = gepaddet
+    for i, length in enumerate(true_lengths):
+        eos_mask[i, :length * 4] = False
+    x = decoder(x, eos_mask=eos_mask)
+
