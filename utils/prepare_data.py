@@ -33,12 +33,11 @@ from models.prot_t5.prot_t5 import ProtT5
 from tokenizer_benchmark.extract_ca_atoms import rewrite_pdb
 
 # ----------------------------------------------------------------------------
-# Konfiguration
+# Configuration
 # ----------------------------------------------------------------------------
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 MAX_PROT = 100_000  # Max. Proteine je Split (nur für train)
-CHUNK_SIZE = 1_000  # Fortschrittsintervalle
 
 INPUT_DIR = Path("/mnt/data/large/zip_file/final_data_PDB")
 SINGLETON_ID_PATH = Path(
@@ -47,54 +46,15 @@ SINGLETON_ID_PATH = Path(
 OUTPUT_BASE = Path("/mnt/data/large/subset")
 OUTPUT_BASE.mkdir(parents=True, exist_ok=True)
 
-# Einmaliger devnull-Handle
-DEVNULL = open(os.devnull, 'w')
+BATCH_SIZE = 64
 
-# Aminosäure-Mapping
-three_to_one = {
-    'ALA': 'A', 'ARG': 'R', 'ASN': 'N', 'ASP': 'D', 'CYS': 'C',
-    'GLN': 'Q', 'GLU': 'E', 'GLY': 'G', 'HIS': 'H', 'ILE': 'I',
-    'LEU': 'L', 'LYS': 'K', 'MET': 'M', 'PHE': 'F', 'PRO': 'P',
-    'SER': 'S', 'THR': 'T', 'TRP': 'W', 'TYR': 'Y', 'VAL': 'V'
-}
-
+TMP_DIR = OUTPUT_BASE / "tmp"
+os.makedirs(TMP_DIR,exist_ok=True)
 
 # ----------------------------------------------------------------------------
-# Hilfsfunktionen
+# load models
 # ----------------------------------------------------------------------------
-def get_pdb_structure_and_seq(pdb_path: str):
-    pdb_dict = pdb_2_dict(pdb_path)
-    return pdb_dict["coords_groundtruth"], pdb_dict["sequence"]
 
-
-def get_seq_from_lines(lines):
-    seq = []
-    chain_id = None
-    for line in lines:
-        if line.startswith("ATOM") and line[12:16].strip() == "CA":
-            current_chain = line[21]
-            if chain_id is None:
-                chain_id = current_chain
-            elif current_chain != chain_id:
-                return None
-            one = three_to_one.get(line[17:20].strip())
-            if one is None:
-                return None
-            seq.append(one)
-        elif line.startswith("ENDMDL"):
-            break
-    return "".join(seq) if seq else None
-
-
-def load_prot_from_pdb(pdb_file):
-    pdb = PDBFile.read(pdb_file)
-    arr = pdb.get_structure(model=1)
-    return arr[_filter_atom_names(arr, ["N", "CA", "C", "O"])]
-
-
-# ----------------------------------------------------------------------------
-# Modelle laden
-# ----------------------------------------------------------------------------
 print("[INIT] FoldToken laden …", flush=True)
 foldtoken_model = FoldToken(device=DEVICE)
 foldtoken_model.eval()
@@ -116,11 +76,6 @@ plm = ProtT5()
 with open(SINGLETON_ID_PATH) as f:
     singleton_ids = {line.strip().split("-")[1] for line in f if "-" in line}
 print(f"[INIT] {len(singleton_ids):,} Singleton-IDs geladen", flush=True)
-
-BATCH_SIZE = 64
-
-TMP_DIR = OUTPUT_BASE / "tmp"
-os.makedirs(TMP_DIR,exist_ok=True)
 
 
 # ----------------------------------------------------------------------------
@@ -160,6 +115,11 @@ def process_batch(pdb_paths, seqs):
     bio2token = get_bio2token(pdb_paths, seq_lengths)
     fold_token = get_foldtoken(pdb_paths)
     return embeddings, bio2token, fold_token
+
+
+def get_pdb_structure_and_seq(pdb_path: str):
+    pdb_dict = pdb_2_dict(pdb_path)
+    return pdb_dict["coords_groundtruth"], pdb_dict["sequence"]
 
 # ----------------------------------------------------------------------------
 # Iterators
@@ -229,11 +189,11 @@ def process_split(split: str):
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # open HDF5 files once, in append mode
-    emb_f    = h5py.File(out_dir / "embeddings.h5", mode="a")
-    seq_f    = h5py.File(out_dir / "sequences.h5",  mode="a")
-    struct_f = h5py.File(out_dir / "structures.h5", mode="a")
-    bio2t_f  = h5py.File(out_dir / "bio2tokens.h5", mode="a")
-    foldt_f  = h5py.File(out_dir / "foldtokens.h5", mode="a")
+    emb_f    = h5py.File(out_dir / "embeddings.h5", mode="w")
+    seq_f    = h5py.File(out_dir / "sequences.h5",  mode="w")
+    struct_f = h5py.File(out_dir / "structures.h5", mode="w")
+    bio2t_f  = h5py.File(out_dir / "bio2tokens.h5", mode="w")
+    foldt_f  = h5py.File(out_dir / "foldtokens.h5", mode="w")
 
     processed = skipped = 0
     pid_batch, seq_batch, struct_batch, pdb_paths = [], [], [], []
