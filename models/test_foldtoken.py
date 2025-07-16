@@ -1,4 +1,5 @@
 import argparse
+import builtins
 import gzip
 import json
 from pathlib import Path
@@ -556,10 +557,23 @@ def bio2token_workflow():
     print(f"loss: {lddt_loss.item()}")
 
 
-if __name__ == '__main__':
-    with  gzip.open("/mnt/data/large/subset/train/proteins.jsonl.gz", 'rt') as f:
+def get_protein_sizes_in_dataset(data_file="/mnt/data/large/subset/train/proteins.jsonl.gz",max_size=1_000):
+    number_of_to_large_proteins = 0
+    all_proteins = 0
+    open_func = gzip.open if data_file.endswith('.gz') else builtins.open
+    with  open_func(data_file, 'rt') as f:
         for line in f:
             values = json.loads(line)
-            sequence_length=len((values['sequence']))
-            if sequence_length > 1_000:
-                print(f"protein{values['id']} to long: {sequence_length}")
+            sequence_length = len((values['sequence']))
+            if sequence_length > max_size:
+                number_of_to_large_proteins += 1
+                print(f"protein {values['id']} to long: {sequence_length}")
+            all_proteins += 1
+
+    print(f"done analysing {data_file}!")
+    print(f"found {number_of_to_large_proteins} proteins larger then {max_size} in {all_proteins} proteins.")
+
+
+if __name__ == '__main__':
+   get_protein_sizes_in_dataset()
+   get_protein_sizes_in_dataset(data_file="/mnt/data/large/subset/val/proteins.jsonl")
