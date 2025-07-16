@@ -529,7 +529,7 @@ def get_protein_sizes_in_dataset(data_file="/mnt/data/large/subset/train/protein
     print(f"found {number_of_to_large_proteins} proteins larger then {max_size} in {all_proteins} proteins.")
 
 def print_tensor(tensor,name):
-    print(f"{name}-tensor{tensor.shape}:\n{tensor}")
+    print(f"{name}-{tensor.shape}:\n{tensor}")
 
 if __name__ == '__main__':
     test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
