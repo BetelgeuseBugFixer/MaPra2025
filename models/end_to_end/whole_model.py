@@ -5,50 +5,54 @@ from typing import List
 import torch
 from torch import nn
 
+from models.bio2token.decoder import bio2token_decoder
 from models.foldtoken_decoder.foldtoken import FoldToken
 from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores
 from models.prot_t5.prot_t5 import ProtT5
 from models.datasets.datasets import PAD_LABEL
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
 
-class ProtBioFold(nn.Module):
-    def __init__(self, hidden: list, device="cpu", kernel_sizes=[5], dropout: float = 0.1, use_lora=False):
-        super().__init__()
-        self.device = device
-        self.plm = ProtT5(use_lora=use_lora, device=device).to(self.device)
-        embeddings_size = 1024
-        codebook_size = 1024
-        self.cnn = ResidueTokenCNN(embeddings_size, hidden, codebook_size, kernel_sizes, dropout,bio2token=True).to(device)
-        self.use_lora = use_lora
-
 
 class TFold(nn.Module):
-    def __init__(self, hidden: list, device="cpu", kernel_sizes=[5], dropout: float = 0.1, use_lora=False):
+    def __init__(self, hidden: list, device="cpu", kernel_sizes=[5], dropout: float = 0.1, use_lora=False,
+                 bio2token=False):
         super().__init__()
         self.device = device
         self.plm = ProtT5(use_lora=use_lora, device=device).to(self.device)
         embeddings_size = 1024
-        codebook_size = 1024
-        self.cnn = ResidueTokenCNN(embeddings_size, hidden, codebook_size, kernel_sizes, dropout).to(device)
-        self.decoder = FoldToken(device=self.device)
+
+        # choose decoder and forward method based in it
+        if bio2token:
+            self.decoder = bio2token_decoder(device=device).to(device)
+            codebook_size = 4096
+            self.forward_from_embedding=self.forward_from_embedding_bio2token
+        else:
+            self.decoder = FoldToken(device=self.device)
+            codebook_size = 1024
+            self.forward_from_embedding = self.forward_from_embedding_foldtoken
+
+        self.cnn = ResidueTokenCNN(embeddings_size, hidden, codebook_size, kernel_sizes, dropout,
+                                   bio2token=bio2token).to(device)
         self.use_lora = use_lora
 
-        # freeze decoder 
+        # freeze decoder
         for param in self.decoder.parameters():
             param.requires_grad = False
 
         # save args
+        decoder_type = "bio2token" if bio2token else "foldotken"
         self.args = {
             "hidden": hidden,
             "kernel_sizes": kernel_sizes,
             "dropout": dropout,
             "device": device,
-            "use_lora": use_lora
+            "use_lora": use_lora,
+            "decoder": decoder_type
         }
         hidden_layers_string = "_".join(str(i) for i in hidden)
         kernel_sizes_string = "_".join(str(i) for i in kernel_sizes)
         lora_string = "_lora" if use_lora else ""
-        self.model_name = f"t_fold_k{kernel_sizes_string}_h{hidden_layers_string}{lora_string}"
+        self.model_name = f"t_fold_{decoder_type}_k{kernel_sizes_string}_h{hidden_layers_string}{lora_string}"
 
         # define most important metric and whether it needs to be minimized or maximized
         self.key_metric = "val_loss"
@@ -84,7 +88,22 @@ class TFold(nn.Module):
         # generate tokens
         return self.forward_from_embedding(x, true_lengths)
 
-    def forward_from_embedding(self, x, true_lengths=None):
+    def forward_from_embedding_bio2token(self, x, true_lengths=None):
+        if true_lengths is None:
+            # if we do not have lengths derive them from embeddings
+            true_lengths = (x.abs().sum(-1) > 0).sum(dim=1)
+        # generate tokens
+        x = self.cnn(x)  # shape: (B, L, vocab_size)
+        tokens = x.argmax(dim=-1)
+        # prepare tokens for decoding
+        B, L = x.shape
+        eos_mask = torch.ones(B, L, dtype=torch.bool, device=x.device)
+        for i, length in enumerate(true_lengths):
+            eos_mask[i, :length * 4] = False
+        x = self.decoder(x, eos_mask=eos_mask)
+        return x, tokens
+
+    def forward_from_embedding_foldtoken(self, x, true_lengths=None):
         if true_lengths is None:
             # if we do not have lengths derive them from embeddings
             true_lengths = (x.abs().sum(-1) > 0).sum(dim=1)
