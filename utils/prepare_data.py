@@ -140,6 +140,11 @@ def get_bio2token(pdb_paths, seq_lengths):
     batch = bio2token_model.encoder(batch)
     tokens = []
     for i, length in enumerate(seq_lengths):
+        print(batch)
+        print(batch["indices"].shape)
+        print(batch["indices"])
+        print(i)
+        print(length)
         tokens.append(batch["indices"][i,:length * 4])
     # delete all pdbs in folder in python
     temp_pdbs = glob.glob(os.path.join(TMP_DIR,"*.pdb"))
