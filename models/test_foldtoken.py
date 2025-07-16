@@ -1,4 +1,5 @@
 import argparse
+import gzip
 import json
 from pathlib import Path
 import os
@@ -556,4 +557,9 @@ def bio2token_workflow():
 
 
 if __name__ == '__main__':
-    bio2token_workflow()
+    with  gzip.open("mnt/data/large/subset/train/proteins.jsonl.gz ", 'rt') as f:
+        for line in f:
+            values = json.loads(line)
+            sequence_length=len((values['sequence']))
+            if sequence_length > 1_000:
+                print(f"protein{val['id']} to long: {sequence_length}")
