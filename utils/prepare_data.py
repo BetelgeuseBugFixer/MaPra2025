@@ -24,7 +24,6 @@ import torch
 from biotite.structure.filter import _filter_atom_names
 from biotite.structure.io.pdb import PDBFile
 from hydra_zen import load_from_yaml
-from wandb.sdk.lib.filesystem import mkdir_exists_ok
 
 from models.foldtoken_decoder.foldtoken import FoldToken
 from models.bio2token.data.utils.utils import pdb_2_dict, uniform_dataframe, compute_masks
