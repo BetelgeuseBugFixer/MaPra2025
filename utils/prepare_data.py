@@ -151,7 +151,7 @@ def get_bio2token(pdb_paths, seq_lengths):
 def get_foldtoken(pdb_paths):
     foldtokens=[]
     for pdb_path in pdb_paths:
-        foldtokens.append(foldtoken_model.encode(pdb_path))
+        foldtokens.append(foldtoken_model.encode_pdb(pdb_path))
     return foldtokens
 
 
