@@ -558,7 +558,7 @@ if __name__ == '__main__':
     lddt_loss_module = SmoothLDDTLoss().to(device)
     optimizer = torch.optim.Adam(cnn.parameters(), lr=0.001)
     # run through model:
-    for i in range(20):
+    for _ in range(20):
         x = [" ".join(seq.translate(str.maketrans('UZO', 'XXX'))) for seq in seqs]
         x = plm(x)
         x = cnn(x)
