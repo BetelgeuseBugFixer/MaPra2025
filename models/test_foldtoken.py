@@ -30,8 +30,6 @@ from models.end_to_end.whole_model import TFold
 from transformers import T5EncoderModel, T5Tokenizer
 from hydra_zen import load_from_yaml, builds, instantiate
 
-from utils.prepare_data import get_pdb_structure_and_seq, process_batch
-
 
 def load_prot_from_pdb(pdb_file):
     # load
@@ -566,7 +564,7 @@ if __name__ == '__main__':
         eos_mask[i, :length * 4] = False
     print(f"indices: {x.shape}\n{x}")
     print(f"eos: {eos_mask.shape}\n{eos_mask}")
-    x = decoder.decoder(x, eos_mask=eos_mask)
+    x = decoder.decoder.decoder(x, eos_mask=eos_mask)
 
     # define losses
     config = RMSDConfig(
