@@ -564,7 +564,7 @@ if __name__ == '__main__':
         eos_mask[i, :length * 4] = False
     print(f"indices: {x.shape}\n{x}")
     print(f"eos: {eos_mask.shape}\n{eos_mask}")
-    x = decoder.decoder.decoder(x, eos_mask=eos_mask)
+    x = decoder.decoder.decoder(x,eos_mask)
 
     # define losses
     config = RMSDConfig(
