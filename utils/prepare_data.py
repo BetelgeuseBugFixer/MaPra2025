@@ -133,7 +133,7 @@ def get_bio2token(pdb_paths, seq_lengths):
     for pdb_path in pdb_paths:
         pdb_filename = pdb_path.split("/")[-1]
         new_path = TMP_DIR / pdb_filename
-        rewrite_pdb(pdb_path, new_path,allowed_atom_list=["CA","C"])
+        rewrite_pdb(pdb_path, new_path,allowed_atom_list=["N", "CA", "C", "O"])
         new_pdbs.append(new_path)
 
     batch = batch_pdbs_for_bio2token(new_pdbs, device=DEVICE)
