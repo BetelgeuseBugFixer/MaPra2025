@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
-prepare_data_memory_efficient_compressed.py
 --------------------------------
-Speicher- und zeitoptimierte Version mit JSONL-Kompression für das Train-Set und BATCH_LIMIT=50k.
+Speicher- und zeitoptimierte Version mit JSONL-Kompression für das Train-Set und MAX_PROT=100k.
 """
 
 import contextlib
@@ -38,7 +37,7 @@ from tokenizer_benchmark.extract_ca_atoms import rewrite_pdb
 # ----------------------------------------------------------------------------
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-BATCH_LIMIT = 50_000  # Max. Proteine je Split (nur für train)
+MAX_PROT = 100_000  # Max. Proteine je Split (nur für train)
 CHUNK_SIZE = 1_000  # Fortschrittsintervalle
 
 INPUT_DIR = Path("/mnt/data/large/zip_file/final_data_PDB")
@@ -125,7 +124,7 @@ os.makedirs(TMP_DIR,exist_ok=True)
 
 
 # ----------------------------------------------------------------------------
-# Pipeline
+# Helper Functions
 # ----------------------------------------------------------------------------
 def get_bio2token(pdb_paths, seq_lengths):
     # create tmp pdbs with only backbone
@@ -159,9 +158,67 @@ def process_batch(pdb_paths, seqs):
     seq_lengths = [len(seq) for seq in seqs]
     embeddings = plm.encode_list_of_seqs(seqs, BATCH_SIZE)
     bio2token = get_bio2token(pdb_paths, seq_lengths)
-    fold_token=get_foldtoken(pdb_paths)
+    fold_token = get_foldtoken(pdb_paths)
     return embeddings, bio2token, fold_token
 
+# ----------------------------------------------------------------------------
+# Iterators
+# ----------------------------------------------------------------------------
+
+def iterate_train_pdbs(input_dir, singleton_ids, max_prot):
+    """
+    Yields (pid, tmp_pdb_path, cleanup_fn) for each .pdb in the rostlab_subset.tar.
+    """
+    processed = 0
+    tar_path = input_dir / "train" / "rostlab_subset.tar"
+    with tarfile.open(tar_path, "r") as tar:
+        for member in tar:
+            if processed >= max_prot:
+                break
+            if not member.name.endswith(".pdb"):
+                continue
+
+            pid = member.name.split("-")[1]
+            if pid in singleton_ids:
+                continue
+
+            fobj = tar.extractfile(member)
+            if fobj is None:
+                continue
+
+            lines = fobj.read().decode().splitlines()
+            # write to temp file
+            tmp = tempfile.NamedTemporaryFile("w+", suffix=".pdb", delete=False)
+            tmp.write("\n".join(lines))
+            tmp.flush()
+            tmp_path = tmp.name
+            tmp.close()
+
+            # cleanup for tmp files
+            def _cleanup(path=tmp_path):
+                os.remove(path)
+
+            yield pid, tmp_path, _cleanup
+            processed += 1
+
+def iterate_split_pdbs(input_dir, split, singleton_ids):
+    """
+    Yields (pid, pdb_path, no_op_cleanup) for each .pdb on disk in val/test.
+    """
+    pdb_dir = input_dir / split / f"{split}_pdb"
+    for pdb_file in pdb_dir.glob("*.pdb"):
+        stem = pdb_file.stem
+        pid = stem.split("-", 1)[1] if "-" in stem else None
+        if not pid or pid in singleton_ids:
+            continue
+
+        # no cleanup needed for non-tmp files
+        yield pid, str(pdb_file), lambda: None
+
+
+# ----------------------------------------------------------------------------
+# Pipeline
+# ----------------------------------------------------------------------------
 
 @torch.inference_mode()
 def process_split(split: str):
@@ -171,89 +228,82 @@ def process_split(split: str):
     out_dir = OUTPUT_BASE / split
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    emb_file = h5py.File("embeddings.h5")
-    seq_file = h5py.File("sequences.h5")
-    structure_file = h5py.File("structures.h5")
-    bio2token_file = h5py.File("bio2tokens.h5")
-    foldtoken_file = h5py.File("foldtokens.h5")
+    # open HDF5 files once, in append mode
+    emb_f    = h5py.File(out_dir / "embeddings.h5", mode="a")
+    seq_f    = h5py.File(out_dir / "sequences.h5",  mode="a")
+    struct_f = h5py.File(out_dir / "structures.h5", mode="a")
+    bio2t_f  = h5py.File(out_dir / "bio2tokens.h5", mode="a")
+    foldt_f  = h5py.File(out_dir / "foldtokens.h5", mode="a")
 
     processed = skipped = 0
-    start = time.time()
-    chunk_start = time.time()
+    pid_batch, seq_batch, struct_batch, pdb_paths = [], [], [], []
 
-    # def handle_protein(pid, seq, pdb_path):
-    #     nonlocal processed, chunk_start
-    #     vq = foldtoken_model.encode_pdb(pdb_path)
-    #     with contextlib.redirect_stdout(DEVNULL):
-    #         pdb_d = pdb_2_dict(pdb_path, None)
-    #     st, unk, _, res_ids, tok, _ = uniform_dataframe(
-    #         pdb_d['seq'], pdb_d['res_types'], pdb_d['coords_groundtruth'],
-    #         pdb_d['atom_names'], pdb_d['res_atom_start'], pdb_d['res_atom_end']
-    #     )
-    #     cpu_batch = {
-    #         'structure': torch.tensor(st, dtype=torch.float32),
-    #         'unknown_structure': torch.tensor(unk, dtype=torch.bool),
-    #         'residue_ids': torch.tensor(res_ids, dtype=torch.int64),
-    #         'token_class': torch.tensor(tok, dtype=torch.int64),
-    #     }
-    #     cpu_batch = {k: v[~cpu_batch['unknown_structure']] for k, v in cpu_batch.items()}
-    #     cpu_batch = compute_masks(cpu_batch, structure_track=True)
-    #     batch = {k: v.unsqueeze(0).to(DEVICE) for k, v in cpu_batch.items()}
-    #     enc = bio2token_model.encoder(batch)
-    #     encoding = enc['encoding'].squeeze(0).cpu().tolist()
-    #     indices = enc['indices'].squeeze(0).cpu().tolist()
-    #     entry = {'id': pid, 'sequence': seq, 'vq_ids': vq.tolist(),
-    #              'bio2tokens': indices, 'bio2token_encoding': encoding}
-    #     struct = load_prot_from_pdb(pdb_path)
-    #
-    #     if is_train:
-    #         json_f.write(json.dumps(entry) + "\n")
-    #         pickle.dump(struct, pickle_f, protocol=pickle.HIGHEST_PROTOCOL)
-    #     else:
-    #         buffer_json.append(entry)
-    #         buffer_structs.append(struct)
-    #
-    #     processed += 1
-    #     if processed % CHUNK_SIZE == 0:
-    #         dur = time.time() - chunk_start
-    #         print(f"[{split}] {processed:,} in {dur:.1f}s", flush=True)
-    #         chunk_start = time.time()
-    #         gc.collect()
-    #         if torch.cuda.is_available(): torch.cuda.empty_cache()
-    #     del cpu_batch, batch, enc, struct, vq
+    # pick the right iterator
+    if split == "train":
+        iterator = iterate_train_pdbs(INPUT_DIR, singleton_ids, MAX_PROT)
+    else:
+        iterator = iterate_split_pdbs(INPUT_DIR, split, singleton_ids)
 
-    pid_batch = []
-    seq_batch = []
-    structure_batch = []
-    pbd_path_batch = []
-    for pdb_file in (INPUT_DIR / split / f"{split}_pdb").glob('*.pdb'):
-        pid = pdb_file.stem.split('-')[1] if '-' in pdb_file.stem else None
-        if not pid or pid in singleton_ids:
-            skipped += bool(pid)
-            continue
+    for pid, pdb_path, cleanup in iterator:
         try:
-            pdb_path = INPUT_DIR / split / f"{pid}.pdb"
+            print(f"{split}: processing {pid} \t {pdb_path}")
             sequence, structure = get_pdb_structure_and_seq(pdb_path)
-            if len(sequence) < 800:
-                pid_batch.append(pid)
-                seq_batch.append(sequence)
-                structure_batch.append(structure)
-                pbd_path_batch.append(pdb_path)
-            else:
-                skipped += 1
-                continue
-
-            if len(pid_batch) == BATCH_SIZE:
-                embeddings, foldtoken, bio2token = process_batch(pbd_path_batch, seq_batch)
-                pid_batch = []
-                seq_batch = []
-                structure_batch = []
-                pbd_path_batch = []
-
         except Exception as e:
-            print(f"[WARN] {pdb_file.name} -> {e}", flush=True)
+            print(f"[WARN] {pid} -> {e}", flush=True)
+            cleanup()
+            continue
 
+        cleanup()
 
+        if not sequence or len(sequence) >= 800:
+            skipped += 1
+            continue
+
+        pid_batch.append(pid)
+        seq_batch.append(sequence)
+        struct_batch.append(structure)
+        pdb_paths.append(pdb_path)
+        processed += 1
+
+        if len(pid_batch) >= BATCH_SIZE:
+            embeddings, foldtoken, bio2token = process_batch(pdb_paths, seq_batch)
+            print(f"{split}: generated tokens and embeds")
+            print(f"embeddings: {embeddings[0].shape}")
+            print(f"bio2token: {bio2token[0].shape}")
+            print(f"foldtoken: {foldtoken[0].shape}")
+            for pid_i, emb_i, seq_i, struct_i, b2t_i, ft_i in zip(
+                pid_batch, embeddings, seq_batch, struct_batch, bio2token, foldtoken
+            ):
+                emb_f.create_dataset(pid_i,     data=emb_i)
+                seq_f.create_dataset(pid_i,     data=seq_i)
+                struct_f.create_dataset(pid_i,  data=struct_i)
+                bio2t_f.create_dataset(pid_i,   data=b2t_i)
+                foldt_f.create_dataset(pid_i,   data=ft_i)
+
+            print(f"processed: {processed}")
+
+            pid_batch.clear()
+            seq_batch.clear()
+            struct_batch.clear()
+            pdb_paths.clear()
+
+    # flush any leftovers
+    if pid_batch:
+        embeddings, foldtoken, bio2token = process_batch(pdb_paths, seq_batch)
+        for pid_i, emb_i, seq_i, struct_i, b2t_i, ft_i in zip(
+            pid_batch, embeddings, seq_batch, struct_batch, bio2token, foldtoken
+        ):
+            emb_f.create_dataset(pid_i,     data=emb_i)
+            seq_f.create_dataset(pid_i,     data=seq_i)
+            struct_f.create_dataset(pid_i,  data=struct_i)
+            bio2t_f.create_dataset(pid_i,   data=b2t_i)
+            foldt_f.create_dataset(pid_i,   data=ft_i)
+
+    # close files
+    for f in (emb_f, seq_f, struct_f, bio2t_f, foldt_f):
+        f.close()
+
+    print(f"[{split.upper()}] done — processed {processed}, skipped {skipped}", flush=True)
 
 
 if __name__ == '__main__':
