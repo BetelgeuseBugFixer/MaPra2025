@@ -535,7 +535,7 @@ def test_dataset_generation():
                  "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
     seqs= [get_seq_from_pdb(pdb) for pdb in test_pdbs]
     seq_lengths=[len(seq) for seq in seqs]
-    embeddings, bio2token, foldtoken =process_batch(test_pdbs, seqs)
+    embeddings, bio2token, foldtoken = process_batch(test_pdbs, seqs)
     print_tensor(embeddings,"embeddings")
     print_tensor(bio2token,"bio2token")
     print_tensor(foldtoken,"foldtoken")
@@ -554,12 +554,15 @@ if __name__ == '__main__':
                  "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
     seqs = [get_seq_from_pdb(pdb) for pdb in test_pdbs]
     true_lengths = [len(seq) for seq in seqs]
+    targets = get_padded_ground_truths(test_pdbs).to(device)
+    lddt_loss_module = SmoothLDDTLoss().to(device)
+    optimizer = torch.optim.Adam(cnn.parameters(), lr=0.001)
     # run through model:
     for i in range(20):
         x = [" ".join(seq.translate(str.maketrans('UZO', 'XXX'))) for seq in seqs]
         x = plm(x)
         x = cnn(x)
-        print_tensor(x,"x")
+        # print_tensor(x,"x")
         #x = x.argmax(dim=-1)
         # construct eos mask:
         B, L , _ = x.shape
@@ -577,9 +580,7 @@ if __name__ == '__main__':
 
         rmsd_metric = RMSD(config, name="rmsd").to(device)
 
-        lddt_loss_module = SmoothLDDTLoss().to(device)
         # get gt
-        targets = get_padded_ground_truths(test_pdbs).to(device)
         target_mask = ~eos_mask
         # eval
         # rmsd
@@ -599,5 +600,6 @@ if __name__ == '__main__':
         lddt_loss = lddt_loss_module(x, targets, is_dna, is_rna, target_mask)
         print(f" lddt loss: {lddt_loss.item()}")
         lddt_loss.backward()
+        optimizer.step()
         del lddt_loss
 
