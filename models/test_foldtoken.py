@@ -18,7 +18,7 @@ from models.bio2token.losses.rmsd import RMSDConfig, RMSD
 from models.bio2token.models.autoencoder import AutoencoderConfig, Autoencoder
 from models.bio2token.utils.configs import utilsyaml_to_dict, pi_instantiate
 from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores, SmoothLDDTLoss, \
-    batch_pdbs_for_bio2token
+    batch_pdbs_for_bio2token, print_trainable_parameters
 from models.prot_t5.prot_t5 import ProtT5
 from models.datasets.datasets import PAD_LABEL
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
@@ -544,59 +544,60 @@ def test_dataset_generation():
 if __name__ == '__main__':
     device = "cuda"
     plm = ProtT5(device=device).to(device)
+    print_trainable_parameters(plm)
     cnn = ResidueTokenCNN(1024, [2048, 2048], 128, [5, 5], bio2token=True).to(device)
+    print_trainable_parameters(cnn)
     decoder = bio2token_decoder(device=device).to(device)
+    print_trainable_parameters(decoder)
     # input:
     test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
                  "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
     seqs = [get_seq_from_pdb(pdb) for pdb in test_pdbs]
     true_lengths = [len(seq) for seq in seqs]
     # run through model:
-    x = [" ".join(seq.translate(str.maketrans('UZO', 'XXX'))) for seq in seqs]
-    x = plm(x)
-    x = cnn(x)
-    print_tensor(x,"x")
-    #x = x.argmax(dim=-1)
-    # construct eos mask:
-    B, L , _ = x.shape
-    eos_mask = torch.ones(B, L, dtype=torch.bool, device=x.device)  # alle True = gepaddet
-    for i, length in enumerate(true_lengths):
-        eos_mask[i, :length * 4] = False
-    print(f"indices: {x.shape}\n{x}")
-    print(f"eos: {eos_mask.shape}\n{eos_mask}")
-    x = decoder.decoder.decoder(x,eos_mask)
+    for i in range(20):
+        x = [" ".join(seq.translate(str.maketrans('UZO', 'XXX'))) for seq in seqs]
+        x = plm(x)
+        x = cnn(x)
+        print_tensor(x,"x")
+        #x = x.argmax(dim=-1)
+        # construct eos mask:
+        B, L , _ = x.shape
+        eos_mask = torch.ones(B, L, dtype=torch.bool, device=x.device)  # alle True = gepaddet
+        for i, length in enumerate(true_lengths):
+            eos_mask[i, :length * 4] = False
+        x = decoder.decoder.decoder(x,eos_mask)
 
-    # define losses
-    config = RMSDConfig(
-        prediction_name="predictions",  # Key for accessing prediction data in the batch
-        target_name="targets",  # Key for accessing target data in the batch
-        mask_name="mask",  # Key for accessing an optional mask in the batch
-    )
+        # define losses
+        config = RMSDConfig(
+            prediction_name="predictions",  # Key for accessing prediction data in the batch
+            target_name="targets",  # Key for accessing target data in the batch
+            mask_name="mask",  # Key for accessing an optional mask in the batch
+        )
 
-    rmsd_metric = RMSD(config, name="rmsd").to(device)
+        rmsd_metric = RMSD(config, name="rmsd").to(device)
 
-    lddt_loss_module = SmoothLDDTLoss().to(device)
-    # get gt
-    targets = get_padded_ground_truths(test_pdbs).to(device)
-    target_mask = ~eos_mask
-    # eval
-    # rmsd
-    print(f"targets: {targets.shape}\n{targets}")
-    to_eval = {
-        "predictions": x,
-        "targets": targets,
-        "mask": target_mask,
-        "losses": {}
-    }
-    to_eval = rmsd_metric(to_eval)
+        lddt_loss_module = SmoothLDDTLoss().to(device)
+        # get gt
+        targets = get_padded_ground_truths(test_pdbs).to(device)
+        target_mask = ~eos_mask
+        # eval
+        # rmsd
+        to_eval = {
+            "predictions": x,
+            "targets": targets,
+            "mask": target_mask,
+            "losses": {}
+        }
+        to_eval = rmsd_metric(to_eval)
 
-    loss_value = to_eval["losses"]["rmsd"]  # → Tensor
+        loss_value = to_eval["losses"]["rmsd"]  # → Tensor
 
-    for i, val in enumerate(loss_value):
-        print(f"loss[{i}]: {val.item()}")
-    # lddt
-    is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
-    is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
-    lddt_loss = lddt_loss_module(x, targets, is_dna, is_rna, target_mask)
-    print(f"loss: {lddt_loss.item()}")
+        # lddt
+        is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
+        is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
+        lddt_loss = lddt_loss_module(x, targets, is_dna, is_rna, target_mask)
+        print(f" lddt loss: {lddt_loss.item()}")
+        lddt_loss.backward()
+        del lddt_loss
 
