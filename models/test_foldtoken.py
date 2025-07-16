@@ -537,8 +537,9 @@ if __name__ == '__main__':
     seqs= [get_seq_from_pdb(pdb) for pdb in test_pdbs]
     seq_lengths=[len(seq) for seq in seqs]
     embeddings, bio2token, foldtoken =process_batch(test_pdbs, seqs)
-    print_tensor(embeddings,"embeddings")
-    print_tensor(bio2token,"bio2token")
-    print_tensor(foldtoken,"foldtoken")
-    print(seq_lengths)
+    for i in range(len(seq_lengths)):
+        print_tensor(embeddings[i],"embeddings")
+        print_tensor(bio2token[i],"bio2token")
+        print_tensor(foldtoken[i],"foldtoken")
+        print(seq_lengths[i])
 
