@@ -3,6 +3,10 @@ from biotite.structure import lddt
 from torch.nn import Module
 import einx
 
+from models.bio2token.data.utils.tokens import PAD_CLASS
+from models.bio2token.data.utils.utils import filter_batch, pad_and_stack_batch, compute_masks, pdb_2_dict, \
+    uniform_dataframe
+
 
 def _masked_accuracy(logits, tgt, mask):
     pred = logits.argmax(dim=-1)
@@ -23,6 +27,53 @@ def calc_lddt_scores(protein_predictions, ref_protein):
 def calc_token_loss(criterion, tokens_predictions, tokens_reference):
     return criterion(tokens_predictions.transpose(1, 2), tokens_reference)
 
+
+def batch_pdbs_for_bio2token(pdbs, device):
+    batch = []
+    # read to dicts
+    dicts = [pdb_2_dict(pdb) for pdb in pdbs]
+    for pdb_dict in dicts:
+        structure, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered = uniform_dataframe(
+            pdb_dict["seq"],
+            pdb_dict["res_types"],
+            pdb_dict["coords_groundtruth"],
+            pdb_dict["atom_names"],
+            pdb_dict["res_atom_start"],
+            pdb_dict["res_atom_end"],
+        )
+        batch_item = {
+            "structure": torch.tensor(structure).float(),
+            "unknown_structure": torch.tensor(unknown_structure).bool(),
+            "residue_ids": torch.tensor(residue_ids).long(),
+            "token_class": torch.tensor(token_class).long(),
+        }
+        batch_item = {k: v[~batch_item["unknown_structure"]] for k, v in batch_item.items()}
+
+        batch.append(batch_item)
+
+    # taken from config
+    sequences_to_pad = {
+        "structure": 0,
+        "unknown_structure": True,
+        "residue_ids": -1,
+        "token_class": PAD_CLASS,
+        "eos_pad_mask": 1,
+        "structure_known_all_atom_mask": 0,
+        "bb_atom_known_structure_mask": 0,
+        "sc_atom_known_structure_mask": 0,
+        "cref_atom_known_structure_mask": 0,
+    }
+    # batch = [pdb_2_dict(pdb) for pdb in test_pdbs]
+    batch = filter_batch(batch, sequences_to_pad.keys())
+    batch = pad_and_stack_batch(
+        batch,
+        sequences_to_pad,
+        1
+    )
+
+    batch = compute_masks(batch, structure_track=True)
+    batch = {k: v.to(device) for k, v in batch.items()}
+    return batch
 
 # everything bewlow this line is stolen from
 # https://github.com/lucidrains/alphafold3-pytorch/blob/main/alphafold3_pytorch/alphafold3.py#L226

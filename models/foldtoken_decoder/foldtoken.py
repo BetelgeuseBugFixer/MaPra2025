@@ -64,7 +64,7 @@ class FoldToken(nn.Module):
             proteins.append(protein)
         return proteins
 
-    def decode_single_prot(self, vq_codes, output_path):
+    def decode_single_prot(self, vq_codes):
         # get latent embeddings
         h_V = self.model.model.vq.embed_id(vq_codes, self.level)
         # simple chain encoding

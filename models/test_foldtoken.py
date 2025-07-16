@@ -17,7 +17,8 @@ from models.bio2token.decoder import bio2token_decoder
 from models.bio2token.losses.rmsd import RMSDConfig, RMSD
 from models.bio2token.models.autoencoder import AutoencoderConfig, Autoencoder
 from models.bio2token.utils.configs import utilsyaml_to_dict, pi_instantiate
-from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores, SmoothLDDTLoss
+from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores, SmoothLDDTLoss, \
+    batch_pdbs_for_bio2token
 from models.prot_t5.prot_t5 import ProtT5
 from models.datasets.datasets import PAD_LABEL
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
@@ -29,7 +30,7 @@ from models.end_to_end.whole_model import TFold
 from transformers import T5EncoderModel, T5Tokenizer
 from hydra_zen import load_from_yaml, builds, instantiate
 
-from utils.prepare_data import get_pdb_structure_and_seq
+from utils.prepare_data import get_pdb_structure_and_seq, process_batch
 
 
 def load_prot_from_pdb(pdb_file):
@@ -374,55 +375,7 @@ def bio2token_test():
     batch = model.decoder(batch)
     print(f"6 batch:\n{batch['decoding'].shape}\n{batch['decoding']}")
 
-def batch_pdbs_for_bio2token(pdbs, device):
-    batch = []
-    # read to dicts
-    dicts = [pdb_2_dict(pdb) for pdb in pdbs]
-    for pdb_dict in dicts:
-        structure, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered = uniform_dataframe(
-            pdb_dict["seq"],
-            pdb_dict["res_types"],
-            pdb_dict["coords_groundtruth"],
-            pdb_dict["atom_names"],
-            pdb_dict["res_atom_start"],
-            pdb_dict["res_atom_end"],
-        )
-        batch_item = {
-            "structure": torch.tensor(structure).float(),
-            "unknown_structure": torch.tensor(unknown_structure).bool(),
-            "residue_ids": torch.tensor(residue_ids).long(),
-            "token_class": torch.tensor(token_class).long(),
-        }
-        batch_item = {k: v[~batch_item["unknown_structure"]] for k, v in batch_item.items()}
 
-        batch.append(batch_item)
-
-    # taken from config
-    sequences_to_pad = {
-        "structure": 0,
-        "unknown_structure": True,
-        "residue_ids": -1,
-        "token_class": PAD_CLASS,
-        "eos_pad_mask": 1,
-        "structure_known_all_atom_mask": 0,
-        "bb_atom_known_structure_mask": 0,
-        "sc_atom_known_structure_mask": 0,
-        "cref_atom_known_structure_mask": 0,
-    }
-    # batch = [pdb_2_dict(pdb) for pdb in test_pdbs]
-    print(f"2 batch:\n{batch}")
-    batch = filter_batch(batch, sequences_to_pad.keys())
-    print(f"1 batch:\n{batch}")
-    batch = pad_and_stack_batch(
-        batch,
-        sequences_to_pad,
-        1
-    )
-
-    print(f"batch:\n{batch}")
-    batch = compute_masks(batch, structure_track=True)
-    batch = {k: v.to(device) for k, v in batch.items()}
-    return batch
 
 def batched_bio2token():
     device = "cuda"
@@ -575,7 +528,17 @@ def get_protein_sizes_in_dataset(data_file="/mnt/data/large/subset/train/protein
     print(f"done analysing {data_file}!")
     print(f"found {number_of_to_large_proteins} proteins larger then {max_size} in {all_proteins} proteins.")
 
+def print_tensor(tensor,name):
+    print(f"{name}-tensor{tensor.shape}:\n{tensor}")
 
 if __name__ == '__main__':
-    print(get_pdb_structure_and_seq("data/casp14_test/casp14_emb/T1024-D1.h5"))
+    test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
+                 "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
+    seqs= [get_seq_from_pdb(pdb) for pdb in test_pdbs]
+    seq_lengths=[len(seq) for seq in seqs]
+    embeddings, bio2token, foldtoken =process_batch(test_pdbs, seqs)
+    print_tensor(embeddings,"embeddings")
+    print_tensor(bio2token,"bio2token")
+    print_tensor(foldtoken,"foldtoken")
+    print(seq_lengths)
 
