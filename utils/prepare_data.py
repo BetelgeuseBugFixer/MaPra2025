@@ -16,6 +16,7 @@ import tarfile
 import tempfile
 import time
 from collections import defaultdict
+from os import mkdir
 from pathlib import Path
 
 import h5py
@@ -23,6 +24,7 @@ import torch
 from biotite.structure.filter import _filter_atom_names
 from biotite.structure.io.pdb import PDBFile
 from hydra_zen import load_from_yaml
+from wandb.sdk.lib.filesystem import mkdir_exists_ok
 
 from models.foldtoken_decoder.foldtoken import FoldToken
 from models.bio2token.data.utils.utils import pdb_2_dict, uniform_dataframe, compute_masks
@@ -120,13 +122,14 @@ print(f"[INIT] {len(singleton_ids):,} Singleton-IDs geladen", flush=True)
 BATCH_SIZE = 64
 
 TMP_DIR = OUTPUT_BASE / "tmp"
+os.makedirs(TMP_DIR,exist_ok=True)
 
 
 # ----------------------------------------------------------------------------
 # Pipeline
 # ----------------------------------------------------------------------------
 def get_bio2token(pdb_paths, seq_lengths):
-    # crate tmp pdbs with only backbone
+    # create tmp pdbs with only backbone
     new_pdbs = []
     for pdb_path in pdb_paths:
         pdb_filename = pdb_path.split("/")[-1]
