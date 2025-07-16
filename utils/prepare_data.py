@@ -119,7 +119,7 @@ def process_batch(pdb_paths, seqs):
 
 def get_pdb_structure_and_seq(pdb_path: str):
     pdb_dict = pdb_2_dict(pdb_path)
-    return pdb_dict["coords_groundtruth"], pdb_dict["sequence"]
+    return pdb_dict["coords_groundtruth"], pdb_dict["seq"]
 
 # ----------------------------------------------------------------------------
 # Iterators
