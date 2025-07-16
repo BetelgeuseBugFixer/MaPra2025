@@ -557,7 +557,7 @@ def bio2token_workflow():
 
 
 if __name__ == '__main__':
-    with  gzip.open("/mnt/data/large/subset/train/proteins.jsonl.gz ", 'rt') as f:
+    with  gzip.open("/mnt/data/large/subset/train/proteins.jsonl.gz", 'rt') as f:
         for line in f:
             values = json.loads(line)
             sequence_length=len((values['sequence']))
