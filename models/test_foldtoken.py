@@ -1,5 +1,6 @@
 import argparse
 import builtins
+import copy
 import gzip
 import json
 from pathlib import Path
@@ -609,7 +610,7 @@ if __name__ == '__main__':
 
     cnn_weights_after = list(cnn.parameters())
 
-    if torch.allclose(before, after, atol=1e-6):
+    if torch.allclose(cnn_weights_before, cnn_weights_after, atol=1e-6):
         print(f"Layer {i}: ❌ No change")
     else:
         print(f"Layer {i}: ✅ Changed")
