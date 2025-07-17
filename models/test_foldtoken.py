@@ -605,7 +605,7 @@ if __name__ == '__main__':
         lddt_loss = lddt_loss_module(x, targets, is_dna, is_rna, target_mask)
         print(f" lddt loss: {lddt_loss.item()}")
         lddt_loss.backward()
-        for name, param in model.cnn.named_parameters():
+        for name, param in cnn.named_parameters():
             if param.grad is None:
                 print(f"{name}: ❌ Kein Grad!")
             else:
