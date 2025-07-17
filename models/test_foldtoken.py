@@ -562,7 +562,7 @@ if __name__ == '__main__':
     cnn_weights_before = copy.deepcopy(list(cnn.parameters()))
 
     # run through model:
-    for _ in range(100):
+    for _ in range(1000):
         optimizer.zero_grad()
         x = [" ".join(seq.translate(str.maketrans('UZO', 'XXX'))) for seq in seqs]
         x = plm(x)
