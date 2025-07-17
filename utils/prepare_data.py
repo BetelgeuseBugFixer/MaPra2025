@@ -234,7 +234,7 @@ def process_split(split: str):
             for pid_i, emb_i, seq_i, struct_i, b2t_i, ft_i in zip(
                 pid_batch, embeddings, seq_batch, struct_batch, bio2token, foldtoken
             ):
-                emb_f.create_dataset(pid_i,     data=emb_i)
+                emb_f.create_dataset(pid_i, data=emb_i.detach().cpu().numpy())
                 seq_f.create_dataset(pid_i,     data=seq_i)
                 struct_f.create_dataset(pid_i,  data=struct_i)
                 bio2t_f.create_dataset(pid_i,   data=b2t_i)
