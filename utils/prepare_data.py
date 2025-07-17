@@ -235,7 +235,7 @@ def process_split(split: str):
         processed += 1
 
         if len(pid_batch) >= BATCH_SIZE:
-            embeddings, foldtoken, bio2token = process_batch(pdb_paths, seq_batch)
+            embeddings, bio2token, foldtoken = process_batch(pdb_paths, seq_batch)
             print(f"{split}: generated tokens and embeds")
             print(f"embeddings: {embeddings[0].shape}")
             print(f"bio2token: {bio2token[0].shape}")
