@@ -610,7 +610,8 @@ if __name__ == '__main__':
 
     cnn_weights_after = list(cnn.parameters())
 
-    if torch.allclose(cnn_weights_before, cnn_weights_after, atol=1e-6):
-        print(f"Layer {i}: ❌ No change")
-    else:
-        print(f"Layer {i}: ✅ Changed")
+    for i, (before, after) in enumerate(zip(cnn_weights_before, cnn_weights_after)):
+        if torch.allclose(before, after, atol=1e-6):
+            print(f"Layer {i}: ❌ No change")
+        else:
+            print(f"Layer {i}: ✅ Changed")
