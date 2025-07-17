@@ -16,7 +16,7 @@ from models.model_utils import _masked_accuracy
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
 from models.datasets.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir, PAD_LABEL, SeqTokSet, SeqStrucTokSet, \
     EmbTokSet, EmbStrucTokSet
-from models.end_to_end.whole_model import TFold
+from models.end_to_end.whole_model import TFold, FinalModel
 
 
 # ------------------------------------------------------------
@@ -40,11 +40,12 @@ def parse_args():
     parser.add_argument("--data_dir", help="Directory with train, validation and test sub directories")
 
     # model
-    parser.add_argument("--model", type=str, default="cnn", help="type of model to use")
+    parser.add_argument("--model", type=str, default="cnn", help="type of model to use, options: cnn, tfold, final")
     parser.add_argument("--resume", type=str, help="path to an existing model to resume training")
     parser.add_argument("--wandb_resume_id", type=str, help="W&B id of an existing wandb run")
-    # tfold exclusive setting
-    parser.add_argument("--lora_plm", action="store_true", help=" use lora to retrain the plm")
+    # end to end exclusive setting
+    parser.add_argument("--lora_plm", action="store_true", help=" use lora to finetune the plm")
+    parser.add_argument("--lora_decoder", action="store_true", help=" use lora to finetune the plm")
 
     # cnn exclusive setting
     parser.add_argument("--codebook_size", type=int, default=1024,
@@ -81,7 +82,7 @@ def _find_protein_file(dir_path):
     raise FileNotFoundError(f"Keine protein.jsonl(.gz) Datei in {dir_path} gefunden.")
 
 
-def create_tfold_data_loaders(data_dir, batch_size,val_batchsize, fine_tune_plm, device):
+def create_tfold_data_loaders(data_dir, batch_size, val_batchsize, fine_tune_plm, device):
     train_dir = os.path.join(data_dir, "train")
     val_dir = os.path.join(data_dir, "val")
 
@@ -98,7 +99,7 @@ def create_tfold_data_loaders(data_dir, batch_size,val_batchsize, fine_tune_plm,
             DataLoader(val_dataset, batch_size=batch_size, collate_fn=collate_seq_struc_tok_batch)
         )
     else:
-        #set batch size for plm
+        # set batch size for plm
         train_dataset = EmbTokSet(train_json, batch_size=64, device=device)
         val_dataset = EmbStrucTokSet(val_json, val_pkl, batch_size=64, device=device)
         return (
@@ -124,6 +125,16 @@ def build_t_fold(lora_plm, hidden, kernel_size, dropout, lr, device, resume):
     else:
         model = TFold(hidden=hidden, kernel_sizes=kernel_size, dropout=dropout, device=device, use_lora=lora_plm).to(
             device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    return model, optimizer
+
+
+def build_final_model(lora_plm, lora_decoder, hidden, kernel_size, dropout, lr, device, resume):
+    if resume:
+        model = FinalModel.load_tfold(resume, device=device).to(device)
+    else:
+        model = FinalModel(hidden, kernel_sizes=kernel_size, plm_lora=lora_plm, decoder_lora=lora_decoder, device=device,
+                           dropout=dropout)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     return model, optimizer
 
@@ -206,6 +217,10 @@ def get_model(args):
         case "t_fold":
             return build_t_fold(args.lora_plm, args.hidden, args.kernel_size, args.dropout, args.lr,
                                 args.device, args.resume)
+        case "final":
+            return build_final_model(args.lora_plm, args.lora_decoder, args.hidden, args.kernel_size, args.dropout,
+                                     args.lr,
+                                     args.device, args.resume)
         case _:
             raise NotImplementedError
 
