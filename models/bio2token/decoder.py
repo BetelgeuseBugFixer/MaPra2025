@@ -18,7 +18,7 @@ def load_bio2_token_decoder_and_quantizer():
     return model.decoder, model.encoder.quantizer
 
 
-class bio2token_decoder(nn.Module):
+class Bio2tokenDecoder(nn.Module):
     def __init__(self, device="cpu", use_lora=False):
         super().__init__()
         # load pretrained stuff from bio2token
@@ -44,6 +44,8 @@ class bio2token_decoder(nn.Module):
                 bias="none",
                 task_type=TaskType.FEATURE_EXTRACTION,
             )
+            #add important configs for lora
+            self.decoder.config = {"tie_word_embeddings": False}
 
             self.decoder = get_peft_model(self.decoder, self.lora_config)
         else:

@@ -5,7 +5,7 @@ from typing import List
 import torch
 from torch import nn
 
-from models.bio2token.decoder import bio2token_decoder
+from models.bio2token.decoder import Bio2tokenDecoder
 from models.foldtoken_decoder.foldtoken import FoldToken
 from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores, SmoothLDDTLoss
 from models.prot_t5.prot_t5 import ProtT5
@@ -20,7 +20,7 @@ class FinalModel(nn.Module):
         self.device = device
         self.plm = ProtT5(use_lora=plm_lora, device=device).to(self.device)
         embeddings_size = 1024
-        self.decoder = bio2token_decoder(device=device).to(device)
+        self.decoder = Bio2tokenDecoder(device=device).to(device)
         codebook_size = 128
         self.cnn = ResidueTokenCNN(embeddings_size, hidden, codebook_size, kernel_sizes, dropout,
                                    bio2token=True).to(device)
@@ -138,7 +138,7 @@ class TFold(nn.Module):
 
         # choose decoder and forward method based in it
         if bio2token:
-            self.decoder = bio2token_decoder(device=device).to(device)
+            self.decoder = Bio2tokenDecoder(device=device).to(device)
             codebook_size = 4096
             self.forward_from_embedding = self.forward_from_embedding_bio2token
         else:
