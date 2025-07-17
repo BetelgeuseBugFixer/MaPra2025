@@ -258,15 +258,15 @@ def process_split(split: str):
 
     # flush any leftovers
     if pid_batch:
-        embeddings, foldtoken, bio2token = process_batch(pdb_paths, seq_batch)
+        embeddings, bio2token, foldtoken = process_batch(pdb_paths, seq_batch)
         for pid_i, emb_i, seq_i, struct_i, b2t_i, ft_i in zip(
-            pid_batch, embeddings, seq_batch, struct_batch, bio2token, foldtoken
+                pid_batch, embeddings, seq_batch, struct_batch, bio2token, foldtoken
         ):
-            emb_f.create_dataset(pid_i,     data=emb_i)
-            seq_f.create_dataset(pid_i,     data=seq_i)
-            struct_f.create_dataset(pid_i,  data=struct_i)
-            bio2t_f.create_dataset(pid_i,   data=b2t_i)
-            foldt_f.create_dataset(pid_i,   data=ft_i)
+            emb_f.create_dataset(pid_i, data=to_numpy(emb_i))
+            seq_f.create_dataset(pid_i, data=to_numpy(seq_i))
+            struct_f.create_dataset(pid_i, data=to_numpy(struct_i))
+            bio2t_f.create_dataset(pid_i, data=to_numpy(b2t_i))
+            foldt_f.create_dataset(pid_i, data=to_numpy(ft_i))
 
     # close files
     for f in (emb_f, seq_f, struct_f, bio2t_f, foldt_f):
