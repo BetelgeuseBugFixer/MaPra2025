@@ -207,7 +207,7 @@ def process_split(split: str):
     for pid, pdb_path, cleanup in iterator:
         try:
             print(f"{split}: processing {pid} \t {pdb_path}")
-            sequence, structure = get_pdb_structure_and_seq(pdb_path)
+            structure, sequence = get_pdb_structure_and_seq(pdb_path)
         except Exception as e:
             print(f"[WARN] {pid} -> {e}", flush=True)
             cleanup()

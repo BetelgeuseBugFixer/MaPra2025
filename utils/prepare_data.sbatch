@@ -5,7 +5,7 @@
 #SBATCH -e slurm_out/prepare_data.err
 #SBATCH --container-image="/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/container/final_final.sqsh"
 #SBATCH --container-mounts=/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/data:/mnt/data
-#SBATCH --get-user-env
+#SBATCH --time=48:00:00
 
 # Activate conda environment
 source /opt/miniconda/etc/profile.d/conda.sh
