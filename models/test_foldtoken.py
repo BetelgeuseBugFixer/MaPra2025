@@ -27,7 +27,7 @@ from models.bio2token.data.utils.utils import pdb_2_dict, uniform_dataframe, com
     filter_batch
 
 from models.foldtoken_decoder.foldtoken import FoldToken
-from models.end_to_end.whole_model import TFold
+from models.end_to_end.whole_model import TFold, FinalModel
 from transformers import T5EncoderModel, T5Tokenizer
 from hydra_zen import load_from_yaml, builds, instantiate
 
@@ -542,12 +542,7 @@ def print_tensor(tensor,name):
 
 if __name__ == '__main__':
     device = "cuda"
-    plm = ProtT5(device=device).to(device)
-    print_trainable_parameters(plm)
-    cnn = ResidueTokenCNN(1024, [10000, 8000, 4000], 128, [19,1,1], bio2token=True).to(device)
-    print_trainable_parameters(cnn)
-    decoder = Bio2tokenDecoder(device=device, use_lora=True).to(device)
-    print_trainable_parameters(decoder)
+    model=FinalModel([16_384, 8_192, 2_048],device=device,kernel_sizes=[21,3,3],dropout=0.0,decoder_lora=True)
     # input:
     test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
                  "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
@@ -555,66 +550,43 @@ if __name__ == '__main__':
     true_lengths = [len(seq) for seq in seqs]
     targets = get_padded_ground_truths(test_pdbs).to(device)
     lddt_loss_module = SmoothLDDTLoss().to(device)
-    optimizer = torch.optim.Adam(cnn.parameters(), lr=0.001)
-    cnn.train()
-    decoder.train()
-    # save model wights for comparision
-    cnn_weights_before = copy.deepcopy(list(cnn.parameters()))
-
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    model.train()
     # run through model:
-    for _ in range(1000):
+    for epoch in range(1000):
         optimizer.zero_grad()
-        x = [" ".join(seq.translate(str.maketrans('UZO', 'XXX'))) for seq in seqs]
-        x = plm(x)
-        x = cnn(x)
-        # print_tensor(x,"x")
-        #x = x.argmax(dim=-1)
-        # construct eos mask:
-        B, L , _ = x.shape
-        eos_mask = torch.ones(B, L, dtype=torch.bool, device=x.device)  # alle True = gepaddet
-        for i, length in enumerate(true_lengths):
-            eos_mask[i, :length * 4] = False
-        x = decoder.decoder.decoder(x,eos_mask)
-
+        predictions, final_mask = model(seqs)
+        B, L, _ = predictions.shape
         # define losses
-        config = RMSDConfig(
-            prediction_name="predictions",  # Key for accessing prediction data in the batch
-            target_name="targets",  # Key for accessing target data in the batch
-            mask_name="mask",  # Key for accessing an optional mask in the batch
-        )
-
-        rmsd_metric = RMSD(config, name="rmsd").to(device)
-
-        # get gt
-        target_mask = ~eos_mask
-        # eval
-        # rmsd
-        to_eval = {
-            "predictions": x,
-            "targets": targets,
-            "mask": target_mask,
-            "losses": {}
-        }
-        to_eval = rmsd_metric(to_eval)
-
-        loss_value = to_eval["losses"]["rmsd"]  # → Tensor
-        print(loss_value.mean())
+        # config = RMSDConfig(
+        #     prediction_name="predictions",  # Key for accessing prediction data in the batch
+        #     target_name="targets",  # Key for accessing target data in the batch
+        #     mask_name="mask",  # Key for accessing an optional mask in the batch
+        # )
+        #
+        # rmsd_metric = RMSD(config, name="rmsd").to(device)
+        #
+        # # get gt
+        # # eval
+        # # rmsd
+        # to_eval = {
+        #     "predictions": x,
+        #     "targets": targets,
+        #     "mask": target_mask,
+        #     "losses": {}
+        # }
+        # to_eval = rmsd_metric(to_eval)
+        #
+        # loss_value = to_eval["losses"]["rmsd"]  # → Tensor
 
         # lddt
         is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
         is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
-        lddt_loss = lddt_loss_module(x, targets, is_dna, is_rna, target_mask)
-        print(f" lddt loss: {lddt_loss.item()}")
+        lddt_loss = lddt_loss_module(predictions, targets, is_dna, is_rna, final_mask)
         lddt_loss.backward()
-
-
         optimizer.step()
+        if epoch % 10==0:
+            print(f"epoch {epoch}: {lddt_loss.item()}")
         del lddt_loss
 
-    cnn_weights_after = list(cnn.parameters())
-
-    for i, (before, after) in enumerate(zip(cnn_weights_before, cnn_weights_after)):
-        if torch.allclose(before, after, atol=1e-6):
-            print(f"Layer {i}: ❌ No change")
-        else:
-            print(f"Layer {i}: ✅ Changed")
+    print("done")
