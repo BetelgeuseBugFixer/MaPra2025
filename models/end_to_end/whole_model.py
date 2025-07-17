@@ -77,7 +77,7 @@ class FinalModel(nn.Module):
             # if we do not have lengths derive them from embeddings
             true_lengths = (x.abs().sum(-1) > 0).sum(dim=1)
         x = self.cnn(x)
-        B, L = x.shape
+        B, L, _ = x.shape
         eos_mask = torch.ones(B, L, dtype=torch.bool, device=x.device)
         for i, length in enumerate(true_lengths):
             eos_mask[i, :length * 4] = False
@@ -103,7 +103,7 @@ class FinalModel(nn.Module):
             model_in, structure = model_in.to(device), structure.to(device)
             predictions,final_mask = forward(model_in)
             #get loss:
-            B, L = predictions.shape
+            B, L, _ = predictions.shape
             is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
             is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
             loss = lddt_loss_module(predictions, structure, is_dna, is_rna, final_mask)

@@ -556,7 +556,7 @@ if __name__ == '__main__':
     for epoch in range(1000):
         optimizer.zero_grad()
         predictions, final_mask = model(seqs)
-        B, L, = predictions.shape
+        B, L, _ = predictions.shape
         # define losses
         # config = RMSDConfig(
         #     prediction_name="predictions",  # Key for accessing prediction data in the batch
