@@ -555,6 +555,8 @@ if __name__ == '__main__':
     targets = get_padded_ground_truths(test_pdbs).to(device)
     lddt_loss_module = SmoothLDDTLoss().to(device)
     optimizer = torch.optim.Adam(cnn.parameters(), lr=0.001)
+    cnn.train()
+    decoder.train()
     # run through model:
     for _ in range(20):
         x = [" ".join(seq.translate(str.maketrans('UZO', 'XXX'))) for seq in seqs]
