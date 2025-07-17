@@ -121,6 +121,15 @@ def get_pdb_structure_and_seq(pdb_path: str):
     pdb_dict = pdb_2_dict(pdb_path)
     return pdb_dict["coords_groundtruth"], pdb_dict["seq"]
 
+
+def to_numpy(x):
+    if isinstance(x, torch.Tensor):
+        # 1) Gradienten abschneiden, 2) auf CPU ziehen, 3) zu NumPy konvertieren
+        return x.detach().cpu().numpy()
+    else:
+        # z.B. NumPy-Array oder String bleibt unverändert
+        return x
+
 # ----------------------------------------------------------------------------
 # Iterators
 # ----------------------------------------------------------------------------
@@ -234,11 +243,11 @@ def process_split(split: str):
             for pid_i, emb_i, seq_i, struct_i, b2t_i, ft_i in zip(
                 pid_batch, embeddings, seq_batch, struct_batch, bio2token, foldtoken
             ):
-                emb_f.create_dataset(pid_i, data=emb_i.detach().cpu().numpy())
-                seq_f.create_dataset(pid_i,     data=seq_i)
-                struct_f.create_dataset(pid_i,  data=struct_i)
-                bio2t_f.create_dataset(pid_i,   data=b2t_i)
-                foldt_f.create_dataset(pid_i,   data=ft_i)
+                emb_f.create_dataset(pid_i, data=to_numpy(emb_i))
+                seq_f.create_dataset(pid_i, data=to_numpy(seq_i))
+                struct_f.create_dataset(pid_i, data=to_numpy(struct_i))
+                bio2t_f.create_dataset(pid_i, data=to_numpy(b2t_i))
+                foldt_f.create_dataset(pid_i, data=to_numpy(ft_i))
 
             print(f"processed: {processed}")
 
