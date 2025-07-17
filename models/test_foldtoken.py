@@ -562,7 +562,7 @@ if __name__ == '__main__':
     cnn_weights_before = copy.deepcopy(list(cnn.parameters()))
 
     # run through model:
-    for _ in range(25):
+    for _ in range(100):
         x = [" ".join(seq.translate(str.maketrans('UZO', 'XXX'))) for seq in seqs]
         x = plm(x)
         x = cnn(x)
@@ -605,6 +605,12 @@ if __name__ == '__main__':
         lddt_loss = lddt_loss_module(x, targets, is_dna, is_rna, target_mask)
         print(f" lddt loss: {lddt_loss.item()}")
         lddt_loss.backward()
+        for name, param in model.cnn.named_parameters():
+            if param.grad is None:
+                print(f"{name}: ❌ Kein Grad!")
+            else:
+                print(f"{name}: ✅ Grad vorhanden")
+
         optimizer.step()
         del lddt_loss
 
