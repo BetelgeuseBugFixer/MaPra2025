@@ -103,7 +103,7 @@ class FinalModel(nn.Module):
             model_in, structure = model_in.to(device), structure.to(device)
             predictions,final_mask = forward(model_in)
             #get loss:
-            B, L, _ = predictions.shape
+            B, L = predictions.shape
             is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
             is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
             loss = lddt_loss_module(predictions, structure, is_dna, is_rna, final_mask)
