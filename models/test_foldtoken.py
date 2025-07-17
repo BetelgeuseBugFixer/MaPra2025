@@ -557,8 +557,11 @@ if __name__ == '__main__':
     optimizer = torch.optim.Adam(cnn.parameters(), lr=0.001)
     cnn.train()
     decoder.train()
+    # save model wights for comparision
+    cnn_weights_before = copy.deepcopy(list(cnn.parameters()))
+
     # run through model:
-    for _ in range(20):
+    for _ in range(25):
         x = [" ".join(seq.translate(str.maketrans('UZO', 'XXX'))) for seq in seqs]
         x = plm(x)
         x = cnn(x)
@@ -604,3 +607,9 @@ if __name__ == '__main__':
         optimizer.step()
         del lddt_loss
 
+    cnn_weights_after = list(cnn.parameters())
+
+    if torch.allclose(before, after, atol=1e-6):
+        print(f"Layer {i}: ❌ No change")
+    else:
+        print(f"Layer {i}: ✅ Changed")
