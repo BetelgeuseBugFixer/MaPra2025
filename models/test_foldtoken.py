@@ -544,9 +544,9 @@ if __name__ == '__main__':
     device = "cuda"
     plm = ProtT5(device=device).to(device)
     print_trainable_parameters(plm)
-    cnn = ResidueTokenCNN(1024, [2048, 2048], 128, [5, 5], bio2token=True).to(device)
+    cnn = ResidueTokenCNN(1024, [10000, 8000, 4000], 128, [19,1,1], bio2token=True).to(device)
     print_trainable_parameters(cnn)
-    decoder = bio2token_decoder(device=device).to(device)
+    decoder = bio2token_decoder(device=device,use_lora=True).to(device)
     print_trainable_parameters(decoder)
     # input:
     test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
