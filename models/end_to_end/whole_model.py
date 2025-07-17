@@ -94,6 +94,7 @@ class FinalModel(nn.Module):
 
         torch.set_grad_enabled(is_train)
         lddt_loss_module = SmoothLDDTLoss().to(device)
+        # if we finetune we expect embeddings, otherwise sequences so we have to adapt the forward Method
         if self.plm_lora:
             forward = self.forward
         else:

@@ -528,16 +528,16 @@ def print_tensor(tensor,name):
     print(f"{name}-tensor{tensor.shape}:\n{tensor}")
 
 
-def test_dataset_generation():
-    test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
-                 "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
-    seqs= [get_seq_from_pdb(pdb) for pdb in test_pdbs]
-    seq_lengths=[len(seq) for seq in seqs]
-    embeddings, bio2token, foldtoken = process_batch(test_pdbs, seqs)
-    print_tensor(embeddings,"embeddings")
-    print_tensor(bio2token,"bio2token")
-    print_tensor(foldtoken,"foldtoken")
-    print(seq_lengths)
+# def test_dataset_generation():
+#     test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
+#                  "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
+#     seqs= [get_seq_from_pdb(pdb) for pdb in test_pdbs]
+#     seq_lengths=[len(seq) for seq in seqs]
+#     embeddings, bio2token, foldtoken = process_batch(test_pdbs, seqs)
+#     print_tensor(embeddings,"embeddings")
+#     print_tensor(bio2token,"bio2token")
+#     print_tensor(foldtoken,"foldtoken")
+#     print(seq_lengths)
 
 if __name__ == '__main__':
     device = "cuda"
@@ -591,6 +591,7 @@ if __name__ == '__main__':
         to_eval = rmsd_metric(to_eval)
 
         loss_value = to_eval["losses"]["rmsd"]  # → Tensor
+        print(loss_value.mean())
 
         # lddt
         is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
