@@ -544,25 +544,20 @@ if __name__ == '__main__':
     device = "cuda"
     model=FinalModel([16_384, 8_192, 2_048],device=device,kernel_sizes=[21,3,3],dropout=0.0,decoder_lora=True)
     # input:
-    test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
-                 "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
+    # test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
+    #              "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
+    test_pdbs=["tokenizer_benchmark/casps/casp15_backbone/T1125-D3"]
     seqs = [get_seq_from_pdb(pdb) for pdb in test_pdbs]
     true_lengths = [len(seq) for seq in seqs]
     targets = get_padded_ground_truths(test_pdbs).to(device)
     lddt_loss_module = SmoothLDDTLoss().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     model.train()
     # run through model:
-    for epoch in range(1000):
+    for epoch in range(10):
         optimizer.zero_grad()
         predictions, final_mask = model(seqs)
-        if epoch == 1 or epoch== 5:
-            print("predictions")
-            print(predictions)
-            print("mask")
-            print(final_mask)
         B, L, _ = predictions.shape
-
 
         # lddt
         is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
@@ -570,8 +565,8 @@ if __name__ == '__main__':
         lddt_loss = lddt_loss_module(predictions, targets, is_dna, is_rna, final_mask)
         lddt_loss.backward()
         optimizer.step()
-        if epoch % 10==0:
-            print(f"epoch {epoch}: {lddt_loss.item()}")
+        # if epoch % 10==0:
+        print(f"epoch {epoch}: {lddt_loss.item()}")
         del lddt_loss
 
     print("done")
