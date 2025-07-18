@@ -579,7 +579,7 @@ if __name__ == '__main__':
         # lddt
         is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
         is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
-        lddt_loss = lddt_loss_module(predictions.detatch(), targets, is_dna, is_rna, final_mask)
+        lddt_loss = lddt_loss_module(predictions.detach(), targets, is_dna, is_rna, final_mask)
         #lddt_loss.backward()
         optimizer.step()
         # if epoch % 10==0:
