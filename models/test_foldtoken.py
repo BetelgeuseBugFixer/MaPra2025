@@ -573,13 +573,13 @@ if __name__ == '__main__':
             print("***"*11)
             print_tensor(gt_vector,"targets")
             print("***" * 11)
-        print("vector loss:", vector_loss)
+        print("vector loss:", vector_loss.item())
         vector_loss.backward()
         B, L, _ = predictions.shape
         # lddt
         is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
         is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
-        lddt_loss = lddt_loss_module(predictions, targets, is_dna, is_rna, final_mask)
+        lddt_loss = lddt_loss_module(predictions.detatch(), targets, is_dna, is_rna, final_mask)
         #lddt_loss.backward()
         optimizer.step()
         # if epoch % 10==0:
