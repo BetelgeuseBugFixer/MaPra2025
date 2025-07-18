@@ -573,7 +573,7 @@ if __name__ == '__main__':
         #     print_tensor(gt_vector,"targets")
         #     print("***" * 11)
         # print("vector loss:", vector_loss.item())
-        vector_loss.backward()
+        # vector_loss.backward()
         B, L, _ = predictions.shape
         # lddt
         is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
