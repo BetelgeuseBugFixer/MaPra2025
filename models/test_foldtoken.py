@@ -564,7 +564,7 @@ def test_new_model():
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     model.train()
     # run through model:
-    for epoch in range(101):
+    for epoch in range(1001):
         optimizer.zero_grad()
         predictions, final_mask, cnn_out = model(seqs)
         vector_loss = F.mse_loss(cnn_out, gt_vector)
@@ -581,12 +581,12 @@ def test_new_model():
         is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
         lddt_loss = lddt_loss_module(predictions.detach(), targets, is_dna, is_rna, final_mask)
         # lddt_loss.backward()
-        # if epoch % 10==0:
         total_loss = vector_loss + lddt_loss
         total_loss.backward()
         optimizer.step()
-        print(
-            f"epoch {epoch}: vector: {vector_loss.item()} | lddt:{lddt_loss.item()} | total loss: {total_loss.item()}")
+        if epoch % 100==0:
+            print(
+                f"epoch {epoch}: vector: {vector_loss.item()} | lddt:{lddt_loss.item()} | total loss: {total_loss.item()}")
         del lddt_loss, vector_loss, total_loss
 
     print("done")
