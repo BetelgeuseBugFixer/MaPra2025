@@ -550,34 +550,19 @@ if __name__ == '__main__':
     true_lengths = [len(seq) for seq in seqs]
     targets = get_padded_ground_truths(test_pdbs).to(device)
     lddt_loss_module = SmoothLDDTLoss().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
     model.train()
     # run through model:
     for epoch in range(1000):
         optimizer.zero_grad()
         predictions, final_mask = model(seqs)
+        if epoch == 1 or epoch== 5:
+            print("predictions")
+            print(predictions)
+            print("mask")
+            print(final_mask)
         B, L, _ = predictions.shape
-        # define losses
-        # config = RMSDConfig(
-        #     prediction_name="predictions",  # Key for accessing prediction data in the batch
-        #     target_name="targets",  # Key for accessing target data in the batch
-        #     mask_name="mask",  # Key for accessing an optional mask in the batch
-        # )
-        #
-        # rmsd_metric = RMSD(config, name="rmsd").to(device)
-        #
-        # # get gt
-        # # eval
-        # # rmsd
-        # to_eval = {
-        #     "predictions": x,
-        #     "targets": targets,
-        #     "mask": target_mask,
-        #     "losses": {}
-        # }
-        # to_eval = rmsd_metric(to_eval)
-        #
-        # loss_value = to_eval["losses"]["rmsd"]  # → Tensor
+
 
         # lddt
         is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
