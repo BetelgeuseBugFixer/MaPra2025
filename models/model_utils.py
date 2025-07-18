@@ -29,9 +29,12 @@ def calc_token_loss(criterion, tokens_predictions, tokens_reference):
 
 
 def batch_pdbs_for_bio2token(pdbs, device):
-    batch = []
     # read to dicts
     dicts = [pdb_2_dict(pdb) for pdb in pdbs]
+    return batch_pdb_dicts(dicts, device)
+
+def batch_pdb_dicts(dicts,device):
+    batch = []
     for pdb_dict in dicts:
         structure, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered = uniform_dataframe(
             pdb_dict["seq"],
@@ -74,6 +77,7 @@ def batch_pdbs_for_bio2token(pdbs, device):
     batch = compute_masks(batch, structure_track=True)
     batch = {k: v.to(device) for k, v in batch.items()}
     return batch
+
 
 # everything bewlow this line is stolen from
 # https://github.com/lucidrains/alphafold3-pytorch/blob/main/alphafold3_pytorch/alphafold3.py#L226

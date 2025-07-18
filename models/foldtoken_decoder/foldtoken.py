@@ -5,6 +5,7 @@ from omegaconf import OmegaConf
 
 from models.foldtoken_decoder.src.data import Protein
 from models.foldtoken_decoder.src.model_interface import MInterface
+from test_data_loader import vq_ids
 
 
 class FoldToken(nn.Module):
@@ -79,3 +80,13 @@ class FoldToken(nn.Module):
         with torch.no_grad():
             vq_code = self.model.encode_protein(protein, level=self.level)[1]
             return vq_code
+
+    def encode_lists_of_pdbs(self, pdb_paths,device):
+        list_of_proteins = []
+        for pdb_path in pdb_paths:
+            list_of_proteins.append(Protein(pdb_path, device='cuda'))
+        with torch.no_grad():
+            batch = self.model.batch_proteins(list_of_proteins)
+            vq_ids=self.model.encode_only(batch)
+
+        return vq_ids

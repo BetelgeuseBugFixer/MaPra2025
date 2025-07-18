@@ -360,8 +360,6 @@ def pdb_2_dict(pdb_path: str, chains: List[str] = None):
                     res_atom_end.append(continuous_atom_id)
                     continuous_res_id += 1
     coords = np.vstack(coords)
-    print(f"PDB loading. N residues: {len(res_atom_start)}")
-    print(f"PDB loading. N atoms: {len(atom_names)}")
     # Create DataFrame
     pdb_dict = {
         "pdb_id": pdb_ids,

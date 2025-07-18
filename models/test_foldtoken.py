@@ -15,7 +15,7 @@ from torch.nn.utils.rnn import pad_sequence
 import torch.nn.functional as F
 
 from models.bio2token.data.utils.tokens import PAD_CLASS
-from models.bio2token.decoder import Bio2tokenDecoder
+from models.bio2token.decoder import Bio2tokenDecoder, load_bio2_token_decoder_and_quantizer
 from models.bio2token.losses.rmsd import RMSDConfig, RMSD
 from models.bio2token.models.autoencoder import AutoencoderConfig, Autoencoder
 from models.bio2token.utils.configs import utilsyaml_to_dict, pi_instantiate
@@ -404,16 +404,6 @@ def batched_bio2token():
     print(f"processed batch:\n{batch['decoding'].shape}\n{batch['decoding']}")
 
 
-def load_bio2_token_decoder_and_quantizer():
-    model_configs = load_from_yaml("models/bio2token/files/model.yaml")["model"]
-    model_config = pi_instantiate(AutoencoderConfig, model_configs)
-    model = Autoencoder(model_config)
-    state_dict = torch.load("models/bio2token/files/epoch=0243-val_loss_epoch=0.71-best-checkpoint.ckpt")["state_dict"]
-    # Remove 'model.' prefix from keys if present
-    state_dict_bis = {k.replace("model.", ""): v for k, v in state_dict.items()}
-    model.load_state_dict(state_dict_bis)
-    return model.decoder, model.encoder.quantizer,model.encoder
-
 def get_padded_ground_truths(pdbs):
     batch = []
     dicts = [pdb_2_dict(pdb) for pdb in pdbs]
@@ -592,4 +582,7 @@ def test_new_model():
     print("done")
 
 if __name__ == '__main__':
-    test_new_model()
+    device="cuda"
+    f_model=FoldToken(device=device).to(device)
+    test_pdbs=["tokenizer_benchmark/casps/casp15/T1104-D1.pdb","tokenizer_benchmark/casps/casp15/T1112-D1.pdb"]
+    print(f_model.encode_lists_of_pdbs(test_pdbs),device)
