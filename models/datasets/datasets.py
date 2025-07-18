@@ -1,96 +1,70 @@
 import json
 import os
-import pickle
-import gzip
-import builtins
+
 import h5py
 import torch
 from torch.utils.data import Dataset
 
-from models.prot_t5.prot_t5 import ProtT5
 
 PAD_LABEL = -100
 
 
+def load_h5(path):
+    with h5py.File(path, "r") as f:
+        return [torch.tensor(f[k][()]) for k in sorted(f.keys())]
 
 
-class EmbTokSet(Dataset):
-    def __init__(self, token_and_seq_file,batch_size,device):
-        plm=ProtT5(device=device).to(device)
-        sequences=[]
-        self.vq_ids = []
-        open_func = gzip.open if token_and_seq_file.endswith('.gz') else builtins.open
-        with open_func(token_and_seq_file, 'rt') as f:
-            for line in f:
-                values = json.loads(line)
-                sequences.append(values['sequence'])
-                self.vq_ids.append(torch.tensor(values['vq_ids'], dtype=torch.long))
+def load_model_in(file_dir, precomputed_embeddings):
+    if precomputed_embeddings:
+        return load_h5(os.path.join(file_dir, "embeddings.h5"))
+    else:
+        return load_h5(os.path.join(file_dir, "sequences.h5"))
 
-        self.embeddings = plm.encode_list_of_seqs(sequences,batch_size)
 
-    def __len__(self):
-        return len(self.embeddings)
+def load_tokens(file_dir, token_type):
+    match token_type:
+        case "bio2token":
+            return load_h5(os.path.join(file_dir, "bio2tokens.h5"))
+        case "foldtoken":
+            return load_h5(os.path.join(file_dir, "foldtokens.h5"))
+        case _:
+            raise RuntimeError(f"{token_type} is not supported, please use bio2token or foldtoken")
 
-    def __getitem__(self, idx):
-        return self.embeddings[idx], self.vq_ids[idx]
-
-class EmbStrucTokSet(Dataset):
-    def __init__(self, token_and_seq_file, structure_file,batch_size,device):
-        plm=ProtT5(device=device).to(device)
-        sequences = []
-        self.vq_ids = []
-        self.structures = pickle.load(open(structure_file, 'rb'))
-        open_func = gzip.open if token_and_seq_file.endswith('.gz') else builtins.open
-        with open_func(token_and_seq_file, 'rt') as f:
-            for line in f:
-                values = json.loads(line)
-                sequences.append(values['sequence'])
-                self.vq_ids.append(torch.tensor(values['vq_ids'], dtype=torch.long))
-
-        self.embeddings = plm.encode_list_of_seqs(sequences, batch_size)
+class StructureSet(Dataset):
+    def __init__(self, file_dir, precomputed_embeddings=False):
+        self.model_in = load_model_in(file_dir, precomputed_embeddings)
+        self.structures = load_h5(os.path.join(file_dir, "structures.h5"))
 
     def __len__(self):
-        return len(self.embeddings)
+        return len(self.model_in)
 
     def __getitem__(self, idx):
-        return self.embeddings[idx], self.vq_ids[idx], self.structures[idx]
+        return self.model_in[idx], self.structures[idx]
 
 
-class SeqTokSet(Dataset):
-    def __init__(self, token_and_seq_file):
-        self.sequences = []
-        self.vq_ids = []
-        open_func = gzip.open if token_and_seq_file.endswith('.gz') else builtins.open
-        with open_func(token_and_seq_file, 'rt') as f:
-            for line in f:
-                values = json.loads(line)
-                self.sequences.append(values['sequence'])
-                self.vq_ids.append(torch.tensor(values['vq_ids'], dtype=torch.long))
+class TokenSet(Dataset):
+    def __init__(self, file_dir, token_type, precomputed_embeddings=False):
+        self.model_in = load_model_in(file_dir, precomputed_embeddings)
+        self.tokens = load_tokens(file_dir, token_type)
 
     def __len__(self):
-        return len(self.sequences)
+        return len(self.model_in)
 
     def __getitem__(self, idx):
-        return self.sequences[idx], self.vq_ids[idx]
+        return self.model_in[idx], self.tokens[idx]
 
 
-class SeqStrucTokSet(Dataset):
-    def __init__(self, token_and_seq_file, structure_file):
-        self.sequences = []
-        self.vq_ids = []
-        self.structures = pickle.load(open(structure_file, 'rb'))
-        open_func = gzip.open if token_and_seq_file.endswith('.gz') else builtins.open
-        with open_func(token_and_seq_file, 'rt') as f:
-            for line in f:
-                values = json.loads(line)
-                self.sequences.append(values['sequence'])
-                self.vq_ids.append(torch.tensor(values['vq_ids'], dtype=torch.long))
+class StructureAndTokenSet(Dataset):
+    def __init__(self, file_dir, token_type, precomputed_embeddings=False):
+        self.model_in = load_model_in(file_dir, precomputed_embeddings)
+        self.tokens = load_tokens(file_dir, token_type)
+        self.structures = load_h5(os.path.join(file_dir, "structures.h5"))
 
     def __len__(self):
-        return len(self.sequences)
+        return len(self.model_in)
 
     def __getitem__(self, idx):
-        return self.sequences[idx], self.vq_ids[idx], self.structures[idx]
+        return self.model_in[idx], self.tokens[idx], self.structures[idx]
 
 
 class ProteinPairJSONL(Dataset):

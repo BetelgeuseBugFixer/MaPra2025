@@ -1,5 +1,6 @@
 import argparse
 import builtins
+import copy
 import gzip
 import json
 from pathlib import Path
@@ -11,14 +12,15 @@ from biotite.structure import lddt
 from biotite.structure.filter import _filter_atom_names
 from torch import nn
 from torch.nn.utils.rnn import pad_sequence
+import torch.nn.functional as F
 
 from models.bio2token.data.utils.tokens import PAD_CLASS
-from models.bio2token.decoder import bio2token_decoder
+from models.bio2token.decoder import Bio2tokenDecoder
 from models.bio2token.losses.rmsd import RMSDConfig, RMSD
 from models.bio2token.models.autoencoder import AutoencoderConfig, Autoencoder
 from models.bio2token.utils.configs import utilsyaml_to_dict, pi_instantiate
 from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores, SmoothLDDTLoss, \
-    batch_pdbs_for_bio2token
+    batch_pdbs_for_bio2token, print_trainable_parameters
 from models.prot_t5.prot_t5 import ProtT5
 from models.datasets.datasets import PAD_LABEL
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
@@ -26,11 +28,9 @@ from models.bio2token.data.utils.utils import pdb_2_dict, uniform_dataframe, com
     filter_batch
 
 from models.foldtoken_decoder.foldtoken import FoldToken
-from models.end_to_end.whole_model import TFold
+from models.end_to_end.whole_model import TFold, FinalModel
 from transformers import T5EncoderModel, T5Tokenizer
 from hydra_zen import load_from_yaml, builds, instantiate
-
-from utils.prepare_data import get_pdb_structure_and_seq, process_batch
 
 
 def load_prot_from_pdb(pdb_file):
@@ -441,9 +441,7 @@ def get_padded_ground_truths(pdbs):
         "structure": 0,
     }
     # batch = [pdb_2_dict(pdb) for pdb in test_pdbs]
-    print(f"2 batch:\n{batch}")
     batch = filter_batch(batch, sequences_to_pad.keys())
-    print(f"1 batch:\n{batch}")
     batch = pad_and_stack_batch(
         batch,
         sequences_to_pad,
@@ -457,7 +455,7 @@ def bio2token_workflow():
     # define models
     plm = ProtT5(device=device).to(device)
     cnn = ResidueTokenCNN(1024, [2048, 2048], 4096, [5, 5], bio2token=True).to(device)
-    decoder=bio2token_decoder(device=device).to(device)
+    decoder=Bio2tokenDecoder(device=device).to(device)
     # input:
     test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
                  "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
@@ -531,15 +529,67 @@ def get_protein_sizes_in_dataset(data_file="/mnt/data/large/subset/train/protein
 def print_tensor(tensor,name):
     print(f"{name}-{tensor.shape}:\n{tensor}")
 
-if __name__ == '__main__':
-    test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
-                 "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
-    seqs= [get_seq_from_pdb(pdb) for pdb in test_pdbs]
-    seq_lengths=[len(seq) for seq in seqs]
-    embeddings, bio2token, foldtoken =process_batch(test_pdbs, seqs)
-    for i in range(len(seq_lengths)):
-        print_tensor(embeddings[i],"embeddings")
-        print_tensor(bio2token[i],"bio2token")
-        print_tensor(foldtoken[i],"foldtoken")
-        print(seq_lengths[i])
 
+# def test_dataset_generation():
+#     test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
+#                  "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
+#     seqs= [get_seq_from_pdb(pdb) for pdb in test_pdbs]
+#     seq_lengths=[len(seq) for seq in seqs]
+#     embeddings, bio2token, foldtoken = process_batch(test_pdbs, seqs)
+#     print_tensor(embeddings,"embeddings")
+#     print_tensor(bio2token,"bio2token")
+#     print_tensor(foldtoken,"foldtoken")
+#     print(seq_lengths)
+
+def test_new_model():
+    device = "cuda"
+    model = FinalModel([16_384, 8_192, 2_048], device=device, kernel_sizes=[21, 3, 3], dropout=0.0, decoder_lora=True)
+    # input:
+    # test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
+    #              "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
+    test_pdbs = ["tokenizer_benchmark/casps/casp15_backbone/T1129s2-D1.pdb"]
+
+    seqs = [get_seq_from_pdb(pdb) for pdb in test_pdbs]
+    true_lengths = [len(seq) for seq in seqs]
+    # define labels
+    targets = get_padded_ground_truths(test_pdbs).to(device)
+    # get 128 vector
+    _, _, encoder = load_bio2_token_decoder_and_quantizer()
+    encoder.to(device)
+    bio2token_batch = batch_pdbs_for_bio2token(test_pdbs, device)
+    bio2token_batch = encoder(bio2token_batch)
+    gt_vector = bio2token_batch["encoding"].detach()
+    # prepare training
+    lddt_loss_module = SmoothLDDTLoss().to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+    model.train()
+    # run through model:
+    for epoch in range(1001):
+        optimizer.zero_grad()
+        predictions, final_mask, cnn_out = model(seqs)
+        vector_loss = F.mse_loss(cnn_out, gt_vector)
+        # if epoch==0 or epoch==100:
+        #     print_tensor(cnn_out,"predictions")
+        #     print("***"*11)
+        #     print_tensor(gt_vector,"targets")
+        #     print("***" * 11)
+        # print("vector loss:", vector_loss.item())
+        # vector_loss.backward()
+        B, L, _ = predictions.shape
+        # lddt
+        is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
+        is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
+        lddt_loss = lddt_loss_module(predictions.detach(), targets, is_dna, is_rna, final_mask)
+        # lddt_loss.backward()
+        total_loss = vector_loss + lddt_loss
+        total_loss.backward()
+        optimizer.step()
+        if epoch % 100==0:
+            print(
+                f"epoch {epoch}: vector: {vector_loss.item()} | lddt:{lddt_loss.item()} | total loss: {total_loss.item()}")
+        del lddt_loss, vector_loss, total_loss
+
+    print("done")
+
+if __name__ == '__main__':
+    test_new_model()

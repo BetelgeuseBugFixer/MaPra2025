@@ -12,11 +12,13 @@ from torch.nn.utils.rnn import pad_sequence
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
+from models.bio2token.data.utils.utils import pad_and_stack_tensors
 from models.model_utils import _masked_accuracy
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
-from models.datasets.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir, PAD_LABEL, SeqTokSet, SeqStrucTokSet, \
-    EmbTokSet, EmbStrucTokSet
-from models.end_to_end.whole_model import TFold
+from models.datasets.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir, PAD_LABEL, StructureAndTokenSet, \
+    StructureSet, TokenSet
+from models.end_to_end.whole_model import TFold, FinalModel
+import torch.nn.functional as F
 
 
 # ------------------------------------------------------------
@@ -40,11 +42,12 @@ def parse_args():
     parser.add_argument("--data_dir", help="Directory with train, validation and test sub directories")
 
     # model
-    parser.add_argument("--model", type=str, default="cnn", help="type of model to use")
+    parser.add_argument("--model", type=str, default="cnn", help="type of model to use, options: cnn, tfold, final")
     parser.add_argument("--resume", type=str, help="path to an existing model to resume training")
     parser.add_argument("--wandb_resume_id", type=str, help="W&B id of an existing wandb run")
-    # tfold exclusive setting
-    parser.add_argument("--lora_plm", action="store_true", help=" use lora to retrain the plm")
+    # end to end exclusive setting
+    parser.add_argument("--lora_plm", action="store_true", help=" use lora to finetune the plm")
+    parser.add_argument("--lora_decoder", action="store_true", help=" use lora to finetune the plm")
 
     # cnn exclusive setting
     parser.add_argument("--codebook_size", type=int, default=1024,
@@ -73,39 +76,41 @@ def parse_args():
     return parser.parse_args()
 
 
-def _find_protein_file(dir_path):
-    for name in ["proteins.jsonl", "proteins.jsonl.gz"]:
-        path = os.path.join(dir_path, name)
-        if os.path.isfile(path):
-            return path
-    raise FileNotFoundError(f"Keine protein.jsonl(.gz) Datei in {dir_path} gefunden.")
-
-
-def create_tfold_data_loaders(data_dir, batch_size,val_batchsize, fine_tune_plm, device):
+def create_tfold_data_loaders(data_dir, batch_size, val_batchsize, fine_tune_plm, bio2token=False, final_model=False):
     train_dir = os.path.join(data_dir, "train")
     val_dir = os.path.join(data_dir, "val")
 
-    # Datei-Pfade automatisch erkennen
-    train_json = _find_protein_file(train_dir)
-    val_json = _find_protein_file(val_dir)
-    val_pkl = os.path.join(val_dir, "proteins.pkl")
-
-    if fine_tune_plm:
-        train_dataset = SeqTokSet(train_json)
-        val_dataset = SeqStrucTokSet(val_json, val_pkl)
+    if final_model:
+        train_set = StructureSet(train_dir, precomputed_embeddings=not fine_tune_plm)
+        val_set = StructureSet(val_dir, precomputed_embeddings=not fine_tune_plm)
+        if fine_tune_plm:
+            collate_function = collate_seq_struc
+        else:
+            collate_function = collate_emb_struc
         return (
-            DataLoader(train_dataset, batch_size=batch_size, collate_fn=collate_seq_tok_batch),
-            DataLoader(val_dataset, batch_size=batch_size, collate_fn=collate_seq_struc_tok_batch)
+            DataLoader(train_set, batch_size=batch_size, collate_fn=collate_function),
+            DataLoader(val_set, batch_size=batch_size, collate_fn=collate_function)
         )
     else:
-        #set batch size for plm
-        train_dataset = EmbTokSet(train_json, batch_size=64, device=device)
-        val_dataset = EmbStrucTokSet(val_json, val_pkl, batch_size=64, device=device)
-        return (
-            DataLoader(train_dataset, batch_size=batch_size, collate_fn=pad_collate),
-            # use different batch size to account for decoder
-            DataLoader(val_dataset, batch_size=val_batchsize, collate_fn=collate_emb_struc_tok_batch)
-        )
+        token_type = "bio2token" if bio2token else "foldtoken"
+        train_set = TokenSet(train_dir, token_type=token_type, precomputed_embeddings=not fine_tune_plm)
+        val_set = StructureAndTokenSet(val_dir, token_type, precomputed_embeddings=not fine_tune_plm)
+    #
+    #         train_dataset = SeqTokSet(train_json)
+    #         val_dataset = SeqStrucTokSet(val_json, val_pkl)
+    #         return (
+    #             DataLoader(train_dataset, batch_size=batch_size, collate_fn=collate_seq_tok_batch),
+    #             DataLoader(val_dataset, batch_size=batch_size, collate_fn=collate_seq_struc_tok_batch)
+    #         )
+    #     else:
+    #         # set batch size for plm
+    #         train_dataset = EmbTokSet(train_json, batch_size=64, device=device)
+    #         val_dataset = EmbStrucTokSet(val_json, val_pkl, batch_size=64, device=device)
+    #         return (
+    #             DataLoader(train_dataset, batch_size=batch_size, collate_fn=pad_collate),
+    #             # use different batch size to account for decoder
+    #             DataLoader(val_dataset, batch_size=val_batchsize, collate_fn=collate_emb_struc_tok_batch)
+    #         )
 
 
 def create_cnn_data_loaders(emb_source, tok_jsonl, train_ids, val_ids, test_ids, batch_size, use_single_file):
@@ -128,6 +133,17 @@ def build_t_fold(lora_plm, hidden, kernel_size, dropout, lr, device, resume):
     return model, optimizer
 
 
+def build_final_model(lora_plm, lora_decoder, hidden, kernel_size, dropout, lr, device, resume):
+    if resume:
+        model = FinalModel.load_tfold(resume, device=device).to(device)
+    else:
+        model = FinalModel(hidden, kernel_sizes=kernel_size, plm_lora=lora_plm, decoder_lora=lora_decoder,
+                           device=device,
+                           dropout=dropout)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    return model, optimizer
+
+
 def build_cnn(d_emb, hidden, vocab_size, kernel_size, dropout, lr, device, resume):
     if resume:
         model = ResidueTokenCNN.load_cnn(resume)
@@ -135,6 +151,13 @@ def build_cnn(d_emb, hidden, vocab_size, kernel_size, dropout, lr, device, resum
         model = ResidueTokenCNN(d_emb, hidden, vocab_size, kernel_size, dropout).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     return model, optimizer
+
+
+def collate_seq_struc(batch):
+    sequences, structures = zip(*batch)
+    # Pad structure
+    structures = pad_and_stack_tensors(structures, 0)
+    return list(sequences), structures
 
 
 def collate_seq_struc_tok_batch(batch):
@@ -206,6 +229,10 @@ def get_model(args):
         case "t_fold":
             return build_t_fold(args.lora_plm, args.hidden, args.kernel_size, args.dropout, args.lr,
                                 args.device, args.resume)
+        case "final":
+            return build_final_model(args.lora_plm, args.lora_decoder, args.hidden, args.kernel_size, args.dropout,
+                                     args.lr,
+                                     args.device, args.resume)
         case _:
             raise NotImplementedError
 

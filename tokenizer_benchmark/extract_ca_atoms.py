@@ -12,7 +12,7 @@ def rewrite_pdb(pdb_in_path, pdb_out_path, allowed_atom_list=["CA"]):
                     out_file.write(line)
 
 
-def main(input_dir="tokenizer_benchmark/casps/casp14", output_dir="tokenizer_benchmark/casps/casp14_backbone"):
+def main(input_dir="tokenizer_benchmark/casps/casp15", output_dir="tokenizer_benchmark/casps/casp15_backbone"):
     for filename in os.listdir(input_dir):
         pdb_in_path = os.path.join(input_dir, filename)
         pdb_out_path = os.path.join(output_dir, filename)

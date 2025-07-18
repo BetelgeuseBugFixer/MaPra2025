@@ -187,7 +187,8 @@ class Encoder(nn.Module):
             # TODO: This is a hack to ensure padded tokens do not capture structural information.
             # However, setting to 0 might conflict with some quantization codebooks.
             encoding[mask] = 0
-            indices[mask] = self.quantizer.codebook_size
+            if indices is not None:
+                indices[mask] = self.quantizer.codebook_size
 
         # Update batch with encoded data and indices
         batch["encoding"], batch["indices"] = encoding, indices

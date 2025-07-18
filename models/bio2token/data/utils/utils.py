@@ -298,7 +298,7 @@ def uniform_dataframe(seq, res_types, atom_coords, atom_names, res_atom_start, r
 
 
 def pdb_2_dict(pdb_path: str, chains: List[str] = None):
-    parser = PDBParser()
+    parser = PDBParser(QUIET=True)
     pdb_ids = []
     pdb_id = os.path.basename(pdb_path).split(".")[0]
     structure = parser.get_structure(pdb_id, pdb_path)
