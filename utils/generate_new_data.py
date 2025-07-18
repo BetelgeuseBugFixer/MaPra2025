@@ -77,7 +77,9 @@ def process_batch(pdb_dicts, pdb_paths, plm, bio2token_model, foldtoken_model):
     seqs = [pdb_dict["seq"] for pdb_dict in pdb_dicts]
     embeddings = plm.encode_list_of_seqs(seqs, TARGET_BATCH_SIZE)
     bio2tokens, encodings = get_bio2token(pdb_dicts, bio2token_model)
-    fold_tokens = foldtoken_model.encode_lists_of_pdbs(pdb_paths, DEVICE).cpu()
+    fold_tokens = foldtoken_model.encode_lists_of_pdbs(pdb_paths, DEVICE)
+    # load to cpu
+    fold_tokens = [token_vector.cpu()for  token_vector in fold_tokens]
     structure = [pdb_dict["coords_groundtruth"] for pdb_dict in pdb_dicts]
     return seqs, structure, embeddings, bio2tokens, encodings, fold_tokens
 
