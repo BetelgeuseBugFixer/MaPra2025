@@ -543,7 +543,7 @@ def print_tensor(tensor,name):
 
 if __name__ == '__main__':
     device = "cuda"
-    model=FinalModel([16_384, 8_192, 2_048],device=device,kernel_sizes=[21,3,3],dropout=0.0,decoder_lora=False)
+    model=FinalModel([16_384, 8_192, 2_048],device=device,kernel_sizes=[21,3,3],dropout=0.0,decoder_lora=True)
     # input:
     # test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
     #              "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
