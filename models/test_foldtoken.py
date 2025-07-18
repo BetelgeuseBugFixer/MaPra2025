@@ -551,10 +551,10 @@ if __name__ == '__main__':
     true_lengths = [len(seq) for seq in seqs]
     targets = get_padded_ground_truths(test_pdbs).to(device)
     lddt_loss_module = SmoothLDDTLoss().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
     model.train()
     # run through model:
-    for epoch in range(10):
+    for epoch in range(100):
         optimizer.zero_grad()
         predictions, final_mask = model(seqs)
         B, L, _ = predictions.shape

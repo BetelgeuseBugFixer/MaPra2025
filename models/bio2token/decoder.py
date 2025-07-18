@@ -40,7 +40,6 @@ class Bio2tokenDecoder(nn.Module):
                 r=8,
                 lora_alpha=32,
                 target_modules=target_modules,
-                lora_dropout=0.1,
                 bias="none",
                 task_type=TaskType.FEATURE_EXTRACTION,
             )
