@@ -541,23 +541,23 @@ def print_tensor(tensor,name):
 #     print_tensor(foldtoken,"foldtoken")
 #     print(seq_lengths)
 
-if __name__ == '__main__':
+def test_new_model():
     device = "cuda"
-    model=FinalModel([16_384, 8_192, 2_048],device=device,kernel_sizes=[21,3,3],dropout=0.0,decoder_lora=True)
+    model = FinalModel([16_384, 8_192, 2_048], device=device, kernel_sizes=[21, 3, 3], dropout=0.0, decoder_lora=True)
     # input:
     # test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
     #              "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
-    test_pdbs=["tokenizer_benchmark/casps/casp15_backbone/T1129s2-D1.pdb"]
+    test_pdbs = ["tokenizer_benchmark/casps/casp15_backbone/T1129s2-D1.pdb"]
     seqs = [get_seq_from_pdb(pdb) for pdb in test_pdbs]
     true_lengths = [len(seq) for seq in seqs]
     # define labels
     targets = get_padded_ground_truths(test_pdbs).to(device)
-    #get 128 vector
-    _,_, encoder = load_bio2_token_decoder_and_quantizer()
+    # get 128 vector
+    _, _, encoder = load_bio2_token_decoder_and_quantizer()
     encoder.to(device)
     bio2token_batch = batch_pdbs_for_bio2token(test_pdbs, device)
     bio2token_batch = encoder(bio2token_batch)
-    gt_vector=bio2token_batch["encoding"].detach()
+    gt_vector = bio2token_batch["encoding"].detach()
     # prepare training
     lddt_loss_module = SmoothLDDTLoss().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
@@ -566,7 +566,7 @@ if __name__ == '__main__':
     for epoch in range(101):
         optimizer.zero_grad()
         predictions, final_mask, cnn_out = model(seqs)
-        vector_loss=F.mse_loss(cnn_out, gt_vector)
+        vector_loss = F.mse_loss(cnn_out, gt_vector)
         # if epoch==0 or epoch==100:
         #     print_tensor(cnn_out,"predictions")
         #     print("***"*11)
@@ -579,12 +579,16 @@ if __name__ == '__main__':
         is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
         is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
         lddt_loss = lddt_loss_module(predictions.detach(), targets, is_dna, is_rna, final_mask)
-        #lddt_loss.backward()
-        optimizer.step()
+        # lddt_loss.backward()
         # if epoch % 10==0:
         total_loss = vector_loss + lddt_loss
         total_loss.backward()
-        print(f"epoch {epoch}: vector: {vector_loss.item()} | lddt:{lddt_loss.item()} | total loss: {total_loss.item()}")
+        optimizer.step()
+        print(
+            f"epoch {epoch}: vector: {vector_loss.item()} | lddt:{lddt_loss.item()} | total loss: {total_loss.item()}")
         del lddt_loss, vector_loss, total_loss
 
     print("done")
+
+if __name__ == '__main__':
+    test_new_model()
