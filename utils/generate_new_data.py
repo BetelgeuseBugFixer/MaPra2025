@@ -61,7 +61,7 @@ def filter_pdb_dict(pdb_dict):
 def get_bio2token(filtered_pdb_dicts, bio2token_model):
     # create tmp pdbs with only backbone
     batch = batch_pdb_dicts(filtered_pdb_dicts, DEVICE)
-    batch = bio2token_model.encoder(batch).detach()
+    batch = bio2token_model(batch).detach()
     tokens = []
     encodings = []
     lengths = [len(pdb_dict["seq"]) for pdb_dict in filtered_pdb_dicts]

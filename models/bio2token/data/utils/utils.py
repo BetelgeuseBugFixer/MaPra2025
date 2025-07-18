@@ -317,7 +317,6 @@ def pdb_2_dict(pdb_path: str, chains: List[str] = None):
     # if no chains are provided we read in everything
     if chains is None:
         chains = [chain.id for chain in structure.get_chains()]
-    print(f"PDB loading. Chains: {chains}")
     continuous_res_id = 0
     continuous_atom_id = 0
     for chain in structure.get_chains():
