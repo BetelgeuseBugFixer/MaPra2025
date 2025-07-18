@@ -568,12 +568,12 @@ if __name__ == '__main__':
         optimizer.zero_grad()
         predictions, final_mask, cnn_out = model(seqs)
         vector_loss=F.mse_loss(cnn_out, gt_vector)
-        if epoch==0 or epoch==100:
-            print_tensor(cnn_out,"predictions")
-            print("***"*11)
-            print_tensor(gt_vector,"targets")
-            print("***" * 11)
-        print("vector loss:", vector_loss.item())
+        # if epoch==0 or epoch==100:
+        #     print_tensor(cnn_out,"predictions")
+        #     print("***"*11)
+        #     print_tensor(gt_vector,"targets")
+        #     print("***" * 11)
+        # print("vector loss:", vector_loss.item())
         vector_loss.backward()
         B, L, _ = predictions.shape
         # lddt
@@ -583,7 +583,7 @@ if __name__ == '__main__':
         #lddt_loss.backward()
         optimizer.step()
         # if epoch % 10==0:
-        print(f"epoch {epoch}: {lddt_loss.item()}")
+        print(f"epoch {epoch}: vector: {vector_loss.item()} | lddt:{lddt_loss.item()}")
         del lddt_loss, vector_loss
 
     print("done")
