@@ -564,15 +564,16 @@ if __name__ == '__main__':
     optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
     model.train()
     # run through model:
-    for epoch in range(1):
+    for epoch in range(101):
         optimizer.zero_grad()
         predictions, final_mask, cnn_out = model(seqs)
         vector_loss=F.mse_loss(cnn_out, gt_vector)
-        print_tensor(predictions,"predictions")
-        print("***"*11)
-        print_tensor(gt_vector,"targets")
-        print("***" * 11)
-        print(vector_loss.item())
+        if epoch==0 or epoch==100:
+            print_tensor(cnn_out,"predictions")
+            print("***"*11)
+            print_tensor(gt_vector,"targets")
+            print("***" * 11)
+        print("vector loss:", vector_loss)
         vector_loss.backward()
         B, L, _ = predictions.shape
         # lddt
