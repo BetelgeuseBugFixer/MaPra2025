@@ -12,6 +12,7 @@ from biotite.structure import lddt
 from biotite.structure.filter import _filter_atom_names
 from torch import nn
 from torch.nn.utils.rnn import pad_sequence
+import torch.nn.functional as F
 
 from models.bio2token.data.utils.tokens import PAD_CLASS
 from models.bio2token.decoder import Bio2tokenDecoder
@@ -542,31 +543,46 @@ def print_tensor(tensor,name):
 
 if __name__ == '__main__':
     device = "cuda"
-    model=FinalModel([16_384, 8_192, 2_048],device=device,kernel_sizes=[21,3,3],dropout=0.0,decoder_lora=True)
+    model=FinalModel([16_384, 8_192, 2_048],device=device,kernel_sizes=[21,3,3],dropout=0.0,decoder_lora=False)
     # input:
     # test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
     #              "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
     test_pdbs=["tokenizer_benchmark/casps/casp15_backbone/T1129s2-D1.pdb"]
     seqs = [get_seq_from_pdb(pdb) for pdb in test_pdbs]
     true_lengths = [len(seq) for seq in seqs]
+    # define labels
     targets = get_padded_ground_truths(test_pdbs).to(device)
+    #get 128 vector
+    _,_, encoder = load_bio2_token_decoder_and_quantizer()
+    encoder.to(device)
+    bio2token_batch = batch_pdbs_for_bio2token(test_pdbs, device)
+    encoder.config.use_quantizer=False
+    bio2token_batch = encoder(bio2token_batch)
+    gt_vector=bio2token_batch["encoding"]
+    # prepare training
     lddt_loss_module = SmoothLDDTLoss().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
     model.train()
     # run through model:
-    for epoch in range(100):
+    for epoch in range(1):
         optimizer.zero_grad()
-        predictions, final_mask = model(seqs)
+        predictions, final_mask, cnn_out = model(seqs)
+        vector_loss=F.mse_loss(cnn_out, gt_vector)
+        print_tensor(predictions,"predictions")
+        print("***"*11)
+        print_tensor(gt_vector,"targets")
+        print("***" * 11)
+        print(vector_loss.item())
+        vector_loss.backward()
         B, L, _ = predictions.shape
-
         # lddt
         is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
         is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
         lddt_loss = lddt_loss_module(predictions, targets, is_dna, is_rna, final_mask)
-        lddt_loss.backward()
+        #lddt_loss.backward()
         optimizer.step()
         # if epoch % 10==0:
         print(f"epoch {epoch}: {lddt_loss.item()}")
-        del lddt_loss
+        del lddt_loss, vector_loss
 
     print("done")

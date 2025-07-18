@@ -76,15 +76,15 @@ class FinalModel(nn.Module):
         if true_lengths is None:
             # if we do not have lengths derive them from embeddings
             true_lengths = (x.abs().sum(-1) > 0).sum(dim=1)
-        x = self.cnn(x)
-        B, L, _ = x.shape
+        cnn_out = self.cnn(x)
+        B, L, _ = cnn_out.shape
         eos_mask = torch.ones(B, L, dtype=torch.bool, device=x.device)
         for i, length in enumerate(true_lengths):
             eos_mask[i, :length * 4] = False
-        x = self.decoder.decoder.decoder(x, eos_mask)
+        x = self.decoder.decoder.decoder(cnn_out, eos_mask)
         # create mask for all relevant positions
         final_mask=~eos_mask
-        return x,final_mask
+        return x,final_mask,cnn_out
 
     def run_epoch(self, loader, optimizer=None, device="cpu"):
         is_train=optimizer is not None
