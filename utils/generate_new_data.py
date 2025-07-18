@@ -4,7 +4,7 @@ import time
 import torch
 
 from models.bio2token.data.utils.utils import pdb_2_dict
-from models.bio2token.decoder import load_bio2token_decoder_and_quantizer, load_bio2token_encoder
+from models.bio2token.decoder import load_bio2token_encoder
 from models.foldtoken_decoder.foldtoken import FoldToken
 from models.model_utils import batch_pdb_dicts
 from models.prot_t5.prot_t5 import ProtT5
@@ -61,13 +61,13 @@ def filter_pdb_dict(pdb_dict):
 def get_bio2token(filtered_pdb_dicts, bio2token_model):
     # create tmp pdbs with only backbone
     batch = batch_pdb_dicts(filtered_pdb_dicts, DEVICE)
-    batch = bio2token_model(batch).detach()
+    batch = bio2token_model(batch)
     tokens = []
     encodings = []
     lengths = [len(pdb_dict["seq"]) for pdb_dict in filtered_pdb_dicts]
     for i, length in enumerate(lengths):
         tokens.append(batch["indices"][i, :length * 4].cpu())
-        encodings.append(batch["encoding"][i, :length * 4].cpu)
+        encodings.append(batch["encoding"][i, :length * 4].cpu())
     return tokens, encodings
 
 
