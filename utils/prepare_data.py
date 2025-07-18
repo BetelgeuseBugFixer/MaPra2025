@@ -197,7 +197,7 @@ def process_split(split: str):
     out_dir = OUTPUT_BASE / split
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # open HDF5 files once, in append mode
+    # open HDF5 files
     emb_f    = h5py.File(out_dir / "embeddings.h5", mode="w")
     seq_f    = h5py.File(out_dir / "sequences.h5",  mode="w")
     struct_f = h5py.File(out_dir / "structures.h5", mode="w")
@@ -206,6 +206,7 @@ def process_split(split: str):
 
     processed = skipped = 0
     pid_batch, seq_batch, struct_batch, pdb_paths = [], [], [], []
+    cleanup_fns = []   # Cleanup-Funktionen
 
     # pick the right iterator
     if split == "train":
@@ -215,41 +216,41 @@ def process_split(split: str):
 
     for pid, pdb_path, cleanup in iterator:
         try:
-            print(f"{split}: processing {pid} \t {pdb_path}")
             structure, sequence = get_pdb_structure_and_seq(pdb_path)
         except Exception as e:
             print(f"[WARN] {pid} -> {e}", flush=True)
-            cleanup()
+            cleanup()      # nur hier löschen, wenn wir gar nicht weitermachen
             continue
 
-        cleanup()
 
         if not sequence or len(sequence) >= 800:
             skipped += 1
+            cleanup()      # hier löschen, wenn wir skippen
             continue
 
+        # sammeln statt sofort löschen
         pid_batch.append(pid)
         seq_batch.append(sequence)
         struct_batch.append(structure)
         pdb_paths.append(pdb_path)
+        cleanup_fns.append(cleanup)
         processed += 1
 
         if len(pid_batch) >= BATCH_SIZE:
             embeddings, bio2token, foldtoken = process_batch(pdb_paths, seq_batch)
-            print(f"{split}: generated tokens and embeds")
-            print(f"embeddings: {embeddings[0].shape}")
-            print(f"bio2token: {bio2token[0].shape}")
-            print(f"foldtoken: {foldtoken[0].shape}")
             for pid_i, emb_i, seq_i, struct_i, b2t_i, ft_i in zip(
                 pid_batch, embeddings, seq_batch, struct_batch, bio2token, foldtoken
             ):
-                emb_f.create_dataset(pid_i, data=to_numpy(emb_i))
-                seq_f.create_dataset(pid_i, data=to_numpy(seq_i))
+                emb_f   .create_dataset(pid_i, data=to_numpy(emb_i))
+                seq_f   .create_dataset(pid_i, data=to_numpy(seq_i))
                 struct_f.create_dataset(pid_i, data=to_numpy(struct_i))
-                bio2t_f.create_dataset(pid_i, data=to_numpy(b2t_i))
-                foldt_f.create_dataset(pid_i, data=to_numpy(ft_i))
+                bio2t_f .create_dataset(pid_i, data=to_numpy(b2t_i))
+                foldt_f .create_dataset(pid_i, data=to_numpy(ft_i))
 
-            print(f"processed: {processed}")
+            #  erst jetzt löschen wir alle PDBs
+            for fn in cleanup_fns:
+                fn()
+            cleanup_fns.clear()
 
             pid_batch.clear()
             seq_batch.clear()
@@ -260,13 +261,17 @@ def process_split(split: str):
     if pid_batch:
         embeddings, bio2token, foldtoken = process_batch(pdb_paths, seq_batch)
         for pid_i, emb_i, seq_i, struct_i, b2t_i, ft_i in zip(
-                pid_batch, embeddings, seq_batch, struct_batch, bio2token, foldtoken
+            pid_batch, embeddings, seq_batch, struct_batch, bio2token, foldtoken
         ):
-            emb_f.create_dataset(pid_i, data=to_numpy(emb_i))
-            seq_f.create_dataset(pid_i, data=to_numpy(seq_i))
+            emb_f   .create_dataset(pid_i, data=to_numpy(emb_i))
+            seq_f   .create_dataset(pid_i, data=to_numpy(seq_i))
             struct_f.create_dataset(pid_i, data=to_numpy(struct_i))
-            bio2t_f.create_dataset(pid_i, data=to_numpy(b2t_i))
-            foldt_f.create_dataset(pid_i, data=to_numpy(ft_i))
+            bio2t_f .create_dataset(pid_i, data=to_numpy(b2t_i))
+            foldt_f .create_dataset(pid_i, data=to_numpy(ft_i))
+
+        # hier cleanup
+        for fn in cleanup_fns:
+            fn()
 
     # close files
     for f in (emb_f, seq_f, struct_f, bio2t_f, foldt_f):
@@ -275,6 +280,7 @@ def process_split(split: str):
     print(f"[{split.upper()}] done — processed {processed}, skipped {skipped}", flush=True)
 
 
+
 if __name__ == '__main__':
-    for s in ['val', 'test', 'train']:
+    for s in ['train']: #only train for debug + because we already processed val and test
         process_split(s)
