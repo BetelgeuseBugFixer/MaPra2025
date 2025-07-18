@@ -585,4 +585,4 @@ if __name__ == '__main__':
     device="cuda"
     f_model=FoldToken(device=device).to(device)
     test_pdbs=["tokenizer_benchmark/casps/casp15/T1104-D1.pdb","tokenizer_benchmark/casps/casp15/T1112-D1.pdb"]
-    print(f_model.encode_lists_of_pdbs(test_pdbs),device)
+    print(f_model.encode_lists_of_pdbs(test_pdbs,device))
