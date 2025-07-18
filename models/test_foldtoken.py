@@ -561,7 +561,7 @@ if __name__ == '__main__':
     gt_vector=bio2token_batch["encoding"].detach()
     # prepare training
     lddt_loss_module = SmoothLDDTLoss().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     model.train()
     # run through model:
     for epoch in range(101):
