@@ -556,7 +556,6 @@ if __name__ == '__main__':
     _,_, encoder = load_bio2_token_decoder_and_quantizer()
     encoder.to(device)
     bio2token_batch = batch_pdbs_for_bio2token(test_pdbs, device)
-    encoder.config.use_quantizer=False
     bio2token_batch = encoder(bio2token_batch)
     gt_vector=bio2token_batch["encoding"].detach()
     # prepare training
