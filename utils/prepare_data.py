@@ -238,6 +238,10 @@ def process_split(split: str):
 
         if len(pid_batch) >= BATCH_SIZE:
             embeddings, bio2token, foldtoken = process_batch(pdb_paths, seq_batch)
+            print(f"{split}: generated tokens and embeds", flush=True)
+            print(f"embeddings: {embeddings[0].shape}", flush=True)
+            print(f"bio2token:   {bio2token[0].shape}", flush=True)
+            print(f"foldtoken:   {foldtoken[0].shape}", flush=True)
             for pid_i, emb_i, seq_i, struct_i, b2t_i, ft_i in zip(
                 pid_batch, embeddings, seq_batch, struct_batch, bio2token, foldtoken
             ):
@@ -246,6 +250,7 @@ def process_split(split: str):
                 struct_f.create_dataset(pid_i, data=to_numpy(struct_i))
                 bio2t_f .create_dataset(pid_i, data=to_numpy(b2t_i))
                 foldt_f .create_dataset(pid_i, data=to_numpy(ft_i))
+            print(f"processed: {processed}", flush=True)
 
             #  erst jetzt löschen wir alle PDBs
             for fn in cleanup_fns:
@@ -260,6 +265,11 @@ def process_split(split: str):
     # flush any leftovers
     if pid_batch:
         embeddings, bio2token, foldtoken = process_batch(pdb_paths, seq_batch)
+        print(f"{split}: generated tokens and embeds (final batch)", flush=True)
+        print(f"embeddings: {embeddings[0].shape}", flush=True)
+        print(f"bio2token:   {bio2token[0].shape}", flush=True)
+        print(f"foldtoken:   {foldtoken[0].shape}", flush=True)
+
         for pid_i, emb_i, seq_i, struct_i, b2t_i, ft_i in zip(
             pid_batch, embeddings, seq_batch, struct_batch, bio2token, foldtoken
         ):
@@ -272,6 +282,8 @@ def process_split(split: str):
         # hier cleanup
         for fn in cleanup_fns:
             fn()
+
+        print(f"processed (final): {processed}", flush=True)
 
     # close files
     for f in (emb_f, seq_f, struct_f, bio2t_f, foldt_f):
