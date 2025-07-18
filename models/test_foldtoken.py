@@ -582,7 +582,9 @@ if __name__ == '__main__':
         #lddt_loss.backward()
         optimizer.step()
         # if epoch % 10==0:
-        print(f"epoch {epoch}: vector: {vector_loss.item()} | lddt:{lddt_loss.item()}")
-        del lddt_loss, vector_loss
+        total_loss = vector_loss + lddt_loss
+        total_loss.backward()
+        print(f"epoch {epoch}: vector: {vector_loss.item()} | lddt:{lddt_loss.item()} | total loss: {total_loss.item()}")
+        del lddt_loss, vector_loss, total_loss
 
     print("done")
