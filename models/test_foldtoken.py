@@ -558,7 +558,7 @@ if __name__ == '__main__':
     bio2token_batch = batch_pdbs_for_bio2token(test_pdbs, device)
     encoder.config.use_quantizer=False
     bio2token_batch = encoder(bio2token_batch)
-    gt_vector=bio2token_batch["encoding"]
+    gt_vector=bio2token_batch["encoding"].detach()
     # prepare training
     lddt_loss_module = SmoothLDDTLoss().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
@@ -577,15 +577,13 @@ if __name__ == '__main__':
         vector_loss.backward()
         B, L, _ = predictions.shape
         # lddt
-        # is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
-        # is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
-        # lddt_loss = lddt_loss_module(predictions.detach(), targets, is_dna, is_rna, final_mask)
+        is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
+        is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
+        lddt_loss = lddt_loss_module(predictions.detach(), targets, is_dna, is_rna, final_mask)
         #lddt_loss.backward()
         optimizer.step()
         # if epoch % 10==0:
-        # print(f"epoch {epoch}: {lddt_loss.item()}")
-        print(f"epoch {epoch}: {vector_loss.item()}")
-        # del lddt_loss, vector_loss
-        del vector_loss
+        print(f"epoch {epoch}: {lddt_loss.item()}")
+        del lddt_loss, vector_loss
 
     print("done")
