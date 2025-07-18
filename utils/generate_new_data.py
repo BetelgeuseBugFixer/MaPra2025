@@ -98,14 +98,14 @@ def main():
     # data path
     # input_dir = "tokenizer_benchmark/casps/casp14"
     input_dir = "/mnt/data/large/zip_file/final_data_PDB/val/"
-    output_dir = "/mnt/data/large/subset2/val"
+    output_dir = "/mnt/data/large/subset2/val/"
     # save our data in lists
     all_sequences, all_structures = [], []
     all_embeddings, all_bio2tokens = [], []
     all_encodings, all_fold_tokens = [], []
 
     # count basic statistics
-    error_skipped = max_length_skipped = singletons_skipped, non_pdbs = 0
+    error_skipped = max_length_skipped = singletons_skipped = non_pdbs = 0
     processed = 0
     # init loop
     pdb_dicts_batch = []
