@@ -15,7 +15,7 @@ from torch.nn.utils.rnn import pad_sequence
 import torch.nn.functional as F
 
 from models.bio2token.data.utils.tokens import PAD_CLASS
-from models.bio2token.decoder import Bio2tokenDecoder, load_bio2_token_decoder_and_quantizer
+from models.bio2token.decoder import Bio2tokenDecoder, load_bio2token_decoder_and_quantizer
 from models.bio2token.losses.rmsd import RMSDConfig, RMSD
 from models.bio2token.models.autoencoder import AutoencoderConfig, Autoencoder
 from models.bio2token.utils.configs import utilsyaml_to_dict, pi_instantiate
@@ -544,7 +544,7 @@ def test_new_model():
     # define labels
     targets = get_padded_ground_truths(test_pdbs).to(device)
     # get 128 vector
-    _, _, encoder = load_bio2_token_decoder_and_quantizer()
+    _, _, encoder = load_bio2token_decoder_and_quantizer()
     encoder.to(device)
     bio2token_batch = batch_pdbs_for_bio2token(test_pdbs, device)
     bio2token_batch = encoder(bio2token_batch)

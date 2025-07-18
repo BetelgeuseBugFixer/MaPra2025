@@ -4,7 +4,7 @@ import time
 import torch
 
 from models.bio2token.data.utils.utils import pdb_2_dict
-from models.bio2token.decoder import load_bio2_token_decoder_and_quantizer
+from models.bio2token.decoder import load_bio2token_decoder_and_quantizer, load_bio2token_encoder
 from models.foldtoken_decoder.foldtoken import FoldToken
 from models.model_utils import batch_pdb_dicts
 from models.prot_t5.prot_t5 import ProtT5
@@ -91,7 +91,7 @@ def main():
         singleton_ids = {line.strip().split("-")[1] for line in f if "-" in line}
     # init models
     plm = ProtT5(device=DEVICE).to(DEVICE)
-    _, _, bio2token_model = load_bio2_token_decoder_and_quantizer()
+    bio2token_model = load_bio2token_encoder()
     bio2token_model.to(DEVICE)
     foldtoken = FoldToken(device=DEVICE).to(DEVICE)
 
