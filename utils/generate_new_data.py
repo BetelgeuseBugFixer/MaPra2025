@@ -61,13 +61,14 @@ def filter_pdb_dict(pdb_dict):
 def get_bio2token(filtered_pdb_dicts, bio2token_model):
     # create tmp pdbs with only backbone
     batch = batch_pdb_dicts(filtered_pdb_dicts, DEVICE)
-    batch = bio2token_model(batch)
+    with torch.no_grad():
+        batch = bio2token_model(batch)
     tokens = []
     encodings = []
     lengths = [len(pdb_dict["seq"]) for pdb_dict in filtered_pdb_dicts]
     for i, length in enumerate(lengths):
-        tokens.append(batch["indices"][i, :length * 4].cpu())
-        encodings.append(batch["encoding"][i, :length * 4].cpu())
+        tokens.append(batch["indices"][i, :length * 4].detach().cpu())
+        encodings.append(batch["encoding"][i, :length * 4].detach().cpu())
     return tokens, encodings
 
 
@@ -79,7 +80,7 @@ def process_batch(pdb_dicts, pdb_paths, plm, bio2token_model, foldtoken_model):
     bio2tokens, encodings = get_bio2token(pdb_dicts, bio2token_model)
     fold_tokens = foldtoken_model.encode_lists_of_pdbs(pdb_paths, DEVICE)
     # load to cpu
-    fold_tokens = [token_vector.cpu()for  token_vector in fold_tokens]
+    fold_tokens = [token_vector.cpu() for  token_vector in fold_tokens]
     structure = [pdb_dict["coords_groundtruth"] for pdb_dict in pdb_dicts]
     return seqs, structure, embeddings, bio2tokens, encodings, fold_tokens
 
@@ -96,6 +97,10 @@ def main():
     bio2token_model = load_bio2token_encoder()
     bio2token_model.to(DEVICE)
     foldtoken = FoldToken(device=DEVICE).to(DEVICE)
+    #set models to eval
+    plm.eval()
+    bio2token_model.eval()
+    foldtoken.eval()
 
     # data path
     # input_dir = "tokenizer_benchmark/casps/casp14"
