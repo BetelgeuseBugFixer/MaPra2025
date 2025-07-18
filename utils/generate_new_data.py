@@ -82,7 +82,7 @@ def process_batch(pdb_dicts, pdb_paths, plm, bio2token_model, foldtoken_model):
     return seqs, structure, embeddings, bio2tokens, encodings, fold_tokens
 
 def get_pid_from_file_name(file_name):
-    return file_name.split(".")[0].split("-")[-1]
+    return file_name.split("-")[1]
 
 
 def main():
@@ -97,7 +97,7 @@ def main():
 
     # data path
     # input_dir = "tokenizer_benchmark/casps/casp14"
-    input_dir = "/mnt/data/large/zip_file/final_data_PDB/val/"
+    input_dir = "/mnt/data/large/zip_file/final_data_PDB/val/val_pdb"
     output_dir = "/mnt/data/large/subset2/val/"
     # save our data in lists
     all_sequences, all_structures = [], []
