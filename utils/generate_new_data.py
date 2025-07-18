@@ -105,7 +105,7 @@ def main():
     all_encodings, all_fold_tokens = [], []
 
     # count basic statistics
-    error_skipped = max_length_skipped = singletons_skipped = 0
+    error_skipped = max_length_skipped = singletons_skipped, non_pdbs = 0
     processed = 0
     # init loop
     pdb_dicts_batch = []
@@ -116,6 +116,7 @@ def main():
     batch_start = time.time()
     for pdb in os.listdir(input_dir):
         if not pdb.endswith(".pdb"):
+            non_pdbs +=1
             continue
         if get_pid_from_file_name(pdb)  in singleton_ids:
             singletons_skipped += 1
@@ -178,6 +179,7 @@ def main():
     save_simple(all_data, output_dir)
     print(f"data was saved in {output_dir}")
     print(f"error skipped: {error_skipped}, max length skipped {max_length_skipped}, singletons skipped {singletons_skipped}")
+    print(f"non pdbs: {non_pdbs}")
     print(f"processed: {processed}")
     print(f"process took {time.time() - start}")
 
