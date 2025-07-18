@@ -546,7 +546,7 @@ if __name__ == '__main__':
     # input:
     # test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
     #              "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
-    test_pdbs=["tokenizer_benchmark/casps/casp15_backbone/T1125-D3"]
+    test_pdbs=["tokenizer_benchmark/casps/casp15_backbone/T1125-D3.pdb"]
     seqs = [get_seq_from_pdb(pdb) for pdb in test_pdbs]
     true_lengths = [len(seq) for seq in seqs]
     targets = get_padded_ground_truths(test_pdbs).to(device)
