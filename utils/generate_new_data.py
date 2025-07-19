@@ -22,7 +22,7 @@ TARGET_BATCH_SIZE = 128
 DEVICE = "cuda"
 
 PDB_CHUNK_SIZE = 25_000
-CHUNKS_TO_LOAD = 4
+CHUNKS_TO_LOAD = 3
 TMP_DIR = "/mnt/data/large/new_tmp"
 
 
@@ -221,4 +221,4 @@ def main(input_dir="/mnt/data/large/zip_file/final_data_PDB/val/val_pdb", output
 
 
 if __name__ == '__main__':
-    main("~/mapra/project_folder/data/large/zip_file/final_data_PDB/train/rostlab_subset.tar","/mnt/data/large/subset2/val/")
+    main("/mnt/data/large/zip_file/final_data_PDB/train/rostlab_subset.tar","/mnt/data/large/subset2/val/")
