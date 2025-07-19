@@ -13,6 +13,7 @@ from biotite.structure.filter import _filter_atom_names
 from torch import nn
 from torch.nn.utils.rnn import pad_sequence
 import torch.nn.functional as F
+from torch.utils.data import DataLoader
 
 from models.bio2token.data.utils.tokens import PAD_CLASS
 from models.bio2token.decoder import Bio2tokenDecoder, load_bio2token_decoder_and_quantizer
@@ -22,7 +23,7 @@ from models.bio2token.utils.configs import utilsyaml_to_dict, pi_instantiate
 from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores, SmoothLDDTLoss, \
     batch_pdbs_for_bio2token, print_trainable_parameters
 from models.prot_t5.prot_t5 import ProtT5
-from models.datasets.datasets import PAD_LABEL
+from models.datasets.datasets import PAD_LABEL, StructureAndTokenSet
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
 from models.bio2token.data.utils.utils import pdb_2_dict, uniform_dataframe, compute_masks, pad_and_stack_batch, \
     filter_batch
@@ -31,6 +32,8 @@ from models.foldtoken_decoder.foldtoken import FoldToken
 from models.end_to_end.whole_model import TFold, FinalModel
 from transformers import T5EncoderModel, T5Tokenizer
 from hydra_zen import load_from_yaml, builds, instantiate
+
+from models.train import collate_emb_struc_tok_batch
 
 
 def load_prot_from_pdb(pdb_file):
@@ -376,7 +379,6 @@ def bio2token_test():
     print(f"6 batch:\n{batch['decoding'].shape}\n{batch['decoding']}")
 
 
-
 def batched_bio2token():
     device = "cuda"
     model_configs = load_from_yaml("models/bio2token/files/model.yaml")["model"]
@@ -395,7 +397,7 @@ def batched_bio2token():
     # Prepare lists for batch processing
     # structure, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered
 
-    batch = batch_pdbs_for_bio2token(test_pdbs,device)
+    batch = batch_pdbs_for_bio2token(test_pdbs, device)
 
     batch = model.encoder(batch)
     print(
@@ -445,7 +447,7 @@ def bio2token_workflow():
     # define models
     plm = ProtT5(device=device).to(device)
     cnn = ResidueTokenCNN(1024, [2048, 2048], 4096, [5, 5], bio2token=True).to(device)
-    decoder=Bio2tokenDecoder(device=device).to(device)
+    decoder = Bio2tokenDecoder(device=device).to(device)
     # input:
     test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
                  "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
@@ -474,12 +476,12 @@ def bio2token_workflow():
 
     rmsd_metric = RMSD(config, name="rmsd").to(device)
 
-    lddt_loss_module= SmoothLDDTLoss().to(device)
+    lddt_loss_module = SmoothLDDTLoss().to(device)
     # get gt
     targets = get_padded_ground_truths(test_pdbs).to(device)
-    target_mask=~eos_mask
-    #eval
-    #rmsd
+    target_mask = ~eos_mask
+    # eval
+    # rmsd
     print(f"targets: {targets.shape}\n{targets}")
     to_eval = {
         "predictions": x,
@@ -496,11 +498,11 @@ def bio2token_workflow():
     # lddt
     is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
     is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
-    lddt_loss=lddt_loss_module(x,targets,is_dna,is_rna,target_mask)
+    lddt_loss = lddt_loss_module(x, targets, is_dna, is_rna, target_mask)
     print(f"loss: {lddt_loss.item()}")
 
 
-def get_protein_sizes_in_dataset(data_file="/mnt/data/large/subset/train/proteins.jsonl.gz",max_size=1_000):
+def get_protein_sizes_in_dataset(data_file="/mnt/data/large/subset/train/proteins.jsonl.gz", max_size=1_000):
     number_of_to_large_proteins = 0
     all_proteins = 0
     open_func = gzip.open if data_file.endswith('.gz') else builtins.open
@@ -516,7 +518,8 @@ def get_protein_sizes_in_dataset(data_file="/mnt/data/large/subset/train/protein
     print(f"done analysing {data_file}!")
     print(f"found {number_of_to_large_proteins} proteins larger then {max_size} in {all_proteins} proteins.")
 
-def print_tensor(tensor,name):
+
+def print_tensor(tensor, name):
     print(f"{name}-{tensor.shape}:\n{tensor}")
 
 
@@ -574,15 +577,39 @@ def test_new_model():
         total_loss = vector_loss + lddt_loss
         total_loss.backward()
         optimizer.step()
-        if epoch % 100==0:
+        if epoch % 100 == 0:
             print(
                 f"epoch {epoch}: vector: {vector_loss.item()} | lddt:{lddt_loss.item()} | total loss: {total_loss.item()}")
         del lddt_loss, vector_loss, total_loss
 
     print("done")
 
+
 if __name__ == '__main__':
-    device="cuda"
-    f_model=FoldToken(device=device).to(device)
-    test_pdbs=["tokenizer_benchmark/casps/casp15/T1104-D1.pdb","tokenizer_benchmark/casps/casp15/T1112-D1.pdb"]
-    print(f_model.encode_lists_of_pdbs(test_pdbs,device))
+    device = "cuda"
+    model = TFold([1000], device=device).to(device)
+    dataset = StructureAndTokenSet("data/large/val", "bio2token", precomputed_embeddings=True)
+    loader = DataLoader(dataset, batch_size=2, collate_fn=collate_emb_struc_tok_batch)
+    lddt_loss_module = SmoothLDDTLoss().to(device)
+    with torch.no_grad():
+        for emb, tokens, structure in loader:
+            # get predictions
+            tokens = tokens.to(device)
+            mask = (tokens != PAD_LABEL)
+            protein_predictions, logits = model.forward_from_embedding_bio2token(emb)
+            # get loss and score
+            loss = calc_token_loss(model.cnn.criterion, logits, tokens)
+            bsz = tokens.size(0)
+            for i,protein_prediction in enumerate(protein_predictions):
+                X, _, _ = protein_prediction.to_XCS(all_atom=False)
+                X = X.detach().squeeze(0).reshape(-1, 3).numpy()
+                L,_ = X.shape
+                is_dna = torch.zeros((1, L), dtype=torch.bool, device=device)
+                is_rna = torch.zeros((1, L), dtype=torch.bool, device=device)
+                relevant_mask = torch.ones((1, L), dtype=torch.bool, device=device)
+                pred = X.unsqueeze(0).to(device)  # (1, L, 3)
+                ref = ref.unsqueeze(0)
+                ref_protein = structure[i, :L]
+                lddt = lddt_loss_module(pred, ref_protein, is_dna, is_rna, relevant_mask)
+                print(f"LDTT: {lddt.item():.4f}")
+

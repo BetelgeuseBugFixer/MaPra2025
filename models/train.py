@@ -76,17 +76,16 @@ def parse_args():
     return parser.parse_args()
 
 
-def create_tfold_data_loaders(data_dir, batch_size, val_batchsize, fine_tune_plm, bio2token=False, final_model=False):
+def create_tfold_data_loaders(data_dir, batch_size, fine_tune_plm, bio2token=False, final_model=False):
     train_dir = os.path.join(data_dir, "train")
     val_dir = os.path.join(data_dir, "val")
 
     if final_model:
-        train_set = StructureSet(train_dir, precomputed_embeddings=not fine_tune_plm)
-        val_set = StructureSet(val_dir, precomputed_embeddings=not fine_tune_plm)
-        if fine_tune_plm:
-            collate_function = collate_seq_struc
-        else:
-            collate_function = collate_emb_struc
+        token_type = "encoding"
+        train_set = StructureAndTokenSet(train_dir, token_type, precomputed_embeddings=not fine_tune_plm)
+        val_set = StructureAndTokenSet(val_dir, token_type, precomputed_embeddings=not fine_tune_plm)
+        # adapt padding function to whether the model will receive embeddings or seqs as input
+        collate_function = collate_seq_struc_tok_batch if fine_tune_plm else collate_emb_struc_tok_batch
         return (
             DataLoader(train_set, batch_size=batch_size, collate_fn=collate_function),
             DataLoader(val_set, batch_size=batch_size, collate_fn=collate_function)
@@ -95,6 +94,14 @@ def create_tfold_data_loaders(data_dir, batch_size, val_batchsize, fine_tune_plm
         token_type = "bio2token" if bio2token else "foldtoken"
         train_set = TokenSet(train_dir, token_type=token_type, precomputed_embeddings=not fine_tune_plm)
         val_set = StructureAndTokenSet(val_dir, token_type, precomputed_embeddings=not fine_tune_plm)
+        # get padding function based on input
+        val_collate_function = collate_seq_struc_tok_batch if fine_tune_plm else collate_emb_struc_tok_batch
+        train_collate_function = collate_seq_tok_batch if fine_tune_plm else collate_emb_tok_batch
+
+        return (
+            DataLoader(train_set, batch_size=batch_size, collate_fn=train_collate_function),
+            DataLoader(val_set, batch_size=batch_size, collate_fn=val_collate_function)
+        )
     #
     #         train_dataset = SeqTokSet(train_json)
     #         val_dataset = SeqStrucTokSet(val_json, val_pkl)
@@ -118,8 +125,8 @@ def create_cnn_data_loaders(emb_source, tok_jsonl, train_ids, val_ids, test_ids,
     train_ds = DSClass(emb_source, tok_jsonl, train_ids)
     val_ds = DSClass(emb_source, tok_jsonl, val_ids)
     return (
-        DataLoader(train_ds, batch_size=batch_size, shuffle=True, collate_fn=pad_collate),
-        DataLoader(val_ds, batch_size=batch_size, shuffle=False, collate_fn=pad_collate),
+        DataLoader(train_ds, batch_size=batch_size, shuffle=True, collate_fn=collate_emb_tok_batch),
+        DataLoader(val_ds, batch_size=batch_size, shuffle=False, collate_fn=collate_emb_tok_batch),
     )
 
 
@@ -165,8 +172,9 @@ def collate_seq_struc_tok_batch(batch):
 
     # Padding der VQ-Tokens
     padded_tokens = pad_sequence(token_lists, batch_first=True, padding_value=PAD_LABEL)
+    structures = pad_and_stack_tensors(structures, 0)
 
-    return list(sequences), padded_tokens, list(structures)
+    return list(sequences), padded_tokens, structures
 
 
 def collate_seq_tok_batch(batch):
@@ -185,10 +193,12 @@ def collate_emb_struc_tok_batch(batch):
     embs_padded = pad_sequence(embs, batch_first=True)  # pad with 0.0 by default
     # pad tokens along the sequence dimension, with PAD_LABEL
     toks_padded = pad_sequence(toks, batch_first=True, padding_value=PAD_LABEL)
-    return embs_padded, toks_padded, list(structures)
+    # pad structures
+    structures = pad_and_stack_tensors(structures, 0)
+    return embs_padded, toks_padded, structures
 
 
-def pad_collate(batch):
+def collate_emb_tok_batch(batch):
     """
     batch: list of (emb, tok) where
       emb: Tensor[L_i, d_emb]
@@ -275,8 +285,27 @@ def get_dataset(args):
         return create_cnn_data_loaders(
             emb_source, args.tok_jsonl, train_ids, val_ids, test_ids, args.batch, use_file
         )
-    elif args.model == "t_fold":
+    elif args.model == "t_fold" or args.model == "final":
         return create_tfold_data_loaders(args.data_dir, args.batch, args.val_batch, args.lora_plm, args.device)
+
+def print_epoch_end(score_dict, epoch, start):
+    parts = [f"Epoch {epoch:02d} | duration {time.time() - start:.2f}s"]
+
+    # a defined order of keys, beceause it is nice
+    key_order = ["loss", "acc", "mse", "val_loss", "val_acc", "val_lddt","val_mse"]
+
+    # add known values
+    for key in key_order:
+        if key in score_dict and score_dict[key] is not None:
+            parts.append(f"{key}: {score_dict[key]:.4f}")
+
+    # just in case I forgot some
+    for key, value in score_dict.items():
+        if key not in key_order and value is not None:
+            parts.append(f"{key}: {value}")
+
+    return " | " + " | ".join(parts)
+
 
 
 def main(args):
@@ -284,7 +313,7 @@ def main(args):
     print("preparing data...")
     # load dataset
     train_loader, val_loader = get_dataset(args)
-    print(f"done: {time.time() - start}")
+    print(f"done: {time.time() - start:.2f}s")
     print("preparing model...")
     model, optimizer = get_model(args)
 
@@ -316,13 +345,8 @@ def main(args):
         if not args.no_wandb:
             run.log(score_dict)
 
-        tr_loss = score_dict["loss"]
-        tr_acc = score_dict["acc"]
-        val_loss = score_dict["val_loss"]
-        val_acc = score_dict["val_acc"]
-        lddt_string = f" |{score_dict["val_lddt"]}" if score_dict["val_lddt"] else ""
-        print(
-            f"Epoch {epoch:02d} | duration {time.time() - start:.2f}s | train {tr_loss:.4f}/{tr_acc:.4f} | val {val_loss:.4f}/{val_acc:.4f}{lddt_string}")
+        # here we just print some basic statistic
+        print_epoch_end(score_dict, epoch, start)
 
         # save model
         model.save(out_folder, suffix="_latest")

@@ -2,44 +2,50 @@ import json
 import os
 
 import h5py
+import numpy as np
 import torch
 from torch.utils.data import Dataset
-
 
 PAD_LABEL = -100
 
 
-def load_h5(path):
-    with h5py.File(path, "r") as f:
-        return [torch.tensor(f[k][()]) for k in sorted(f.keys())]
+def load_pt(path):
+    data = torch.load(path, weights_only=False)
+    if "structures.pt" in path:
+        return [torch.as_tensor(np.array(structure)) for structure in data]
+    return data
+
 
 
 def load_model_in(file_dir, precomputed_embeddings):
     if precomputed_embeddings:
-        return load_h5(os.path.join(file_dir, "embeddings.h5"))
+        return load_pt(os.path.join(file_dir, "embeddings.pt"))
     else:
-        return load_h5(os.path.join(file_dir, "sequences.h5"))
+        return open(os.path.join(file_dir, "sequences.txt")).read().splitlines()
 
 
 def load_tokens(file_dir, token_type):
     match token_type:
         case "bio2token":
-            return load_h5(os.path.join(file_dir, "bio2tokens.h5"))
+            return load_pt(os.path.join(file_dir, "bio2tokens.pt"))
         case "foldtoken":
-            return load_h5(os.path.join(file_dir, "foldtokens.h5"))
+            return load_pt(os.path.join(file_dir, "foldtokens.pt"))
+        case "encoding":
+            return load_pt(os.path.join(file_dir, "encodings.pt"))
         case _:
             raise RuntimeError(f"{token_type} is not supported, please use bio2token or foldtoken")
+
 
 class StructureSet(Dataset):
     def __init__(self, file_dir, precomputed_embeddings=False):
         self.model_in = load_model_in(file_dir, precomputed_embeddings)
-        self.structures = load_h5(os.path.join(file_dir, "structures.h5"))
+        self.structures = load_pt(os.path.join(file_dir, "structures.pt"))
 
     def __len__(self):
         return len(self.model_in)
 
     def __getitem__(self, idx):
-        return self.model_in[idx], self.structures[idx]
+        return self.model_in[idx],self.structures[idx]
 
 
 class TokenSet(Dataset):
@@ -58,7 +64,7 @@ class StructureAndTokenSet(Dataset):
     def __init__(self, file_dir, token_type, precomputed_embeddings=False):
         self.model_in = load_model_in(file_dir, precomputed_embeddings)
         self.tokens = load_tokens(file_dir, token_type)
-        self.structures = load_h5(os.path.join(file_dir, "structures.h5"))
+        self.structures = load_pt(os.path.join(file_dir, "structures.pt"))
 
     def __len__(self):
         return len(self.model_in)
