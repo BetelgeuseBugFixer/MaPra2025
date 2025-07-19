@@ -617,10 +617,11 @@ if __name__ == '__main__':
                 L = x.shape[0]
                 x_reshaped = x.reshape(-1, 3)  # von (L, 4, 3) → (L*4, 3)
                 X_batch[i, :L * 4] = x_reshaped
-            mask = torch.zeros((B, L_max * 4), dtype=torch.bool)
+            mask = torch.zeros((B, L_max * 4), dtype=torch.bool,device=device)
             for i, x in enumerate(X_list):
                 L = x.shape[0]
                 mask[i, :L * 4] = True
+
             is_dna = torch.zeros((B, L_max * 4), dtype=torch.bool, device=device)
             is_rna = torch.zeros((B, L_max * 4), dtype=torch.bool, device=device)
             lddt_loss = lddt_loss_module(X_batch, structure, is_dna, is_rna, mask)
