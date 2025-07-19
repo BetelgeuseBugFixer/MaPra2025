@@ -208,15 +208,15 @@ class TFold(nn.Module):
             # if we do not have lengths derive them from embeddings
             true_lengths = (x.abs().sum(-1) > 0).sum(dim=1)
         # generate tokens
-        x = self.cnn(x)  # shape: (B, L, vocab_size)
-        tokens = x.argmax(dim=-1)
+        logits = self.cnn(x)  # shape: (B, L, vocab_size)
+        x = logits.argmax(dim=-1)
         # prepare tokens for decoding
         B, L = x.shape
         eos_mask = torch.ones(B, L, dtype=torch.bool, device=x.device)
         for i, length in enumerate(true_lengths):
             eos_mask[i, :length * 4] = False
         x = self.decoder(x, eos_mask=eos_mask)
-        return x, tokens
+        return x, logits
 
     def forward_from_embedding_foldtoken(self, x, true_lengths=None):
         if true_lengths is None:

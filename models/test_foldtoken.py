@@ -588,30 +588,24 @@ def test_new_model():
 if __name__ == '__main__':
     device = "cuda"
     model = TFold([1000], device=device).to(device)
-    dataset = StructureAndTokenSet("/mnt/data/large/subset2/val", "bio2token", precomputed_embeddings=True)
+    dataset = StructureAndTokenSet("/mnt/data/large/subset2/val", "foldtoken", precomputed_embeddings=True)
     loader = DataLoader(dataset, batch_size=2, collate_fn=collate_emb_struc_tok_batch)
+    print("loaded dataset")
     lddt_loss_module = SmoothLDDTLoss().to(device)
     with torch.no_grad():
         for emb, tokens, structure in loader:
             # get predictions
-            emb=emb.to(device)
+            emb = emb.to(device)
             tokens = tokens.to(device)
             structure = structure.to(device)
             mask = (tokens != PAD_LABEL)
-            protein_predictions, logits = model.forward_from_embedding_bio2token(emb)
+            protein_predictions, logits = model.forward_from_embedding_foldtoken(emb)
             # get loss and score
             loss = calc_token_loss(model.cnn.criterion, logits, tokens)
             bsz = tokens.size(0)
-            for i,protein_prediction in enumerate(protein_predictions):
+            for i, protein_prediction in enumerate(protein_predictions):
                 X, _, _ = protein_prediction.to_XCS(all_atom=False)
-                X = X.detach().squeeze(0).reshape(-1, 3).numpy()
-                L,_ = X.shape
-                is_dna = torch.zeros((1, L), dtype=torch.bool, device=device)
-                is_rna = torch.zeros((1, L), dtype=torch.bool, device=device)
-                relevant_mask = torch.ones((1, L), dtype=torch.bool, device=device)
-                pred = X.unsqueeze(0).to(device)  # (1, L, 3)
-                ref = ref.unsqueeze(0)
-                ref_protein = structure[i, :L]
-                lddt = lddt_loss_module(pred, ref_protein, is_dna, is_rna, relevant_mask)
-                print(f"LDTT: {lddt.item():.4f}")
-
+                print_tensor(X, "before")
+                X = X.squeeze(0).reshape(-1, 3).numpy()
+                print_tensor(X, "after")
+            break
