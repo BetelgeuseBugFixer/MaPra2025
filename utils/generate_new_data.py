@@ -221,4 +221,4 @@ def main(input_dir="/mnt/data/large/zip_file/final_data_PDB/val/val_pdb", output
 
 
 if __name__ == '__main__':
-    main()
+    main("~/mapra/project_folder/data/large/zip_file/final_data_PDB/train/rostlab_subset.tar","/mnt/data/large/subset2/val/")
