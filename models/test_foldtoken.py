@@ -606,6 +606,6 @@ if __name__ == '__main__':
             B, L, _ = protein_predictions.shape
             is_dna = torch.zeros((B, L * 4), dtype=torch.bool, device=device)
             is_rna = torch.zeros((B, L * 4), dtype=torch.bool, device=device)
-            lddt_loss = self.lddt_loss(protein_predictions, structure, is_dna, is_rna, mask)
+            lddt_loss = lddt_loss_module(protein_predictions, structure, is_dna, is_rna, mask)
             print(lddt_loss.item())
             break
