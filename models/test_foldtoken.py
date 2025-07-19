@@ -626,3 +626,4 @@ if __name__ == '__main__':
             is_dna = torch.zeros((B, L_max * 4), dtype=torch.bool, device=device)
             is_rna = torch.zeros((B, L_max * 4), dtype=torch.bool, device=device)
             lddt_loss = lddt_loss_module(X_batch, structure, is_dna, is_rna, mask)
+            print(lddt_loss.item())
