@@ -612,11 +612,12 @@ if __name__ == '__main__':
             X_list = [X.squeeze(0) for X in X_list]
             L_max = max(x.shape[0] for x in X_list)
             B = len(X_list)
-            X_batch = torch.zeros((B, L_max * 4, 3))
+            X_batch = torch.zeros((B, L_max * 4, 3),device=device)
             for i, x in enumerate(X_list):
                 L = x.shape[0]
                 x_reshaped = x.reshape(-1, 3)  # von (L, 4, 3) → (L*4, 3)
                 X_batch[i, :L * 4] = x_reshaped
+
             mask = torch.zeros((B, L_max * 4), dtype=torch.bool,device=device)
             for i, x in enumerate(X_list):
                 L = x.shape[0]
