@@ -605,12 +605,22 @@ if __name__ == '__main__':
             # get loss and score
             loss = calc_token_loss(model.cnn.criterion, logits, tokens)
             bsz = tokens.size(0)
-            protein_stacks=[]
+            X_list=[]
             for i, protein_prediction in enumerate(protein_predictions):
                 X, _, _ = protein_prediction.to_XCS(all_atom=False)
-                print_tensor(X, "before")
-                X = X.squeeze(0).reshape(-1, 3).numpy()
-                print_tensor(X, "after")
-                protein_stacks.append(X)
-            prediction = pad_and_stack_tensors(protein_stacks, 0)
-            break
+                X_list.append(X)
+            X_list = [X.squeeze(0) for X in X_list]
+            L_max = max(x.shape[0] for x in X_list)
+            B = len(X_list)
+            X_batch = torch.zeros((B, L_max * 4, 3))
+            for i, x in enumerate(X_list):
+                L = x.shape[0]
+                x_reshaped = x.reshape(-1, 3)  # von (L, 4, 3) → (L*4, 3)
+                X_batch[i, :L * 4] = x_reshaped
+            mask = torch.zeros((B, L_max * 4), dtype=torch.bool)
+            for i, x in enumerate(X_list):
+                L = x.shape[0]
+                mask[i, :L * 4] = True
+            is_dna = torch.zeros((B, L_max * 4), dtype=torch.bool, device=device)
+            is_rna = torch.zeros((B, L_max * 4), dtype=torch.bool, device=device)
+            lddt_loss = lddt_loss_module(X_batch, structure, is_dna, is_rna, mask)
