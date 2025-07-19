@@ -594,7 +594,9 @@ if __name__ == '__main__':
     with torch.no_grad():
         for emb, tokens, structure in loader:
             # get predictions
+            emb=emb.to(device)
             tokens = tokens.to(device)
+            structure = structure.to(device)
             mask = (tokens != PAD_LABEL)
             protein_predictions, logits = model.forward_from_embedding_bio2token(emb)
             # get loss and score
