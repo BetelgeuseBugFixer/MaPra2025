@@ -26,7 +26,7 @@ from models.prot_t5.prot_t5 import ProtT5
 from models.datasets.datasets import PAD_LABEL, StructureAndTokenSet
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
 from models.bio2token.data.utils.utils import pdb_2_dict, uniform_dataframe, compute_masks, pad_and_stack_batch, \
-    filter_batch
+    filter_batch, pad_and_stack_tensors
 
 from models.foldtoken_decoder.foldtoken import FoldToken
 from models.end_to_end.whole_model import TFold, FinalModel
@@ -588,7 +588,9 @@ def test_new_model():
 if __name__ == '__main__':
     device = "cuda"
     model = TFold([1000], device=device).to(device)
+    print("init model done")
     dataset = StructureAndTokenSet("/mnt/data/large/subset2/val", "foldtoken", precomputed_embeddings=True)
+    print("loaded dataset")
     loader = DataLoader(dataset, batch_size=2, collate_fn=collate_emb_struc_tok_batch)
     print("loaded dataset")
     lddt_loss_module = SmoothLDDTLoss().to(device)
@@ -603,9 +605,12 @@ if __name__ == '__main__':
             # get loss and score
             loss = calc_token_loss(model.cnn.criterion, logits, tokens)
             bsz = tokens.size(0)
+            protein_stacks=[]
             for i, protein_prediction in enumerate(protein_predictions):
                 X, _, _ = protein_prediction.to_XCS(all_atom=False)
                 print_tensor(X, "before")
                 X = X.squeeze(0).reshape(-1, 3).numpy()
                 print_tensor(X, "after")
+                protein_stacks.append(X)
+            prediction = pad_and_stack_tensors(protein_stacks, 0)
             break
