@@ -1,5 +1,6 @@
 import os
 import time
+from collections import defaultdict
 
 import torch
 
@@ -72,7 +73,20 @@ def get_bio2token(filtered_pdb_dicts, bio2token_model):
     return tokens, encodings
 
 
-def process_batch(pdb_dicts, pdb_paths, plm, bio2token_model, foldtoken_model):
+def reset_batch():
+    return [], [], 0  # pdb_dicts, pdb_paths, current_batch_size
+
+
+def append_batch_data(seqs, structure, embeddings, bio2tokens, encodings, fold_tokens, all_data):
+    all_data["sequences"].extend(seqs)
+    all_data["structures"].extend(structure)
+    all_data["embeddings"].extend(embeddings)
+    all_data["bio2tokens"].extend(bio2tokens)
+    all_data["encodings"].extend(encodings)
+    all_data["fold_tokens"].extend(fold_tokens)
+
+
+def process_batch(pdb_dicts, pdb_paths, plm, bio2token_model, foldtoken_model, all_data):
     # here we filter the backbone atoms
     pdb_dicts = [filter_pdb_dict(pdb_dict) for pdb_dict in pdb_dicts]
     seqs = [pdb_dict["seq"] for pdb_dict in pdb_dicts]
@@ -80,12 +94,40 @@ def process_batch(pdb_dicts, pdb_paths, plm, bio2token_model, foldtoken_model):
     bio2tokens, encodings = get_bio2token(pdb_dicts, bio2token_model)
     fold_tokens = foldtoken_model.encode_lists_of_pdbs(pdb_paths, DEVICE)
     # load to cpu
-    fold_tokens = [token_vector.cpu() for  token_vector in fold_tokens]
+    fold_tokens = [token_vector.cpu() for token_vector in fold_tokens]
     structure = [pdb_dict["coords_groundtruth"] for pdb_dict in pdb_dicts]
-    return seqs, structure, embeddings, bio2tokens, encodings, fold_tokens
+    # update all data
+    append_batch_data(seqs, structure, embeddings, bio2tokens, encodings, fold_tokens, all_data)
+
 
 def get_pid_from_file_name(file_name):
     return file_name.split("-")[1]
+
+
+def init_models():
+    plm = ProtT5(device=DEVICE).to(DEVICE).eval()
+    bio2token_model = load_bio2token_encoder().to(DEVICE).eval()
+    foldtoken = FoldToken(device=DEVICE).to(DEVICE).eval()
+    return plm, bio2token_model, foldtoken
+
+
+def get_pdb_dict(pdb_path, pdb_file_name, singleton_ids, skipped_statistics):
+    if not pdb_file_name.endswith(".pdb"):
+        skipped_statistics["non_pdb"] += 1
+        return None
+    if get_pid_from_file_name(pdb_file_name) in singleton_ids:
+        skipped_statistics["singleton"] += 1
+        return None
+    try:
+        pdb_dict = pdb_2_dict(pdb_path)
+    except Exception as e:
+        print(f"[ERROR] {pdb_path}: {str(e)}")
+        skipped_statistics["error"] += 1
+        return None
+    if len(pdb_dict["seq"]) >= MAX_LENGTH:
+        skipped_statistics["too_long"] += 1
+        return None
+    return pdb_dict  # valid dict
 
 
 def main():
@@ -93,100 +135,50 @@ def main():
     with open("/mnt/data/large/prostt5_IDs/afdb50best_foldseek_clu_singleton.ids") as f:
         singleton_ids = {line.strip().split("-")[1] for line in f if "-" in line}
     # init models
-    plm = ProtT5(device=DEVICE).to(DEVICE)
-    bio2token_model = load_bio2token_encoder()
-    bio2token_model.to(DEVICE)
-    foldtoken = FoldToken(device=DEVICE).to(DEVICE)
-    #set models to eval
-    plm.eval()
-    bio2token_model.eval()
-    foldtoken.eval()
-
+    plm, bio2token_model, foldtoken = init_models()
     # data path
     # input_dir = "tokenizer_benchmark/casps/casp14"
     input_dir = "/mnt/data/large/zip_file/final_data_PDB/val/val_pdb"
     output_dir = "/mnt/data/large/subset2/val/"
     # save our data in lists
-    all_sequences, all_structures = [], []
-    all_embeddings, all_bio2tokens = [], []
-    all_encodings, all_fold_tokens = [], []
+    all_data = defaultdict(list)
 
     # count basic statistics
-    error_skipped = max_length_skipped = singletons_skipped = non_pdbs = 0
+    skipped_statistics = defaultdict(int)
     processed = 0
     # init loop
     pdb_dicts_batch = []
-    pdb_paths_dicts = []
+    pdb_paths_batch = []
     current_batch_size = 0
     # start timer
-    start=time.time()
+    start = time.time()
     batch_start = time.time()
     for pdb in os.listdir(input_dir):
-        if not pdb.endswith(".pdb"):
-            non_pdbs +=1
-            continue
-        if get_pid_from_file_name(pdb)  in singleton_ids:
-            singletons_skipped += 1
-            continue
         pdb_path = os.path.join(input_dir, pdb)
-        try:
-            pdb_dict = pdb_2_dict(pdb_path)
-        except Exception as e:
-            print(f"error with {pdb}: {str(e)}")
-            error_skipped += 1
+        pdb_dict = get_pdb_dict(pdb_path, pdb, singleton_ids, skipped_statistics)
+        if pdb_dict is None:
             continue
-        if len(pdb_dict["seq"]) >= MAX_LENGTH:
-            max_length_skipped += 1
-            continue
+
         pdb_dicts_batch.append(pdb_dict)
-        pdb_paths_dicts.append(pdb_path)
+        pdb_paths_batch.append(pdb_path)
         current_batch_size += 1
         if current_batch_size == TARGET_BATCH_SIZE:
-            sequences, structure, embeddings, bio2tokens, encodings, fold_tokens = process_batch(pdb_dicts_batch,
-                                                                                                 pdb_paths_dicts,
-                                                                                                 plm, bio2token_model,
-                                                                                                 foldtoken)
-            all_sequences.extend(sequences)
-            all_structures.extend(structure)
-            all_embeddings.extend(embeddings)
-            all_bio2tokens.extend(bio2tokens)
-            all_encodings.extend(encodings)
-            all_fold_tokens.extend(fold_tokens)
-            # reset everything
-            pdb_dicts_batch = []
-            pdb_paths_dicts = []
+            process_batch(pdb_dicts_batch, pdb_paths_batch, plm, bio2token_model, foldtoken, all_data)
             processed += current_batch_size
-            current_batch_size = 0
+            # reset everything
+            pdb_dicts_batch, pdb_paths_batch, current_batch_size = reset_batch()
             # print time and start timer anew
             print(f"processed new batch! total processed:{processed} | time for batch: {time.time() - batch_start}")
             batch_start = time.time()
 
     if current_batch_size > 0:
-        sequences, structure, embeddings, bio2tokens, encodings, fold_tokens = process_batch(pdb_dicts_batch,
-                                                                                             pdb_paths_dicts,
-                                                                                             plm, bio2token_model,
-                                                                                             foldtoken)
-
-        all_sequences.extend(sequences)
-        all_structures.extend(structure)
-        all_embeddings.extend(embeddings)
-        all_bio2tokens.extend(bio2tokens)
-        all_encodings.extend(encodings)
-        all_fold_tokens.extend(fold_tokens)
-
-    all_data = {
-        "sequences": all_sequences,
-        "structures": all_structures,
-        "embeddings": all_embeddings,
-        "bio2tokens": all_bio2tokens,
-        "encodings": all_encodings,
-        "fold_tokens": all_fold_tokens
-    }
+        process_batch(pdb_dicts_batch, pdb_paths_batch, plm, bio2token_model, foldtoken, all_data)
 
     save_simple(all_data, output_dir)
     print(f"data was saved in {output_dir}")
-    print(f"error skipped: {error_skipped}, max length skipped {max_length_skipped}, singletons skipped {singletons_skipped}")
-    print(f"non pdbs: {non_pdbs}")
+    print("skipped statistics:")
+    for key,value in skipped_statistics.items():
+        print(f"{key}: {value}")
     print(f"processed: {processed}")
     print(f"process took {time.time() - start}")
 
