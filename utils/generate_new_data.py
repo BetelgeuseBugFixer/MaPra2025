@@ -1,4 +1,5 @@
 import os
+import shutil
 import time
 from collections import defaultdict
 
@@ -9,6 +10,8 @@ from models.bio2token.decoder import load_bio2token_encoder
 from models.foldtoken_decoder.foldtoken import FoldToken
 from models.model_utils import batch_pdb_dicts
 from models.prot_t5.prot_t5 import ProtT5
+import os
+import tarfile
 
 BACKBONE_ATOMS = ["N", "CA", "C", "O"]
 
@@ -17,6 +20,10 @@ MAX_LENGTH = 800
 TARGET_BATCH_SIZE = 128
 
 DEVICE = "cuda"
+
+PDB_CHUNK_SIZE = 25_000
+CHUNKS_TO_LOAD = 4
+TMP_DIR = "/mnt/data/large/new_tmp"
 
 
 def save_simple(all_data, output_dir):
@@ -113,49 +120,35 @@ def init_models():
 
 def get_pdb_dict(pdb_path, pdb_file_name, singleton_ids, skipped_statistics):
     if not pdb_file_name.endswith(".pdb"):
-        skipped_statistics["non_pdb"] += 1
+        skipped_statistics["skipped - non pdb"] += 1
         return None
     if get_pid_from_file_name(pdb_file_name) in singleton_ids:
-        skipped_statistics["singleton"] += 1
+        skipped_statistics["skipped - singleton"] += 1
         return None
     try:
         pdb_dict = pdb_2_dict(pdb_path)
     except Exception as e:
         print(f"[ERROR] {pdb_path}: {str(e)}")
-        skipped_statistics["error"] += 1
+        skipped_statistics["skipped - error"] += 1
         return None
     if len(pdb_dict["seq"]) >= MAX_LENGTH:
-        skipped_statistics["too_long"] += 1
+        skipped_statistics["skipped - too long"] += 1
         return None
     return pdb_dict  # valid dict
 
+def empty_dir(tmp_dir):
+    if os.path.exists(tmp_dir):
+        shutil.rmtree(tmp_dir)
+    os.makedirs(tmp_dir, exist_ok=True)
 
-def main():
-    # prepare singltons to be skipped
-    with open("/mnt/data/large/prostt5_IDs/afdb50best_foldseek_clu_singleton.ids") as f:
-        singleton_ids = {line.strip().split("-")[1] for line in f if "-" in line}
-    # init models
-    plm, bio2token_model, foldtoken = init_models()
-    # data path
-    # input_dir = "tokenizer_benchmark/casps/casp14"
-    input_dir = "/mnt/data/large/zip_file/final_data_PDB/val/val_pdb"
-    output_dir = "/mnt/data/large/subset2/val/"
-    # save our data in lists
-    all_data = defaultdict(list)
-
-    # count basic statistics
-    skipped_statistics = defaultdict(int)
-    processed = 0
-    # init loop
+def handle_full_dir(full_dir, singleton_ids, statistics, plm, bio2token_model, foldtoken, all_data):
     pdb_dicts_batch = []
     pdb_paths_batch = []
     current_batch_size = 0
-    # start timer
-    start = time.time()
     batch_start = time.time()
-    for pdb in os.listdir(input_dir):
-        pdb_path = os.path.join(input_dir, pdb)
-        pdb_dict = get_pdb_dict(pdb_path, pdb, singleton_ids, skipped_statistics)
+    for pdb in os.listdir(full_dir):
+        pdb_path = os.path.join(full_dir, pdb)
+        pdb_dict = get_pdb_dict(pdb_path, pdb, singleton_ids, statistics)
         if pdb_dict is None:
             continue
 
@@ -164,22 +157,66 @@ def main():
         current_batch_size += 1
         if current_batch_size == TARGET_BATCH_SIZE:
             process_batch(pdb_dicts_batch, pdb_paths_batch, plm, bio2token_model, foldtoken, all_data)
-            processed += current_batch_size
+            statistics["processed"] += current_batch_size
             # reset everything
             pdb_dicts_batch, pdb_paths_batch, current_batch_size = reset_batch()
             # print time and start timer anew
-            print(f"processed new batch! total processed:{processed} | time for batch: {time.time() - batch_start}")
+            print(
+                f"processed new batch! total processed:{statistics["processed"]} | time for batch: {time.time() - batch_start}")
             batch_start = time.time()
 
     if current_batch_size > 0:
         process_batch(pdb_dicts_batch, pdb_paths_batch, plm, bio2token_model, foldtoken, all_data)
+        statistics["processed"] += current_batch_size
+        print(
+            f"processed new batch! total processed:{statistics["processed"]} | time for batch: {time.time() - batch_start}")
+
+def write_to_temp(tar_path, tmp_dir, num_files, offset=0):
+    os.makedirs(tmp_dir, exist_ok=True)
+
+    with tarfile.open(tar_path, "r") as tar:
+        members = [m for m in tar.getmembers() if m.isfile() and m.name.endswith(".pdb")]
+
+        # Slice von offset bis offset+num_files, falls Ende überschritten dann weniger
+        chunk_members = members[offset:offset+num_files]
+        for member in chunk_members:
+            tar.extract(member, tmp_dir)
+
+    print(f"Extracted {len(chunk_members)} PDB files to {tmp_dir} starting at offset {offset}")
+    return offset + len(chunk_members)
+
+
+def main(input_dir="/mnt/data/large/zip_file/final_data_PDB/val/val_pdb", output_dir="/mnt/data/large/subset2/val/"):
+    # start timer
+    start = time.time()
+    # prepare singltons to be skipped
+    with open("/mnt/data/large/prostt5_IDs/afdb50best_foldseek_clu_singleton.ids") as f:
+        singleton_ids = {line.strip().split("-")[1] for line in f if "-" in line}
+    # init models
+    plm, bio2token_model, foldtoken = init_models()
+    # data path
+    # input_dir = "tokenizer_benchmark/casps/casp14"
+
+    # save our data in lists
+    all_data = defaultdict(list)
+
+    # count basic statistics
+    statistics = defaultdict(int)
+    # init loop
+    if input_dir.endswith(".tar"):
+        current_offset = 0
+        for _ in range(CHUNKS_TO_LOAD):
+            current_offset = write_to_temp(input_dir, TMP_DIR, PDB_CHUNK_SIZE, offset=current_offset)
+            handle_full_dir(TMP_DIR, singleton_ids, statistics, plm, bio2token_model, foldtoken, all_data)
+            empty_dir(TMP_DIR)
+    else:
+        handle_full_dir(input_dir, singleton_ids, statistics, plm, bio2token_model, foldtoken, all_data)
 
     save_simple(all_data, output_dir)
     print(f"data was saved in {output_dir}")
-    print("skipped statistics:")
-    for key,value in skipped_statistics.items():
+    print("statistics:")
+    for key, value in statistics.items():
         print(f"{key}: {value}")
-    print(f"processed: {processed}")
     print(f"process took {time.time() - start}")
 
 

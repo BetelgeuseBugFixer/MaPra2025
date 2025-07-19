@@ -297,10 +297,11 @@ def uniform_dataframe(seq, res_types, atom_coords, atom_names, res_atom_start, r
     return structure, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered
 
 
-def pdb_2_dict(pdb_path: str, chains: List[str] = None):
+def pdb_2_dict(pdb_path, chains: List[str] = None,pdb_id=None):
     parser = PDBParser(QUIET=True)
     pdb_ids = []
-    pdb_id = os.path.basename(pdb_path).split(".")[0]
+    if pdb_id is None:
+        pdb_id = os.path.basename(pdb_path).split(".")[0]
     structure = parser.get_structure(pdb_id, pdb_path)
     seq = ""
     coords = []
