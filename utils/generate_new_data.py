@@ -13,7 +13,6 @@ import os
 import tarfile
 import psutil
 
-
 BACKBONE_ATOMS = ["N", "CA", "C", "O"]
 
 MAX_LENGTH = 800
@@ -22,7 +21,7 @@ TARGET_BATCH_SIZE = 128
 
 DEVICE = "cuda"
 
-NUM_OF_TARGET_PROTEINS=100_000
+NUMBER_OF_CHUNKS = 2
 CHUNK_SIZE = 50_000
 TMP_DIR = "/mnt/data/large/new_tmp"
 
@@ -137,10 +136,12 @@ def get_pdb_dict(pdb_path, pdb_file_name, singleton_ids, skipped_statistics):
         return None
     return pdb_dict  # valid dict
 
+
 def empty_dir(tmp_dir):
     if os.path.exists(tmp_dir):
         shutil.rmtree(tmp_dir)
     os.makedirs(tmp_dir, exist_ok=True)
+
 
 def handle_full_dir(full_dir, singleton_ids, statistics, plm, bio2token_model, foldtoken, all_data):
     pdb_dicts_batch = []
@@ -170,10 +171,11 @@ def handle_full_dir(full_dir, singleton_ids, statistics, plm, bio2token_model, f
         process_batch(pdb_dicts_batch, pdb_paths_batch, plm, bio2token_model, foldtoken, all_data)
         statistics["processed"] += current_batch_size
         print(
-            f"processed new batch! total processed:{statistics["processed"]} | time for batch: {time.time() - batch_start}")
+            f"processed new batch! total processed:{statistics["processed"]} | time for batch: {time.time() - batch_start:.2f}s")
+
 
 def write_to_temp(tar_path, tmp_dir, pdb_chunk):
-    writing_start=time.time()
+    writing_start = time.time()
     os.makedirs(tmp_dir, exist_ok=True)
     with tarfile.open(tar_path, "r") as tar:
         for member in pdb_chunk:
@@ -182,9 +184,11 @@ def write_to_temp(tar_path, tmp_dir, pdb_chunk):
     print(f"Extracted {len(pdb_chunk)} PDB files to {tmp_dir} in {time.time() - writing_start:.2f}s")
 
 
-def extract_chunks_from_tar(tar_path, tmp_dir, chunk_size, file_filter=lambda name: name.endswith('.pdb')):
+def extract_chunks_from_tar(tar_path, tmp_dir, chunk_size, number_of_chunks,
+                            file_filter=lambda name: name.endswith('.pdb')):
     os.makedirs(tmp_dir, exist_ok=True)
     chunk = []
+    yielded_chunks = 0
     with tarfile.open(tar_path, "r") as tar:
         for member in tar:
             if member.isfile() and file_filter(member.name):
@@ -192,11 +196,14 @@ def extract_chunks_from_tar(tar_path, tmp_dir, chunk_size, file_filter=lambda na
                 if len(chunk) == chunk_size:
                     tar.extractall(path=tmp_dir, members=chunk)
                     yield chunk
+                    yielded_chunks += 1
                     chunk = []
+                    # abort so we don't extract all
+                    if yielded_chunks >= number_of_chunks:
+                        return
         if chunk:
             tar.extractall(path=tmp_dir, members=chunk)
             yield chunk
-
 
 
 def log_memory_usage(prefix=""):
@@ -204,7 +211,6 @@ def log_memory_usage(prefix=""):
     mem_bytes = process.memory_info().rss
     mem_gb = mem_bytes / (1024 ** 3)
     print(f"{prefix} Memory Usage: {mem_gb:.3f} GB")
-
 
 
 def main(input_dir="/mnt/data/large/zip_file/final_data_PDB/val/val_pdb", output_dir="/mnt/data/large/subset2/val/"):
@@ -225,7 +231,8 @@ def main(input_dir="/mnt/data/large/zip_file/final_data_PDB/val/val_pdb", output
     # count basic statistics
     statistics = defaultdict(int)
     if input_dir.endswith(".tar"):
-        for _ in extract_chunks_from_tar(input_dir, TMP_DIR, CHUNK_SIZE):
+        empty_dir(TMP_DIR)
+        for _ in extract_chunks_from_tar(input_dir, TMP_DIR, CHUNK_SIZE, NUMBER_OF_CHUNKS):
             handle_full_dir(TMP_DIR, singleton_ids, statistics, plm, bio2token_model, foldtoken, all_data)
             empty_dir(TMP_DIR)
             log_memory_usage("completed next chunk")
@@ -242,4 +249,4 @@ def main(input_dir="/mnt/data/large/zip_file/final_data_PDB/val/val_pdb", output
 
 
 if __name__ == '__main__':
-    main("/mnt/data/large/zip_file/final_data_PDB/train/rostlab_subset.tar","/mnt/data/large/subset2/val/")
+    main("/mnt/data/large/zip_file/final_data_PDB/train/rostlab_subset.tar", "/mnt/data/large/subset2/val/")
