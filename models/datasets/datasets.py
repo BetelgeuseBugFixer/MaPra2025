@@ -29,7 +29,8 @@ def load_tokens(file_dir, token_type):
         case "bio2token":
             return load_pt(os.path.join(file_dir, "bio2tokens.pt"))
         case "foldtoken":
-            return load_pt(os.path.join(file_dir, "foldtokens.pt"))
+            #TODO fix typo
+            return load_pt(os.path.join(file_dir, "fold_tokens.pt"))
         case "encoding":
             return load_pt(os.path.join(file_dir, "encodings.pt"))
         case _:
@@ -62,12 +63,9 @@ class TokenSet(Dataset):
 
 class StructureAndTokenSet(Dataset):
     def __init__(self, file_dir, token_type, precomputed_embeddings=False):
-        self.tokens = load_tokens(file_dir, token_type)
-        print("loaded tokens")
-        self.structures = load_pt(os.path.join(file_dir, "structures.pt"))
-        print("loaded structures")
         self.model_in = load_model_in(file_dir, precomputed_embeddings)
-        print("loaded model in")
+        self.tokens = load_tokens(file_dir, token_type)
+        self.structures = load_pt(os.path.join(file_dir, "structures.pt"))
 
     def __len__(self):
         return len(self.model_in)
