@@ -604,8 +604,8 @@ if __name__ == '__main__':
             protein_predictions, logits, atom_mask = model.forward_from_embedding_foldtoken(emb)
             # get loss and score
             B, L, _ = protein_predictions.shape
-            is_dna = torch.zeros((B, L * 4), dtype=torch.bool, device=device)
-            is_rna = torch.zeros((B, L * 4), dtype=torch.bool, device=device)
+            is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
+            is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
             lddt_loss = lddt_loss_module(protein_predictions, structure, is_dna, is_rna, mask)
             print(lddt_loss.item())
             break
