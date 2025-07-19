@@ -588,7 +588,7 @@ def test_new_model():
 if __name__ == '__main__':
     device = "cuda"
     model = TFold([1000], device=device).to(device)
-    dataset = StructureAndTokenSet("data/large/val", "bio2token", precomputed_embeddings=True)
+    dataset = StructureAndTokenSet("/mnt/data/large/subset2/val", "bio2token", precomputed_embeddings=True)
     loader = DataLoader(dataset, batch_size=2, collate_fn=collate_emb_struc_tok_batch)
     lddt_loss_module = SmoothLDDTLoss().to(device)
     with torch.no_grad():
