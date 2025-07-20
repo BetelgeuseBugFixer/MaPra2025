@@ -619,7 +619,7 @@ if __name__ == '__main__':
     device = "cuda"
     dataset = StructureAndTokenSet("/mnt/data/large/subset2/val", "foldtoken", precomputed_embeddings=False)
     loader = DataLoader(dataset, batch_size=2, collate_fn=collate_seq_struc_tok_batch)
-    tfold=TFold([1000], device=device, bio2token=False)
+    tfold=TFold([1000], device=device, bio2token=False).to(device)
     i=0
     with torch.no_grad():
         for seqs, structures, tokens in loader:
@@ -639,6 +639,7 @@ if __name__ == '__main__':
             vq_codes_cat = torch.cat(vq_codes, dim=0)
             batch_ids_cat = torch.cat(batch_ids, dim=0)
             chain_encodings_cat = torch.cat(chain_encodings, 0)
+            print_tensor(vq_codes_cat, "vq_codes_cat")
             # decode proteins
             proteins = tfold.decoder.decode(vq_codes_cat, chain_encodings_cat, batch_ids_cat)
             # return proteins and tokens
