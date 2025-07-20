@@ -622,7 +622,7 @@ if __name__ == '__main__':
     tfold=TFold([1000], device=device, bio2token=False).to(device)
     i=0
     with torch.no_grad():
-        for seqs, structures, tokens in loader:
+        for seqs, tokens, structures in loader:
             structure, tokens = structures.to(device), tokens.to(device)
             true_lengths=[len(seq) for seq in seqs]
 
