@@ -44,6 +44,7 @@ def parse_args():
     # end to end exclusive setting
     parser.add_argument("--lora_plm", action="store_true", help=" use lora to finetune the plm")
     parser.add_argument("--lora_decoder", action="store_true", help=" use lora to finetune the plm")
+    parser.add_argument("--bio2token",action="store_true", help="use bio2token instead of foldtoken in tfold")
 
     # cnn exclusive setting
     parser.add_argument("--codebook_size", type=int, default=1024,
@@ -72,7 +73,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def create_tfold_data_loaders(data_dir, batch_size, fine_tune_plm, bio2token=False, final_model=False):
+def create_tfold_data_loaders(data_dir, batch_size,val_batch_size, fine_tune_plm, bio2token=False, final_model=False):
     # train_dir = os.path.join(data_dir, "train")
     train_dir = os.path.join(data_dir, "val")
     val_dir = os.path.join(data_dir, "val")
@@ -97,7 +98,7 @@ def create_tfold_data_loaders(data_dir, batch_size, fine_tune_plm, bio2token=Fal
 
         return (
             DataLoader(train_set, batch_size=batch_size, collate_fn=train_collate_function),
-            DataLoader(val_set, batch_size=batch_size, collate_fn=val_collate_function)
+            DataLoader(val_set, batch_size=val_batch_size, collate_fn=val_collate_function)
         )
     #
     #         train_dataset = SeqTokSet(train_json)
@@ -283,7 +284,8 @@ def get_dataset(args):
             emb_source, args.tok_jsonl, train_ids, val_ids, test_ids, args.batch, use_file
         )
     elif args.model == "t_fold" or args.model == "final":
-        return create_tfold_data_loaders(args.data_dir, args.batch, args.val_batch, args.lora_plm, args.device)
+        final_model=args.model == "final"
+        return create_tfold_data_loaders(args.data_dir, args.batch, args.val_batch, args.lora_plm,args.bio2token, final_model)
 
 
 def print_epoch_end(score_dict, epoch, start):
