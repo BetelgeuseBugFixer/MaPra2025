@@ -20,13 +20,14 @@ class FinalModel(nn.Module):
         self.device = device
         self.plm = ProtT5(use_lora=plm_lora, device=device).to(self.device)
         embeddings_size = 1024
-        self.decoder = Bio2tokenDecoder(device=device).to(device)
+        self.decoder = Bio2tokenDecoder(device=device,use_lora=decoder_lora).to(device)
         codebook_size = 128
         self.cnn = ResidueTokenCNN(embeddings_size, hidden, codebook_size, kernel_sizes, dropout,
                                    bio2token=True).to(device)
 
+        self.plm_lora=plm_lora
         # weight of lddt in comparision to vector loss
-        self.alpha = 1.5
+        self.alpha = 1
 
         self.args = {
             "hidden": hidden,
