@@ -103,7 +103,7 @@ class FinalModel(nn.Module):
         else:
             forward = self.forward_from_embedding
         for model_in, encoding, structure in loader:
-            model_in, structure = model_in.to(device), structure.to(device)
+            model_in,encoding, structure = model_in.to(device),encoding.to(device), structure.to(device)
             predictions, final_mask, cnn_out = forward(model_in)
             # get loss:
             # standard loss
@@ -322,6 +322,7 @@ class TFold(nn.Module):
         with torch.no_grad():
             for model_in, tokens, structure in loader:
                 # get predictions
+                model_in = model_in.to(device)
                 tokens = tokens.to(device)
                 mask = (tokens != PAD_LABEL)
                 protein_predictions, logits, atom_mask = forward_method(model_in)
