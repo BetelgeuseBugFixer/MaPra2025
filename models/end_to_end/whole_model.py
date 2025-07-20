@@ -337,7 +337,7 @@ class TFold(nn.Module):
                 B, L, _ = protein_predictions.shape
                 is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
                 is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
-                lddt_loss = self.lddt_loss(protein_predictions, structure, is_dna, is_rna, mask)
+                lddt_loss = self.lddt_loss(protein_predictions, structure, is_dna, is_rna, atom_mask)
                 total_lddt += lddt_loss.detach().item()
                 total_samples += bsz
                 # empty cache
