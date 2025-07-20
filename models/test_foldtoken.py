@@ -587,9 +587,9 @@ def test_new_model():
 
 if __name__ == '__main__':
     device = "cuda"
-    model = TFold([1000], device=device).to(device)
+    model = TFold([1000], device=device,bio2token=True).to(device)
     print("init model done")
-    dataset = StructureAndTokenSet("/mnt/data/large/subset2/val", "foldtoken", precomputed_embeddings=True)
+    dataset = StructureAndTokenSet("/mnt/data/large/subset2/val", "bio2token", precomputed_embeddings=True)
     print("loaded dataset")
     loader = DataLoader(dataset, batch_size=2, collate_fn=collate_emb_struc_tok_batch)
     print("loaded dataset")
@@ -601,7 +601,7 @@ if __name__ == '__main__':
             tokens = tokens.to(device)
             structure = structure.to(device)
             mask = (tokens != PAD_LABEL)
-            protein_predictions, logits, atom_mask = model.forward_from_embedding_foldtoken(emb)
+            protein_predictions, logits, atom_mask = model.forward_from_embedding(emb)
             # get loss and score
             B, L, _ = protein_predictions.shape
             is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
