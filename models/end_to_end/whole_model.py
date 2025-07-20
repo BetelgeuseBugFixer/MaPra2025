@@ -7,7 +7,7 @@ from torch import nn
 
 from models.bio2token.decoder import Bio2tokenDecoder
 from models.foldtoken_decoder.foldtoken import FoldToken
-from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores, SmoothLDDTLoss
+from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores, SmoothLDDTLoss, masked_mse_loss
 from models.prot_t5.prot_t5 import ProtT5
 from models.datasets.datasets import PAD_LABEL
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
@@ -24,6 +24,9 @@ class FinalModel(nn.Module):
         codebook_size = 128
         self.cnn = ResidueTokenCNN(embeddings_size, hidden, codebook_size, kernel_sizes, dropout,
                                    bio2token=True).to(device)
+
+        # weight of lddt in comparision to vector loss
+        self.alpha = 1.5
 
         self.args = {
             "hidden": hidden,
@@ -83,14 +86,14 @@ class FinalModel(nn.Module):
             eos_mask[i, :length * 4] = False
         x = self.decoder.decoder.decoder(cnn_out, eos_mask)
         # create mask for all relevant positions
-        final_mask=~eos_mask
-        return x,final_mask,cnn_out
+        final_mask = ~eos_mask
+        return x, final_mask, cnn_out
 
     def run_epoch(self, loader, optimizer=None, device="cpu"):
-        is_train=optimizer is not None
+        is_train = optimizer is not None
         self.train() if is_train else self.eval()
         # init statistics
-        total_loss = total_samples = 0
+        total_loss = total_lddt_loss = total_encoding_loss = total_samples = 0
 
         torch.set_grad_enabled(is_train)
         lddt_loss_module = SmoothLDDTLoss().to(device)
@@ -99,33 +102,37 @@ class FinalModel(nn.Module):
             forward = self.forward
         else:
             forward = self.forward_from_embedding
-        for model_in, structure in loader:
+        for model_in, encoding, structure in loader:
             model_in, structure = model_in.to(device), structure.to(device)
-            predictions,final_mask, cnn_out = forward(model_in)
-            #get loss:
+            predictions, final_mask, cnn_out = forward(model_in)
+            # get loss:
+            # standard loss
+            encoding_loss = masked_mse_loss(cnn_out, encoding, final_mask)
             B, L, _ = predictions.shape
             is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
             is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
-            loss = lddt_loss_module(predictions, structure, is_dna, is_rna, final_mask)
+            lddt_loss = lddt_loss_module(predictions, structure, is_dna, is_rna, final_mask)
+            loss = self.alpha * lddt_loss + encoding_loss
             if is_train:
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
 
-
             total_loss += loss.detach().item() * B
+            total_lddt_loss += lddt_loss.detach().item() * B
+            total_encoding_loss += encoding_loss.detach().item() * B
             total_samples += B
-            del loss, predictions, final_mask
+            del loss, predictions, final_mask, lddt_loss, encoding_loss
 
         set_prefix = ""
         if not is_train:
             set_prefix = "val_"
         score_dict = {
             f"{set_prefix}loss": total_loss / total_samples,
+            f"{set_prefix}lddt_loss": total_lddt_loss / total_samples,
+            f"{set_prefix}encoding_loss": total_encoding_loss / total_samples,
         }
         return score_dict
-
-
 
 
 class TFold(nn.Module):
@@ -219,8 +226,7 @@ class TFold(nn.Module):
         x = self.decoder(x, eos_mask=eos_mask)
         return x, logits, ~eos_mask
 
-
-    def reshape_proteins_to_structure_batch(self,protein_predictions):
+    def reshape_proteins_to_structure_batch(self, protein_predictions):
         # extract coordinates
         X_list = []
         for i, protein_prediction in enumerate(protein_predictions):
@@ -241,7 +247,6 @@ class TFold(nn.Module):
             L = x.shape[0]
             mask[i, :L * 4] = True
         return X_batch, mask
-
 
     def forward_from_embedding_foldtoken(self, x, true_lengths=None):
         if true_lengths is None:
@@ -267,8 +272,8 @@ class TFold(nn.Module):
         # decode proteins
         proteins = self.decoder.decode(vq_codes_cat, chain_encodings_cat, batch_ids_cat)
         # return proteins and tokens
-        structure_batch, relevant_mask=self.reshape_proteins_to_structure_batch(proteins)
-        return structure_batch, x,relevant_mask
+        structure_batch, relevant_mask = self.reshape_proteins_to_structure_batch(proteins)
+        return structure_batch, x, relevant_mask
 
     def get_cnn_out_only(self, seqs: List[str]):
         # prepare seqs
@@ -320,13 +325,13 @@ class TFold(nn.Module):
                 mask = (tokens != PAD_LABEL)
                 protein_predictions, logits, atom_mask = forward_method(model_in)
                 # get loss and score
-                #loss on tokens
+                # loss on tokens
                 loss = calc_token_loss(self.cnn.criterion, logits, tokens)
                 bsz = tokens.size(0)
                 total_loss += loss.detach().item() * bsz
                 total_acc += _masked_accuracy(logits, tokens, mask) * bsz
                 # lddt loss
-                B,L,_=protein_predictions.shape
+                B, L, _ = protein_predictions.shape
                 is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
                 is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
                 lddt_loss = self.lddt_loss(protein_predictions, structure, is_dna, is_rna, mask)
