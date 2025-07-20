@@ -5,20 +5,16 @@ import time
 
 import wandb
 import torch
-import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
 
-from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 from models.bio2token.data.utils.utils import pad_and_stack_tensors
-from models.model_utils import _masked_accuracy
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
-from models.datasets.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir, PAD_LABEL, StructureAndTokenSet, \
-    StructureSet, TokenSet
+from models.datasets.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir, PAD_LABEL, StructureAndTokenSet, TokenSet
 from models.end_to_end.whole_model import TFold, FinalModel
-import torch.nn.functional as F
+
 
 
 # ------------------------------------------------------------

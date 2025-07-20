@@ -8,7 +8,7 @@
 #SBATCH --time=1:00:00
 
 # command to execute and track it
-# sbatch train_tfold.sbatch &  tail -f slurm_out/train_final_std_output.out slurm_out/rain_final_std_err.err
+# sbatch train_tfold.sbatch &  tail -f slurm_out/train_final_std_output.out slurm_out/train_final_std_err.err
 source ~/.bashrc
 source /opt/miniconda/etc/profile.d/conda.sh
 conda activate /opt/envs/f_token
