@@ -653,6 +653,9 @@ if __name__ == '__main__':
             print_tensor(structure_batch, "structure_batch")
             print_tensor(structure, "structure")
             print_tensor(relevant_mask, "mask")
+            print("test")
+            print(tfold.lddt_loss(structure, structure, is_dna, is_rna, relevant_mask).item())
+            print(tfold.lddt_loss(structure_batch,structure_batch, is_dna, is_rna, relevant_mask).item())
             if i>=0:
                 break
             i+=1
