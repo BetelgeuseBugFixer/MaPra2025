@@ -290,6 +290,7 @@ class TFold(nn.Module):
         total_loss = total_acc = total_samples = 0
         # run through model
         for model_in, tokens in loader:
+            model_in.to(device)
             tokens = tokens.to(device)
             mask = (tokens != PAD_LABEL)
             logits = forward_method(model_in)
