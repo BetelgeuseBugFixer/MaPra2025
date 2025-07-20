@@ -656,10 +656,13 @@ if __name__ == '__main__':
             print("test")
             print(tfold.lddt_loss(structure, structure, is_dna, is_rna,relevant_mask).item())
             print(tfold.lddt_loss(structure_batch,structure_batch, is_dna, is_rna,relevant_mask).item())
-            print_tensor(structure_batch,"structure")
-            print_tensor(is_dna,"dna")
-            print_tensor(is_rna,"rna")
-            print_tensor(relevant_mask,"mask")
+            print("should not be 0")
+            print(structure[relevant_mask])
+            print((structure[~relevant_mask] != 0).all())
+            print("should be 0")
+            print(structure[~relevant_mask])
+            print((structure[~relevant_mask] == 0).all())
+
             if i>=0:
                 break
             i+=1
