@@ -322,6 +322,7 @@ class TFold(nn.Module):
         with torch.no_grad():
             for model_in, tokens, structure in loader:
                 # get predictions
+                structure = structure.to(device)
                 model_in = model_in.to(device)
                 tokens = tokens.to(device)
                 mask = (tokens != PAD_LABEL)
