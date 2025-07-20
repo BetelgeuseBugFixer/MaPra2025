@@ -16,7 +16,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from models.bio2token.data.utils.tokens import PAD_CLASS
-from models.bio2token.decoder import Bio2tokenDecoder, load_bio2token_decoder_and_quantizer
+from models.bio2token.decoder import Bio2tokenDecoder, load_bio2token_decoder_and_quantizer, load_bio2token_encoder
 from models.bio2token.losses.rmsd import RMSDConfig, RMSD
 from models.bio2token.models.autoencoder import AutoencoderConfig, Autoencoder
 from models.bio2token.utils.configs import utilsyaml_to_dict, pi_instantiate
