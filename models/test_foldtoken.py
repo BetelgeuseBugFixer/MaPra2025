@@ -34,7 +34,7 @@ from models.end_to_end.whole_model import TFold, FinalModel
 from transformers import T5EncoderModel, T5Tokenizer
 from hydra_zen import load_from_yaml, builds, instantiate
 
-from models.train import collate_emb_struc_tok_batch
+from models.train import collate_emb_struc_tok_batch, collate_seq_struc_tok_batch
 
 
 def load_prot_from_pdb(pdb_file):
@@ -618,7 +618,7 @@ def test_foldtoken_model():
 if __name__ == '__main__':
     device = "cuda"
     dataset = StructureAndTokenSet("/mnt/data/large/subset2/val", "foldtoken", precomputed_embeddings=False)
-    loader = DataLoader(dataset, batch_size=2, collate_fn=collate_emb_struc_tok_batch)
+    loader = DataLoader(dataset, batch_size=2, collate_fn=collate_seq_struc_tok_batch())
     tfold=TFold([1000], device=device, bio2token=False)
     i=0
     with torch.no_grad():
@@ -626,7 +626,6 @@ if __name__ == '__main__':
             structure, tokens = structures.to(device), tokens.to(device)
             true_lengths=[len(seq) for seq in seqs]
 
-            true_lengths=[]
             vq_codes = []
             batch_ids = []
             chain_encodings = []
