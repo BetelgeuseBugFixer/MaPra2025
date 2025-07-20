@@ -618,7 +618,7 @@ def test_foldtoken_model():
 if __name__ == '__main__':
     device = "cuda"
     dataset = StructureAndTokenSet("/mnt/data/large/subset2/val", "foldtoken", precomputed_embeddings=False)
-    loader = DataLoader(dataset, batch_size=2, collate_fn=collate_seq_struc_tok_batch())
+    loader = DataLoader(dataset, batch_size=2, collate_fn=collate_seq_struc_tok_batch)
     tfold=TFold([1000], device=device, bio2token=False)
     i=0
     with torch.no_grad():
