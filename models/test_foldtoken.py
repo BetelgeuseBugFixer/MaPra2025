@@ -648,14 +648,14 @@ if __name__ == '__main__':
             B, L, _ = structure_batch.shape
             is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
             is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
-            lddt_loss = tfold.lddt_loss(structure_batch, structure, is_dna, is_rna, relevant_mask)
+            lddt_loss = tfold.lddt_loss(structure_batch, structure, is_dna, is_rna)
             print(lddt_loss.item())
             print_tensor(structure_batch, "structure_batch")
             print_tensor(structure, "structure")
             print_tensor(relevant_mask, "mask")
             print("test")
-            print(tfold.lddt_loss(structure, structure, is_dna, is_rna, relevant_mask).item())
-            print(tfold.lddt_loss(structure_batch,structure_batch, is_dna, is_rna, relevant_mask).item())
+            print(tfold.lddt_loss(structure, structure, is_dna, is_rna).item())
+            print(tfold.lddt_loss(structure_batch,structure_batch, is_dna, is_rna).item())
             if i>=0:
                 break
             i+=1

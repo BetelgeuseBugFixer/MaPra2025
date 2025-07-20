@@ -192,6 +192,7 @@ class SmoothLDDTLoss(Module):
 
         return 1. - lddt.mean()
 
+
 # thanks, David :)
 def print_trainable_parameters(model):
     """
