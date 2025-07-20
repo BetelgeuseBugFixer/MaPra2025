@@ -650,7 +650,10 @@ if __name__ == '__main__':
             is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
             lddt_loss = tfold.lddt_loss(structure_batch, structure, is_dna, is_rna, relevant_mask)
             print(lddt_loss.item())
-            if i>10:
+            print_tensor(structure_batch, "structure_batch")
+            print_tensor(structure, "structure")
+            print_tensor(relevant_mask, "mask")
+            if i>=0:
                 break
             i+=1
     print("done")
