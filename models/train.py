@@ -77,7 +77,8 @@ def parse_args():
 
 
 def create_tfold_data_loaders(data_dir, batch_size, fine_tune_plm, bio2token=False, final_model=False):
-    train_dir = os.path.join(data_dir, "train")
+    # train_dir = os.path.join(data_dir, "train")
+    train_dir = os.path.join(data_dir, "val")
     val_dir = os.path.join(data_dir, "val")
 
     if final_model:
@@ -288,11 +289,12 @@ def get_dataset(args):
     elif args.model == "t_fold" or args.model == "final":
         return create_tfold_data_loaders(args.data_dir, args.batch, args.val_batch, args.lora_plm, args.device)
 
+
 def print_epoch_end(score_dict, epoch, start):
     parts = [f"Epoch {epoch:02d} | duration {time.time() - start:.2f}s"]
 
     # a defined order of keys, beceause it is nice
-    key_order = ["loss", "acc", "mse", "val_loss", "val_acc", "val_lddt","val_mse"]
+    key_order = ["loss", "acc", "mse", "val_loss", "val_acc", "val_lddt", "val_mse"]
 
     # add known values
     for key in key_order:
@@ -305,7 +307,6 @@ def print_epoch_end(score_dict, epoch, start):
             parts.append(f"{key}: {value}")
 
     return " | " + " | ".join(parts)
-
 
 
 def main(args):
