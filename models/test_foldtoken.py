@@ -659,7 +659,7 @@ if __name__ == '__main__':
             print_tensor(structure_batch,"structure")
             print_tensor(is_dna,"dna")
             print_tensor(is_rna,"rna")
-            p
+            print_tensor(relevant_mask,"mask")
             if i>=0:
                 break
             i+=1
