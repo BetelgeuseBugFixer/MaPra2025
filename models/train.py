@@ -74,8 +74,7 @@ def parse_args():
 
 
 def create_tfold_data_loaders(data_dir, batch_size, val_batch_size, fine_tune_plm, bio2token=False, final_model=False):
-    # train_dir = os.path.join(data_dir, "train")
-    train_dir = os.path.join(data_dir, "val")
+    train_dir = os.path.join(data_dir, "train")
     val_dir = os.path.join(data_dir, "val")
 
     if final_model:
