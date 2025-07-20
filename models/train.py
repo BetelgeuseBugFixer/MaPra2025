@@ -12,9 +12,9 @@ import matplotlib.pyplot as plt
 
 from models.bio2token.data.utils.utils import pad_and_stack_tensors
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
-from models.datasets.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir, PAD_LABEL, StructureAndTokenSet, TokenSet
+from models.datasets.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir, PAD_LABEL, StructureAndTokenSet, \
+    TokenSet
 from models.end_to_end.whole_model import TFold, FinalModel
-
 
 
 # ------------------------------------------------------------
@@ -44,7 +44,7 @@ def parse_args():
     # end to end exclusive setting
     parser.add_argument("--lora_plm", action="store_true", help=" use lora to finetune the plm")
     parser.add_argument("--lora_decoder", action="store_true", help=" use lora to finetune the plm")
-    parser.add_argument("--bio2token",action="store_true", help="use bio2token instead of foldtoken in tfold")
+    parser.add_argument("--bio2token", action="store_true", help="use bio2token instead of foldtoken in tfold")
 
     # cnn exclusive setting
     parser.add_argument("--codebook_size", type=int, default=1024,
@@ -73,9 +73,8 @@ def parse_args():
     return parser.parse_args()
 
 
-def create_tfold_data_loaders(data_dir, batch_size,val_batch_size, fine_tune_plm, bio2token=False, final_model=False):
-    # train_dir = os.path.join(data_dir, "train")
-    train_dir = os.path.join(data_dir, "val")
+def create_tfold_data_loaders(data_dir, batch_size, val_batch_size, fine_tune_plm, bio2token=False, final_model=False):
+    train_dir = os.path.join(data_dir, "train")
     val_dir = os.path.join(data_dir, "val")
 
     if final_model:
@@ -100,22 +99,6 @@ def create_tfold_data_loaders(data_dir, batch_size,val_batch_size, fine_tune_plm
             DataLoader(train_set, batch_size=batch_size, collate_fn=train_collate_function),
             DataLoader(val_set, batch_size=val_batch_size, collate_fn=val_collate_function)
         )
-    #
-    #         train_dataset = SeqTokSet(train_json)
-    #         val_dataset = SeqStrucTokSet(val_json, val_pkl)
-    #         return (
-    #             DataLoader(train_dataset, batch_size=batch_size, collate_fn=collate_seq_tok_batch),
-    #             DataLoader(val_dataset, batch_size=batch_size, collate_fn=collate_seq_struc_tok_batch)
-    #         )
-    #     else:
-    #         # set batch size for plm
-    #         train_dataset = EmbTokSet(train_json, batch_size=64, device=device)
-    #         val_dataset = EmbStrucTokSet(val_json, val_pkl, batch_size=64, device=device)
-    #         return (
-    #             DataLoader(train_dataset, batch_size=batch_size, collate_fn=pad_collate),
-    #             # use different batch size to account for decoder
-    #             DataLoader(val_dataset, batch_size=val_batchsize, collate_fn=collate_emb_struc_tok_batch)
-    #         )
 
 
 def create_cnn_data_loaders(emb_source, tok_jsonl, train_ids, val_ids, test_ids, batch_size, use_single_file):
@@ -284,14 +267,15 @@ def get_dataset(args):
             emb_source, args.tok_jsonl, train_ids, val_ids, test_ids, args.batch, use_file
         )
     elif args.model == "t_fold" or args.model == "final":
-        final_model=args.model == "final"
-        return create_tfold_data_loaders(args.data_dir, args.batch, args.val_batch, args.lora_plm,args.bio2token, final_model)
+        final_model = args.model == "final"
+        return create_tfold_data_loaders(args.data_dir, args.batch, args.val_batch, args.lora_plm, args.bio2token,
+                                         final_model)
 
 
 def print_epoch_end(score_dict, epoch, start):
     parts = [f"Epoch {epoch:02d} | duration {time.time() - start:.2f}s"]
 
-    # a defined order of keys, beceause it is nice
+    # a defined order of keys, because it is nice
     key_order = ["loss", "acc", "mse", "val_loss", "val_acc", "val_lddt", "val_mse"]
 
     # add known values
@@ -304,7 +288,7 @@ def print_epoch_end(score_dict, epoch, start):
         if key not in key_order and value is not None:
             parts.append(f"{key}: {value}")
 
-    return " | " + " | ".join(parts)
+    print(" | " + " | ".join(parts))
 
 
 def main(args):
