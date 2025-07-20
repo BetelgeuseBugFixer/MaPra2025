@@ -21,7 +21,7 @@ from models.bio2token.losses.rmsd import RMSDConfig, RMSD
 from models.bio2token.models.autoencoder import AutoencoderConfig, Autoencoder
 from models.bio2token.utils.configs import utilsyaml_to_dict, pi_instantiate
 from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores, SmoothLDDTLoss, \
-    batch_pdbs_for_bio2token, print_trainable_parameters
+    batch_pdbs_for_bio2token, print_trainable_parameters, masked_mse_loss
 from models.prot_t5.prot_t5 import ProtT5
 from models.datasets.datasets import PAD_LABEL, StructureAndTokenSet
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
@@ -538,9 +538,9 @@ def test_new_model():
     device = "cuda"
     model = FinalModel([16_384, 8_192, 2_048], device=device, kernel_sizes=[21, 3, 3], dropout=0.0, decoder_lora=True)
     # input:
-    # test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
-    #              "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
-    test_pdbs = ["tokenizer_benchmark/casps/casp15_backbone/T1129s2-D1.pdb"]
+    test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
+                  "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
+    #test_pdbs = ["tokenizer_benchmark/casps/casp15_backbone/T1129s2-D1.pdb"]
 
     seqs = [get_seq_from_pdb(pdb) for pdb in test_pdbs]
     true_lengths = [len(seq) for seq in seqs]
@@ -560,7 +560,7 @@ def test_new_model():
     for epoch in range(1001):
         optimizer.zero_grad()
         predictions, final_mask, cnn_out = model(seqs)
-        vector_loss = F.mse_loss(cnn_out, gt_vector)
+        vector_loss = masked_mse_loss(cnn_out, gt_vector,final_mask)
         # if epoch==0 or epoch==100:
         #     print_tensor(cnn_out,"predictions")
         #     print("***"*11)
@@ -585,12 +585,11 @@ def test_new_model():
     print("done")
 
 
-if __name__ == '__main__':
+def test_foldtoken_model():
     device = "cuda"
     model = TFold([1000], device=device,bio2token=True).to(device)
     print("init model done")
     dataset = StructureAndTokenSet("/mnt/data/large/subset2/val", "bio2token", precomputed_embeddings=True)
-    print("loaded dataset")
     loader = DataLoader(dataset, batch_size=2, collate_fn=collate_emb_struc_tok_batch)
     print("loaded dataset")
     lddt_loss_module = SmoothLDDTLoss().to(device)
@@ -613,3 +612,6 @@ if __name__ == '__main__':
             lddt_loss = lddt_loss_module(protein_predictions, structure, is_dna, is_rna, atom_mask)
             print(lddt_loss.item())
             break
+
+if __name__ == '__main__':
+    test_new_model()

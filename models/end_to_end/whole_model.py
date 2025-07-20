@@ -101,7 +101,7 @@ class FinalModel(nn.Module):
             forward = self.forward_from_embedding
         for model_in, structure in loader:
             model_in, structure = model_in.to(device), structure.to(device)
-            predictions,final_mask = forward(model_in)
+            predictions,final_mask, cnn_out = forward(model_in)
             #get loss:
             B, L, _ = predictions.shape
             is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)

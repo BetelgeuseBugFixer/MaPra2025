@@ -24,6 +24,22 @@ def calc_lddt_scores(protein_predictions, ref_protein):
     return lddt_scores
 
 
+def masked_mse_loss(prediction: torch.Tensor,
+                    target: torch.Tensor,
+                    mask: torch.Tensor) -> torch.Tensor:
+    # (B, L, D)
+    squared_error = (prediction - target) ** 2
+    # (B, L)
+    mse_per_position = squared_error.mean(dim=-1)
+
+    # Maske als float für Gewichtung
+    weight = mask.float()
+
+    # Gewichteter Mittelwert der Fehler
+    masked_loss = (mse_per_position * weight).sum() / weight.sum()
+
+    return masked_loss
+
 def calc_token_loss(criterion, tokens_predictions, tokens_reference):
     return criterion(tokens_predictions.transpose(1, 2), tokens_reference)
 
