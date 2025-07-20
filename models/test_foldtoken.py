@@ -14,6 +14,7 @@ from torch import nn
 from torch.nn.utils.rnn import pad_sequence
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
+from torch.xpu import device
 
 from models.bio2token.data.utils.tokens import PAD_CLASS
 from models.bio2token.decoder import Bio2tokenDecoder, load_bio2token_decoder_and_quantizer, load_bio2token_encoder
@@ -539,8 +540,8 @@ def test_new_model():
     model = FinalModel([16_384, 8_192, 2_048], device=device, kernel_sizes=[21, 3, 3], dropout=0.0, decoder_lora=True)
     # input:
     test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
-                  "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
-    #test_pdbs = ["tokenizer_benchmark/casps/casp15_backbone/T1129s2-D1.pdb"]
+                 "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
+    # test_pdbs = ["tokenizer_benchmark/casps/casp15_backbone/T1129s2-D1.pdb"]
 
     seqs = [get_seq_from_pdb(pdb) for pdb in test_pdbs]
     true_lengths = [len(seq) for seq in seqs]
@@ -560,7 +561,7 @@ def test_new_model():
     for epoch in range(1001):
         optimizer.zero_grad()
         predictions, final_mask, cnn_out = model(seqs)
-        vector_loss = masked_mse_loss(cnn_out, gt_vector,final_mask)
+        vector_loss = masked_mse_loss(cnn_out, gt_vector, final_mask)
         # if epoch==0 or epoch==100:
         #     print_tensor(cnn_out,"predictions")
         #     print("***"*11)
@@ -587,7 +588,7 @@ def test_new_model():
 
 def test_foldtoken_model():
     device = "cuda"
-    model = TFold([1000], device=device,bio2token=True).to(device)
+    model = TFold([1000], device=device, bio2token=True).to(device)
     print("init model done")
     dataset = StructureAndTokenSet("/mnt/data/large/subset2/val", "bio2token", precomputed_embeddings=True)
     loader = DataLoader(dataset, batch_size=2, collate_fn=collate_emb_struc_tok_batch)
@@ -608,10 +609,49 @@ def test_foldtoken_model():
             print_tensor(protein_predictions, "protein_predictions")
             print_tensor(structure, "structure")
             print_tensor(atom_mask, "mask")
-            print_tensor(is_dna,"dna")
+            print_tensor(is_dna, "dna")
             lddt_loss = lddt_loss_module(protein_predictions, structure, is_dna, is_rna, atom_mask)
             print(lddt_loss.item())
             break
 
+
 if __name__ == '__main__':
-    test_new_model()
+    device = "cuda"
+    dataset = StructureAndTokenSet("/mnt/data/large/subset2/val", "foldtoken", precomputed_embeddings=False)
+    loader = DataLoader(dataset, batch_size=2, collate_fn=collate_emb_struc_tok_batch)
+    tfold=TFold([1000], device=device, bio2token=False)
+    i=0
+    with torch.no_grad():
+        for seqs, structures, tokens in loader:
+            structure, tokens = structures.to(device), tokens.to(device)
+            true_lengths=[len(seq) for seq in seqs]
+
+            true_lengths=[]
+            vq_codes = []
+            batch_ids = []
+            chain_encodings = []
+            for i, protein_token in enumerate(tokens):
+                L = true_lengths[i]
+                protein_token_without_padding = protein_token[:L]
+                vq_codes.append(protein_token_without_padding)
+                batch_ids.append(torch.full((L,), i, dtype=torch.long, device=protein_token.device))
+                chain_encodings.append(torch.full((L,), 1, dtype=torch.long, device=protein_token.device))
+            # reshape
+            vq_codes_cat = torch.cat(vq_codes, dim=0)
+            batch_ids_cat = torch.cat(batch_ids, dim=0)
+            chain_encodings_cat = torch.cat(chain_encodings, 0)
+            # decode proteins
+            proteins = tfold.decoder.decode(vq_codes_cat, chain_encodings_cat, batch_ids_cat)
+            # return proteins and tokens
+            structure_batch, relevant_mask = tfold.reshape_proteins_to_structure_batch(proteins)
+            # lddt loss
+            B, L, _ = structure_batch.shape
+            is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
+            is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
+            lddt_loss = tfold.lddt_loss(structure_batch, structure, is_dna, is_rna, relevant_mask)
+            print(lddt_loss.item())
+            if i>10:
+                break
+            i+=1
+    print("done")
+
