@@ -6,7 +6,7 @@
 #SBATCH --container-image="/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/container/final_final.sqsh"
 #SBATCH --container-mounts=/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/data:/mnt/data,/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/models:/mnt/models
 #SBATCH --time=14:00:00
-#SBATCH --mem=250G
+#SBATCH --mem=200G
 
 # command to execute and track it
 # sbatch train_final.sbatch &  tail -f slurm_out/train_final_std_output.out slurm_out/train_final_std_err.err
@@ -16,5 +16,5 @@ conda activate /opt/envs/f_token
 cd ~/MaPra2025
 export PYTHONPATH=~/MaPra2025:$PYTHONPATH
 echo "Starting training script..."
-python -u models/train.py --model final --lora_plm --lora_decoder --hidden 16384 8192 2048 --kernel 21 3 3  --data_dir /mnt/data/large/subset2/ --epochs 14 --out_folder /mnt/models --batch 20 --patience 10
+python -u models/train.py --model final --lora_plm --lora_decoder --hidden 16384 8192 2048 --kernel 21 3 3  --data_dir /mnt/data/large/subset2/ --epochs 14 --out_folder /mnt/models --batch 16 --patience 10
 echo "Training script finished."
