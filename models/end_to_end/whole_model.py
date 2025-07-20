@@ -20,12 +20,12 @@ class FinalModel(nn.Module):
         self.device = device
         self.plm = ProtT5(use_lora=plm_lora, device=device).to(self.device)
         embeddings_size = 1024
-        self.decoder = Bio2tokenDecoder(device=device,use_lora=decoder_lora).to(device)
+        self.decoder = Bio2tokenDecoder(device=device, use_lora=decoder_lora).to(device)
         codebook_size = 128
         self.cnn = ResidueTokenCNN(embeddings_size, hidden, codebook_size, kernel_sizes, dropout,
                                    bio2token=True).to(device)
 
-        self.plm_lora=plm_lora
+        self.plm_lora = plm_lora
         # weight of lddt in comparision to vector loss
         self.alpha = 1
 
@@ -77,6 +77,8 @@ class FinalModel(nn.Module):
         return self.forward_from_embedding(x, true_lengths)
 
     def forward_from_embedding(self, x, true_lengths=None):
+        # make sure x is on the device
+        x = x.to(device=self.device)
         if true_lengths is None:
             # if we do not have lengths derive them from embeddings
             true_lengths = (x.abs().sum(-1) > 0).sum(dim=1)
@@ -104,7 +106,8 @@ class FinalModel(nn.Module):
         else:
             forward = self.forward_from_embedding
         for model_in, encoding, structure in loader:
-            model_in,encoding, structure = model_in.to(device),encoding.to(device), structure.to(device)
+            #model in is not loaded to device, because it might be a list of sequences
+            encoding, structure = encoding.to(device), structure.to(device)
             predictions, final_mask, cnn_out = forward(model_in)
             # get loss:
             # standard loss
