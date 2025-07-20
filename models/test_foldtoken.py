@@ -547,7 +547,7 @@ def test_new_model():
     # define labels
     targets = get_padded_ground_truths(test_pdbs).to(device)
     # get 128 vector
-    _, _, encoder = load_bio2token_decoder_and_quantizer()
+    encoder = load_bio2token_encoder()
     encoder.to(device)
     bio2token_batch = batch_pdbs_for_bio2token(test_pdbs, device)
     bio2token_batch = encoder(bio2token_batch)
