@@ -33,7 +33,7 @@ echo "WANDB_PROJECT=${WANDB_PROJECT:-<not set>}"
 cd mnt/workspace
 
 echo "Starting training script..."
-python -u train.py \
+python -u models/train.py \
   --model final \
   --lora_plm \
   --lora_decoder \
