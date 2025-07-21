@@ -16,6 +16,8 @@ from models.simple_classifier.simple_classifier import ResidueTokenCNN
 class FinalModel(nn.Module):
     def __init__(self, hidden: list, device="cpu", kernel_sizes=[5], dropout: float = 0.1, plm_lora=False,
                  decoder_lora=False,alpha=1,beta=1):
+        for kernel_size in kernel_sizes:
+            assert kernel_size % 2 == 1, f"Kernel size {kernel_size} is invalid. Must be odd for symmetric context."
         super().__init__()
         self.device = device
         self.plm = ProtT5(use_lora=plm_lora, device=device).to(self.device)

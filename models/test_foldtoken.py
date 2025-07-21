@@ -671,9 +671,13 @@ def look_at_weird_lddt():
 
 if __name__ == '__main__':
     device = "cuda"
-    dataset = StructureAndTokenSet("/mnt/data/large/subset2/val", "foldtoken", precomputed_embeddings=False)
-    loader = DataLoader(dataset, batch_size=2, collate_fn=collate_seq_struc_tok_batch)
-    model=FinalModel([512, 256, 256],device=device, kernel_sizes=[16, 3, 3], dropout=0.0, decoder_lora=True,plm_lora=True)
+    dataset = StructureAndTokenSet("/mnt/data/large/subset2/val", "encoding", precomputed_embeddings=False)
+    loader = DataLoader(dataset, batch_size=1, collate_fn=collate_seq_struc_tok_batch)
+
+    dataset2 = StructureAndTokenSet("/mnt/data/large/subset2/val", "encoding", precomputed_embeddings=True)
+    loader2 = DataLoader(dataset2, batch_size=1, collate_fn=collate_emb_struc_tok_batch)
+
+    model=FinalModel([512, 256, 256], kernel_sizes=[17, 3, 3],device=device , dropout=0.0, decoder_lora=True,plm_lora=True)
     model.to(device)
     model.eval()
     with torch.no_grad():
@@ -686,7 +690,23 @@ if __name__ == '__main__':
             print_tensor(encoding, "encoding")
             print_tensor(structure, "structure")
             predictions, final_mask, cnn_out = model(sequences)
-            encoding_loss = masked_mse_loss(cnn_out, encoding, final_mask)
-            print(encoding_loss.item())
-
+            print_tensor(predictions, "predictions")
+            # encoding_loss = masked_mse_loss(cnn_out, encoding, final_mask)
+            # print(encoding_loss.item())
+            print("test")
+            test=model.plm.encode_list_of_seqs(sequences,2)
+            for s in test:
+                print_tensor(s, "s")
+            break
+        for emb, encoding, structure in loader2:
+            print_tensor(emb,"embedding")
+            encoding.to(device)
+            structure.to(device)
+            emb.to(device)
+            predictions, final_mask, cnn_out = model.forward_from_embedding(emb)
+            print_tensor(cnn_out, "cnn_out")
+            print_tensor(predictions, "predictions")
+            print_tensor(structure, "structure")
+            print_tensor(encoding, "encoding")
+            break
 
