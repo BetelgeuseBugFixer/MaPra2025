@@ -30,7 +30,7 @@ echo "WANDB_API_KEY is ${prefix}${middle}${suffix}"
 echo "WANDB_ENTITY=${WANDB_ENTITY:-<not set>}"
 echo "WANDB_PROJECT=${WANDB_PROJECT:-<not set>}"
 
-cd mnt/workspace
+cd /workspace
 echo "Now in: $(pwd)"
 
 echo "Starting training script..."
@@ -44,6 +44,7 @@ python -u models/train.py \
   --epochs 20 \
   --out_folder /mnt/models \
   --batch 8 \
-  --patience 20
+  --patience 20 \
+  --lr 0.001
 
 echo "Training script finished."
