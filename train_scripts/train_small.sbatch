@@ -4,33 +4,23 @@
 #SBATCH -o slurm_out/train_small.out
 #SBATCH -e slurm_out/train_small.err
 #SBATCH --container-image="/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/container/final_final.sqsh"
-#SBATCH --container-mounts="/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/data:/mnt/data,/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/models:/mnt/models"
+#SBATCH --container-mounts="/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/data:/mnt/data,/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/models:/mnt/models,/dss/dsshome1/01/ge43teg2/.config/wandb:/root/.config/wandb,/dss/dsshome1/01/ge43teg2/MaPra2025:/workspace"
+#SBATCH --chdir=/workspace
 #SBATCH --export=NONE
 #SBATCH --time=14:00:00
 #SBATCH --mem=150G
 
-# vor dem Container-Start (Login-Node)
-echo "=== Before container ==="
-echo "  pwd on login node: $(pwd)"
-echo "  root dir on login node:"
-ls -l /
 
 source ~/.bashrc
 source /opt/miniconda/etc/profile.d/conda.sh
 conda activate /opt/envs/f_token
 
-# nach dem Container-Start (inside container)
-echo "=== Inside container BEFORE cd ==="
-echo "  pwd: $(pwd)"
-echo "  root filesystem:"
-ls -l /
+export WANDB_API_KEY=$(
+  grep -E '^\s*api_key\s*=' /root/.config/wandb/credentials \
+    | sed 's/.*=\s*//'
+)
 
-# jetzt in deinem Projekt-Ordner
-cd ~/MaPra2025
-echo "=== Inside container AFTER cd ==="
-echo "  pwd: $(pwd)"
-
-export PYTHONPATH=~/MaPra2025:$PYTHONPATH
+export PYTHONPATH=/workspace:$PYTHONPATH
 
 echo "Starting training script..."
 python -u models/train.py \
