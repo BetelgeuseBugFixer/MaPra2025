@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -p lrz-hgx-h100-94x4,lrz-hgx-a100-80x8,lrz-dgx-a100-80x8
+#SBATCH -p lrz-hgx-h100-94x4,lrz-hgx-a100-80x4,lrz-dgx-a100-80x8
 #SBATCH --gres=gpu:1
 #SBATCH -o slurm_out/train_small.out
 #SBATCH -e slurm_out/train_small.err
@@ -8,12 +8,10 @@
 #SBATCH --time=7:00:00
 #SBATCH --mem=150G
 
-# Umgebung
 source ~/.bashrc
 source /opt/miniconda/etc/profile.d/conda.sh
 conda activate /opt/envs/f_token
 
-# Arbeitsverzeichnis setzen
 echo "Now in: $(pwd)"
 cd /mnt/dir/MaPra2025
 echo "Now in: $(pwd)"
