@@ -45,6 +45,8 @@ def parse_args():
     parser.add_argument("--lora_plm", action="store_true", help=" use lora to finetune the plm")
     parser.add_argument("--lora_decoder", action="store_true", help=" use lora to finetune the plm")
     parser.add_argument("--bio2token", action="store_true", help="use bio2token instead of foldtoken in tfold")
+    parser.add_argument("--alpha",type=int,help="weight of the lddt loss",default=1)
+    parser.add_argument("--beta",type=int,help="weight of the encoding loss",default=1)
 
     # cnn exclusive setting
     parser.add_argument("--codebook_size", type=int, default=1024,
@@ -121,13 +123,13 @@ def build_t_fold(lora_plm, hidden, kernel_size, dropout, lr, device, resume):
     return model, optimizer
 
 
-def build_final_model(lora_plm, lora_decoder, hidden, kernel_size, dropout, lr, device, resume):
+def build_final_model(lora_plm, lora_decoder, hidden, kernel_size, dropout, lr, device,alpha,beta, resume):
     if resume:
-        model = FinalModel.load_tfold(resume, device=device).to(device)
+        model = FinalModel.load_final(resume, device=device).to(device)
     else:
         model = FinalModel(hidden, kernel_sizes=kernel_size, plm_lora=lora_plm, decoder_lora=lora_decoder,
                            device=device,
-                           dropout=dropout)
+                           dropout=dropout,alpha=alpha,beta=beta)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     return model, optimizer
 
@@ -223,7 +225,7 @@ def get_model(args):
         case "final":
             return build_final_model(args.lora_plm, args.lora_decoder, args.hidden, args.kernel_size, args.dropout,
                                      args.lr,
-                                     args.device, args.resume)
+                                     args.device,args.alpha,args.beta, args.resume)
         case _:
             raise NotImplementedError
 
@@ -239,7 +241,10 @@ def init_wand_db(args):
         "hidden": args.hidden,
         "dropout": args.dropout,
         "batch_size": args.batch,
-        "lora_plm": args.lora_plm
+        "lora_plm": args.lora_plm,
+        "lora_decoder": args.lora_decoder,
+        "alpha": args.alpha,
+        "beta": args.beta,
     }
     if args.resume:
         return wandb.init(
@@ -291,6 +296,14 @@ def print_epoch_end(score_dict, epoch, start):
     print(" | " + " | ".join(parts))
 
 
+def get_unique_folder(base_path):
+    counter = 0
+    new_path = base_path
+    while os.path.exists(new_path):
+        counter += 1
+        new_path = f"{base_path}_{counter}"
+    return new_path
+
 def main(args):
     start = time.time()
     print("preparing data...")
@@ -302,6 +315,8 @@ def main(args):
 
     # init output
     out_folder = (os.path.join(args.out_folder, model.model_name))
+    # here we check if the folder already exists and if so add number at the end of it
+    out_folder = get_unique_folder(out_folder)
     os.makedirs(out_folder, exist_ok=True)
 
     # init wand db

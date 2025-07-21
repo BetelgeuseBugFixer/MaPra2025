@@ -15,7 +15,7 @@ from models.simple_classifier.simple_classifier import ResidueTokenCNN
 
 class FinalModel(nn.Module):
     def __init__(self, hidden: list, device="cpu", kernel_sizes=[5], dropout: float = 0.1, plm_lora=False,
-                 decoder_lora=False):
+                 decoder_lora=False,alpha=1,beta=1):
         super().__init__()
         self.device = device
         self.plm = ProtT5(use_lora=plm_lora, device=device).to(self.device)
@@ -26,8 +26,11 @@ class FinalModel(nn.Module):
                                    bio2token=True).to(device)
 
         self.plm_lora = plm_lora
-        # weight of lddt in comparision to vector loss
-        self.alpha = 1
+        # weight of lddt loss
+        self.alpha = alpha
+        # weight of vector loss
+        self.beta = beta
+
 
         self.args = {
             "hidden": hidden,
@@ -40,7 +43,7 @@ class FinalModel(nn.Module):
         hidden_layers_string = "_".join(str(i) for i in hidden)
         kernel_sizes_string = "_".join(str(i) for i in kernel_sizes)
         lora_string = "_plm_lora" if plm_lora else ""
-        self.model_name = f"final_k{kernel_sizes_string}_h{hidden_layers_string}{lora_string}"
+        self.model_name = f"final_k{kernel_sizes_string}_h{hidden_layers_string}_a_{self.alpha}_b_{self.beta}{lora_string}"
 
         # define most important metric and whether it needs to be minimized or maximized
         self.key_metric = "val_loss"
@@ -116,7 +119,7 @@ class FinalModel(nn.Module):
             is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
             is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
             lddt_loss = lddt_loss_module(predictions, structure, is_dna, is_rna, final_mask)
-            loss = self.alpha * lddt_loss + encoding_loss
+            loss = self.alpha * lddt_loss + self.beta * encoding_loss
             if is_train:
                 optimizer.zero_grad()
                 loss.backward()
