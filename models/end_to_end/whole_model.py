@@ -6,6 +6,7 @@ import torch
 from torch import nn
 
 from models.bio2token.decoder import Bio2tokenDecoder
+from models.datasets.test_data import print_tensor
 from models.foldtoken_decoder.foldtoken import FoldToken
 from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores, SmoothLDDTLoss, masked_mse_loss
 from models.prot_t5.prot_t5 import ProtT5
@@ -76,6 +77,7 @@ class FinalModel(nn.Module):
         x = [" ".join(seq.translate(str.maketrans('UZO', 'XXX'))) for seq in seqs]
         # generate embeddings
         x = self.plm(x)
+        print_tensor(x,"embeddings")
         # generate tokens
         return self.forward_from_embedding(x, true_lengths)
 
@@ -86,6 +88,7 @@ class FinalModel(nn.Module):
             # if we do not have lengths derive them from embeddings
             true_lengths = (x.abs().sum(-1) > 0).sum(dim=1)
         cnn_out = self.cnn(x)
+        print_tensor(cnn_out,"cnn_out")
         B, L, _ = cnn_out.shape
         eos_mask = torch.ones(B, L, dtype=torch.bool, device=x.device)
         for i, length in enumerate(true_lengths):
