@@ -31,6 +31,7 @@ echo "WANDB_ENTITY=${WANDB_ENTITY:-<not set>}"
 echo "WANDB_PROJECT=${WANDB_PROJECT:-<not set>}"
 
 cd mnt/workspace
+echo "Now in: $(pwd)"
 
 echo "Starting training script..."
 python -u models/train.py \
