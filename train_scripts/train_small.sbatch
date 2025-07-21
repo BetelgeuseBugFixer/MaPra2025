@@ -5,7 +5,7 @@
 #SBATCH -e slurm_out/train_small.err
 #SBATCH --container-image="/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/container/final_final.sqsh"
 #SBATCH --container-mounts=\
-#SBATCH --container-mounts=/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/data:/mnt/data,/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/models:/mnt/models,${HOME}/.config/wandb:/root/.config/wandb
+#SBATCH --container-mounts="/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/data:/mnt/data,/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/models:/mnt/models,/home/ge43teg2/.config/wandb:/root/.config/wandb"
 #SBATCH --export=NONE
 #SBATCH --time=14:00:00
 #SBATCH --mem=150G
