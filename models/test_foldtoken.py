@@ -671,7 +671,7 @@ def look_at_weird_lddt():
 
 if __name__ == '__main__':
     device = "cuda"
-    dataset = StructureAndTokenSet("/mnt/data/large/subset2/val", "foldtoken", precomputed_embeddings=False)
+    dataset = StructureAndTokenSet("/mnt/data/large/subset2/val", "encoding", precomputed_embeddings=False)
     loader = DataLoader(dataset, batch_size=2, collate_fn=collate_seq_struc_tok_batch)
     model=FinalModel([512, 256, 256],device=device, kernel_sizes=[16, 3, 3], dropout=0.0, decoder_lora=True,plm_lora=True)
     model.to(device)
