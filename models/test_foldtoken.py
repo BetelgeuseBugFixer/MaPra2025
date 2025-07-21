@@ -706,5 +706,7 @@ if __name__ == '__main__':
             predictions, final_mask, cnn_out = model.forward_from_embedding(emb)
             print_tensor(cnn_out, "cnn_out")
             print_tensor(predictions, "predictions")
+            print_tensor(structure, "structure")
+            print_tensor(encoding, "encoding")
             break
 
