@@ -16,5 +16,17 @@ conda activate /opt/envs/f_token
 cd ~/MaPra2025
 export PYTHONPATH=~/MaPra2025:$PYTHONPATH
 echo "Starting training script..."
-python -u models/train.py --model final --lora_plm --lora_decoder --hidden 16384 8192 2048 --kernel 21 3 3  --data_dir /mnt/data/large/subset2/ --epochs 14 --out_folder /mnt/models --batch 8 --patience 20
+python -u models/train.py --model final \
+                          --lora_plm \
+                          --lora_decoder \
+                          --hidden 16384 8192 2048 \
+                          --kernel 21 3 3 \
+                          --data_dir /mnt/data/large/subset2/ \
+                          --epochs 14 \
+                          --out_folder /mnt/models \
+                          --batch 8 \
+                          --patience 20 \
+                          --lr 0.0002 \
+                          --beta 0
+
 echo "Training script finished."
