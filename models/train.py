@@ -305,6 +305,11 @@ def get_unique_folder(base_path):
     return new_path
 
 def main(args):
+    # init wand db
+    run = None
+    if not args.no_wandb:
+        # wandb.login(key=open("wandb_key").read().strip())
+        run = init_wand_db(args)
     start = time.time()
     print("preparing data...")
     # load dataset
@@ -314,17 +319,12 @@ def main(args):
     model, optimizer = get_model(args)
 
     # init output
-    out_folder = (os.path.join(args.out_folder, model.model_name))
+    folder_name=f"{model.model_name}_lr{args.lr}"
+    out_folder = (os.path.join(args.out_folder, folder_name))
     # here we check if the folder already exists and if so add number at the end of it
     out_folder = get_unique_folder(out_folder)
     os.makedirs(out_folder, exist_ok=True)
     print(f"saving model to{out_folder}")
-
-    # init wand db
-    run = None
-    if not args.no_wandb:
-        # wandb.login(key=open("wandb_key").read().strip())
-        run = init_wand_db(args)
 
     # init important metric based on if the models need to optimize or minimize
     if model.maximize:
