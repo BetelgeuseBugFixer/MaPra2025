@@ -13,7 +13,7 @@ source /opt/miniconda/etc/profile.d/conda.sh
 conda activate /opt/envs/f_token
 
 echo "Now in: $(pwd)"
-cd ~/Mapra2025
+cd ~/MaPra2025
 echo "Now in: $(pwd)"
 export PYTHONPATH=~/MaPra2025:$PYTHONPATH
 echo "Now in: $(pwd)"
