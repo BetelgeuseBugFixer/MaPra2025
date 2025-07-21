@@ -12,11 +12,13 @@ source ~/.bashrc
 source /opt/miniconda/etc/profile.d/conda.sh
 conda activate /opt/envs/f_token
 
-echo "Now in: $(pwd)"
 cd ~/MaPra2025
-echo "Now in: $(pwd)"
-export PYTHONPATH=~/MaPra2025:$PYTHONPATH
-echo "Now in: $(pwd)"
+
+# WandB API Key
+export WANDB_API_KEY=$(
+  grep -E '^\s*api_key\s*=' wandb_key \
+    | sed 's/.*=\s*//'
+)
 
 echo "Starting training script..."
 python -u models/train.py \
