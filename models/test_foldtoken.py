@@ -677,7 +677,7 @@ if __name__ == '__main__':
     dataset2 = StructureAndTokenSet("/mnt/data/large/subset2/val", "encoding", precomputed_embeddings=True)
     loader2 = DataLoader(dataset2, batch_size=1, collate_fn=collate_emb_struc_tok_batch)
 
-    model=FinalModel([512, 256, 256],device=device, kernel_sizes=[16, 3, 3], dropout=0.0, decoder_lora=True,plm_lora=True)
+    model=FinalModel([16384, 8192, 2048],device=device, kernel_sizes=[19, 3, 3], dropout=0.0, decoder_lora=True,plm_lora=True)
     model.to(device)
     model.eval()
     with torch.no_grad():
