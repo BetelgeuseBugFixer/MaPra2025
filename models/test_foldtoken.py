@@ -614,17 +614,16 @@ def test_foldtoken_model():
             print(lddt_loss.item())
             break
 
-
-if __name__ == '__main__':
+def look_at_weird_lddt():
     device = "cuda"
     dataset = StructureAndTokenSet("/mnt/data/large/subset2/val", "foldtoken", precomputed_embeddings=False)
     loader = DataLoader(dataset, batch_size=2, collate_fn=collate_seq_struc_tok_batch)
-    tfold=TFold([1000], device=device, bio2token=False).to(device)
-    i=0
+    tfold = TFold([1000], device=device, bio2token=False).to(device)
+    i = 0
     with torch.no_grad():
         for seqs, tokens, structures in loader:
             structure, tokens = structures.to(device), tokens.to(device)
-            true_lengths=[len(seq) for seq in seqs]
+            true_lengths = [len(seq) for seq in seqs]
 
             vq_codes = []
             batch_ids = []
@@ -648,14 +647,14 @@ if __name__ == '__main__':
             B, L, _ = structure_batch.shape
             is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
             is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
-            lddt_loss = tfold.lddt_loss(structure_batch, structure, is_dna, is_rna,relevant_mask)
+            lddt_loss = tfold.lddt_loss(structure_batch, structure, is_dna, is_rna, relevant_mask)
             print(lddt_loss.item())
             print_tensor(structure_batch, "structure_batch")
             print_tensor(structure, "structure")
             print_tensor(relevant_mask, "mask")
             print("test")
-            print(tfold.lddt_loss(structure, structure, is_dna, is_rna,relevant_mask).item())
-            print(tfold.lddt_loss(structure_batch,structure_batch, is_dna, is_rna,relevant_mask).item())
+            print(tfold.lddt_loss(structure, structure, is_dna, is_rna, relevant_mask).item())
+            print(tfold.lddt_loss(structure_batch, structure_batch, is_dna, is_rna, relevant_mask).item())
             print("should not be 0")
             print(structure[relevant_mask])
             print((structure[~relevant_mask] != 0).all())
@@ -663,9 +662,31 @@ if __name__ == '__main__':
             print(structure[~relevant_mask])
             print((structure[~relevant_mask] == 0).all())
             print("hlep")
-            print(tfold.lddt_loss(structure_batch,structure_batch, is_dna, is_rna,~relevant_mask).item())
-            if i>=0:
+            print(tfold.lddt_loss(structure_batch, structure_batch, is_dna, is_rna, ~relevant_mask).item())
+            if i >= 0:
                 break
-            i+=1
+            i += 1
     print("done")
+
+
+if __name__ == '__main__':
+    device = "cuda"
+    dataset = StructureAndTokenSet("/mnt/data/large/subset2/val", "foldtoken", precomputed_embeddings=False)
+    loader = DataLoader(dataset, batch_size=2, collate_fn=collate_seq_struc_tok_batch)
+    model=FinalModel([512, 256, 256],device=device, kernel_sizes=[16, 3, 3], dropout=0.0, decoder_lora=True,plm_lora=True)
+    model.to(device)
+    model.eval()
+    with torch.no_grad():
+        for sequences, encoding, structure in loader:
+            encoding.to(device)
+            structure.to(device)
+            print("seq lengths:")
+            for seq in sequences:
+                print(len(seq))
+            print_tensor(encoding, "encoding")
+            print_tensor(structure, "structure")
+            predictions, final_mask, cnn_out = model(sequences)
+            encoding_loss = masked_mse_loss(cnn_out, encoding, final_mask)
+            print(encoding_loss.item())
+
 
