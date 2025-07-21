@@ -694,8 +694,9 @@ if __name__ == '__main__':
             # encoding_loss = masked_mse_loss(cnn_out, encoding, final_mask)
             # print(encoding_loss.item())
             print("test")
-            x=model.plm.encode_list_of_seqs(sequences,2)
-            print_tensor(x, "cnn_out")
+            test=model.plm.encode_list_of_seqs(sequences,2)
+            for s in test:
+                print_tensor(s, "s")
             break
         for emb, encoding, structure in loader2:
             print_tensor(emb,"embedding")
