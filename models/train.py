@@ -318,7 +318,7 @@ def main(args):
     # here we check if the folder already exists and if so add number at the end of it
     out_folder = get_unique_folder(out_folder)
     os.makedirs(out_folder, exist_ok=True)
-    print(f"savin model to{out_folder}")
+    print(f"saving model to{out_folder}")
 
     # init wand db
     run = None
