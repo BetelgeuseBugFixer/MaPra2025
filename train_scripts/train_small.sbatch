@@ -12,10 +12,10 @@ source ~/.bashrc
 source /opt/miniconda/etc/profile.d/conda.sh
 conda activate /opt/envs/f_token
 
-export PYTHONPATH=/workspace:$PYTHONPATH
-
 echo "Now in: $(pwd)"
 cd ~/Mapra2025
+echo "Now in: $(pwd)"
+export PYTHONPATH=~/MaPra2025:$PYTHONPATH
 echo "Now in: $(pwd)"
 
 echo "Starting training script..."
