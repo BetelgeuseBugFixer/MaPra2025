@@ -4,17 +4,17 @@
 #SBATCH -o slurm_out/train_small.out
 #SBATCH -e slurm_out/train_small.err
 #SBATCH --container-image="/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/container/final_final.sqsh"
-#SBATCH --container-mounts="/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/data:/mnt/data,/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/models:/mnt/models,/dss/dsshome1/01/ge43teg2/.config/wandb:/root/.config/wandb,/dss/dsshome1/01/ge43teg2/MaPra2025:/workspace"
+#SBATCH --container-mounts="/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/data:/mnt/data,/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/models:/mnt/models,/home/ge43teg2/.config/wandb:/root/.config/wandb,/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/ge43teg2/MaPra2025:/workspace"
 #SBATCH --chdir=/workspace
 #SBATCH --export=NONE
 #SBATCH --time=14:00:00
 #SBATCH --mem=150G
 
-
 source ~/.bashrc
 source /opt/miniconda/etc/profile.d/conda.sh
 conda activate /opt/envs/f_token
 
+# WandB API Key
 export WANDB_API_KEY=$(
   grep -E '^\s*api_key\s*=' /root/.config/wandb/credentials \
     | sed 's/.*=\s*//'
