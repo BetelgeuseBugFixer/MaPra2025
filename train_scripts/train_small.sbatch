@@ -27,6 +27,8 @@ suffix=${KEY:len-4:4}
 middle=$(printf '%*s' $((len-8)) '' | tr ' ' '*')
 
 echo "WANDB_API_KEY is ${prefix}${middle}${suffix}"
+echo "WANDB_ENTITY=${WANDB_ENTITY:-<not set>}"
+echo "WANDB_PROJECT=${WANDB_PROJECT:-<not set>}"
 
 echo "Starting training script..."
 python -u models/train.py \
