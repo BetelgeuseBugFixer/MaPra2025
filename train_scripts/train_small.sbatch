@@ -26,7 +26,7 @@ export WANDB_API_KEY=$(
 echo "Now in: $(pwd)"
 
 echo "Starting training script..."
-python -u models/train.py \
+python -u train.py \
   --model final \
   --lora_decoder \
   --hidden 512 256 256 \
