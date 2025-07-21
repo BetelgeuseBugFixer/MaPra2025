@@ -1,12 +1,26 @@
 #!/bin/bash
 #SBATCH -p lrz-hgx-h100-94x4,lrz-hgx-a100-80x4,lrz-dgx-a100-80x8
 #SBATCH --gres=gpu:1
-#SBATCH -o slurm_out/train_small.out
-#SBATCH -e slurm_out/train_small.err
+#SBATCH -o slurm_out/%j.out
+#SBATCH -e slurm_out/%j.err
 #SBATCH --container-image="/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/container/final_final.sqsh"
 #SBATCH --container-mounts=/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/data:/mnt/data,/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/ge43teg2/:/mnt/dir
-#SBATCH --time=7:00:00
+#SBATCH --time=20:00:00
 #SBATCH --mem=150G
+
+# Default-Werte für Batch-Size und Learning-Rate
+BATCH_SIZE=8
+LR=0.001
+
+# Flag-Parsing: -b für Batch-Size, -l für Learning-Rate
+while getopts "b:l:" opt; do
+  case "$opt" in
+    b) BATCH_SIZE=$OPTARG ;;
+    l) LR=$OPTARG        ;;
+    *) echo "Usage: sbatch train_small.sbatch [-b batch_size] [-l learning_rate]" >&2
+       exit 1 ;;
+  esac
+done
 
 source ~/.bashrc
 source /opt/miniconda/etc/profile.d/conda.sh
@@ -15,7 +29,6 @@ conda activate /opt/envs/f_token
 echo "Now in: $(pwd)"
 cd /mnt/dir/MaPra2025
 echo "Now in: $(pwd)"
-ls -lh
 
 # WandB API Key holen
 export WANDB_API_KEY=$(
@@ -23,20 +36,21 @@ export WANDB_API_KEY=$(
     | sed 's/.*=\s*//'
 )
 
-# PYTHONPATH auf Projekt-Root setzen, damit 'import models' klappt
+# PYTHONPATH auf Projekt-Root setzen
 export PYTHONPATH="/mnt/dir/MaPra2025:$PYTHONPATH"
 
-echo "Starting training script…"
+echo "Starting training script with batch_size=$BATCH_SIZE, lr=$LR"
 python -u models/train.py \
   --model final \
+  --lora_plm \
   --lora_decoder \
-  --hidden 512 256 256 \
-  --kernel 16 3 3 \
+  --hidden 512 256 128 \
+  --kernel 17 5 1 \
   --data_dir /mnt/data/large/subset2/ \
   --epochs 20 \
   --out_folder /mnt/dir/models \
-  --batch 8 \
+  --batch $BATCH_SIZE \
   --patience 20 \
-  --lr 0.001
+  --lr $LR
 
 echo "Training script finished."
