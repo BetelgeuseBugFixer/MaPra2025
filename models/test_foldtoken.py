@@ -673,6 +673,10 @@ if __name__ == '__main__':
     device = "cuda"
     dataset = StructureAndTokenSet("/mnt/data/large/subset2/val", "encoding", precomputed_embeddings=False)
     loader = DataLoader(dataset, batch_size=2, collate_fn=collate_seq_struc_tok_batch)
+
+    dataset2 = StructureAndTokenSet("/mnt/data/large/subset2/val", "encoding", precomputed_embeddings=True)
+    loader2 = DataLoader(dataset, batch_size=2, collate_fn=collate_seq_struc_tok_batch)
+
     model=FinalModel([512, 256, 256],device=device, kernel_sizes=[16, 3, 3], dropout=0.0, decoder_lora=True,plm_lora=True)
     model.to(device)
     model.eval()
@@ -686,7 +690,10 @@ if __name__ == '__main__':
             print_tensor(encoding, "encoding")
             print_tensor(structure, "structure")
             predictions, final_mask, cnn_out = model(sequences)
-            encoding_loss = masked_mse_loss(cnn_out, encoding, final_mask)
-            print(encoding_loss.item())
-
+            print_tensor(predictions, "predictions")
+            # encoding_loss = masked_mse_loss(cnn_out, encoding, final_mask)
+            # print(encoding_loss.item())
+            break
+        for emb, encoding, structure in loader:
+            print_tensor( emb,"embedding")
 
