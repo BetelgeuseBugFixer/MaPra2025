@@ -9,7 +9,7 @@
 #SBATCH --mem=200G
 
 # command to execute and track it
-# sbatch train_final_lr_up.sbatch &  tail -f slurm_out/train_final_lr_down_std_output.out slurm_out/train_final_std_lr_down_err.err
+# sbatch train_final_lr_down.sbatch &  tail -f slurm_out/train_final_lr_down_std_output.out slurm_out/train_final_std_lr_down_err.err
 source ~/.bashrc
 source /opt/miniconda/etc/profile.d/conda.sh
 conda activate /opt/envs/f_token
