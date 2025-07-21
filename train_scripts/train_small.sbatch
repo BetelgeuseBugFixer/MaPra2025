@@ -20,6 +20,14 @@ export WANDB_API_KEY=$(
     | sed 's/.*=\s*//'
 )
 
+KEY="$WANDB_API_KEY"
+len=${#KEY}
+prefix=${KEY:0:4}
+suffix=${KEY:len-4:4}
+middle=$(printf '%*s' $((len-8)) '' | tr ' ' '*')
+
+echo "WANDB_API_KEY is ${prefix}${middle}${suffix}"
+
 echo "Starting training script..."
 python -u models/train.py \
   --model final \
