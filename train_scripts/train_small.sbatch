@@ -6,7 +6,7 @@
 #SBATCH --container-image="/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/container/final_final.sqsh"
 #SBATCH --container-mounts=/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/data:/mnt/data,/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/ge43teg2/:/mnt/dir
 #SBATCH --time=20:00:00
-#SBATCH --mem=150G
+#SBATCH --mem=200G
 
 # Default-Werte für Batch-Size und Learning-Rate
 BATCH_SIZE=8
