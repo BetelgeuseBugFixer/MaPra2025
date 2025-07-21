@@ -4,15 +4,14 @@
 #SBATCH -o slurm_out/train_small.out
 #SBATCH -e slurm_out/train_small.err
 #SBATCH --container-image="/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/container/final_final.sqsh"
-#SBATCH --container-mounts=/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/data:/mnt/data,/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/models:/mnt/models,/home/ge43teg2/.config/wandb/credentials:/root/.netrc
+#SBATCH --container-mounts=/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/data:/mnt/data,/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/models:/mnt/models,/home/ge43teg2:/home/ge43teg2
 #SBATCH --time=14:00:00
 #SBATCH --mem=150G
 
-# command to execute and track it
-# sbatch train_small.sbatch &  tail -f slurm_out/train_small.out slurm_out/train_small.err
 source ~/.bashrc
 source /opt/miniconda/etc/profile.d/conda.sh
 conda activate /opt/envs/f_token
+
 cd ~/MaPra2025
 export PYTHONPATH=~/MaPra2025:$PYTHONPATH
 
