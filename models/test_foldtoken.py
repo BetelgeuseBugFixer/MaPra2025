@@ -694,6 +694,7 @@ if __name__ == '__main__':
             # encoding_loss = masked_mse_loss(cnn_out, encoding, final_mask)
             # print(encoding_loss.item())
             break
-        for emb, encoding, structure in loader:
+        for emb, encoding, structure in loader2:
             print_tensor( emb,"embedding")
+            break
 
