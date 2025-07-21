@@ -11,13 +11,15 @@
 # Default-Werte für Batch-Size und Learning-Rate
 BATCH_SIZE=8
 LR=0.001
+BETA=1
 
 # Flag-Parsing: -b für Batch-Size, -l für Learning-Rate
-while getopts "b:l:" opt; do
+while getopts "b:l:z:" opt; do
   case "$opt" in
     b) BATCH_SIZE=$OPTARG ;;
     l) LR=$OPTARG        ;;
-    *) echo "Usage: sbatch train_small.sbatch [-b batch_size] [-l learning_rate]" >&2
+    z) BETA=$OPTARG        ;;
+    *) echo "Usage: sbatch train_small.sbatch [-b batch_size] [-l learning_rate] [-z beta]" >&2
        exit 1 ;;
   esac
 done
@@ -39,7 +41,7 @@ export WANDB_API_KEY=$(
 # PYTHONPATH auf Projekt-Root setzen
 export PYTHONPATH="/mnt/dir/MaPra2025:$PYTHONPATH"
 
-echo "Starting training script with batch_size=$BATCH_SIZE, lr=$LR"
+echo "Starting training script with batch_size=$BATCH_SIZE, lr=$LR, beta=$BETA"
 python -u models/train.py \
   --model final \
   --lora_plm \
@@ -51,6 +53,7 @@ python -u models/train.py \
   --out_folder /mnt/dir/models \
   --batch $BATCH_SIZE \
   --patience 20 \
-  --lr $LR
+  --lr $LR \
+  --beta $BETA
 
 echo "Training script finished."
