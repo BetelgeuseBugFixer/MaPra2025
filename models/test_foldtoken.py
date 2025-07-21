@@ -675,7 +675,7 @@ if __name__ == '__main__':
     loader = DataLoader(dataset, batch_size=2, collate_fn=collate_seq_struc_tok_batch)
 
     dataset2 = StructureAndTokenSet("/mnt/data/large/subset2/val", "encoding", precomputed_embeddings=True)
-    loader2 = DataLoader(dataset2, batch_size=2, collate_fn=collate_seq_struc_tok_batch)
+    loader2 = DataLoader(dataset2, batch_size=2, collate_fn=collate_emb_struc_tok_batch)
 
     model=FinalModel([512, 256, 256],device=device, kernel_sizes=[16, 3, 3], dropout=0.0, decoder_lora=True,plm_lora=True)
     model.to(device)
@@ -696,5 +696,11 @@ if __name__ == '__main__':
             break
         for emb, encoding, structure in loader2:
             print_tensor(emb,"embedding")
+            encoding.to(device)
+            structure.to(device)
+            emb.to(device)
+            predictions, final_mask, cnn_out = model.forward_from_embedding(emb)
+            print_tensor(cnn_out, "cnn_out")
+            print_tensor(predictions, "predictions")
             break
 
