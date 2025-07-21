@@ -16,6 +16,8 @@ from models.simple_classifier.simple_classifier import ResidueTokenCNN
 class FinalModel(nn.Module):
     def __init__(self, hidden: list, device="cpu", kernel_sizes=[5], dropout: float = 0.1, plm_lora=False,
                  decoder_lora=False,alpha=1,beta=1):
+        for kernel_size in kernel_sizes:
+            assert kernel_size % 2 == 1, f"Kernel size {kernel_size} is invalid. Must be odd for symmetric context."
         super().__init__()
         self.device = device
         self.plm = ProtT5(use_lora=plm_lora, device=device).to(self.device)
@@ -76,7 +78,6 @@ class FinalModel(nn.Module):
         x = [" ".join(seq.translate(str.maketrans('UZO', 'XXX'))) for seq in seqs]
         # generate embeddings
         x = self.plm(x)
-        print("embeddings:",x.shape)
         # generate tokens
         return self.forward_from_embedding(x, true_lengths)
 
@@ -87,7 +88,6 @@ class FinalModel(nn.Module):
             # if we do not have lengths derive them from embeddings
             true_lengths = (x.abs().sum(-1) > 0).sum(dim=1)
         cnn_out = self.cnn(x)
-        print("cnn_out",cnn_out.shape)
         B, L, _ = cnn_out.shape
         eos_mask = torch.ones(B, L, dtype=torch.bool, device=x.device)
         for i, length in enumerate(true_lengths):
