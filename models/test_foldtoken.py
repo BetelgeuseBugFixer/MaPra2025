@@ -614,6 +614,7 @@ def test_foldtoken_model():
             print(lddt_loss.item())
             break
 
+
 def look_at_weird_lddt():
     device = "cuda"
     dataset = StructureAndTokenSet("/mnt/data/large/subset2/val", "foldtoken", precomputed_embeddings=False)
@@ -713,5 +714,19 @@ def selin_debug():
 
 
 if __name__ == '__main__':
-   look_at_weird_lddt()
+    device = "cuda"
+    dataset = StructureAndTokenSet("/mnt/data/large/subset2/val", "foldtoken", precomputed_embeddings=False)
+    loader = DataLoader(dataset, batch_size=1, collate_fn=collate_seq_struc_tok_batch)
+    tfold = TFold([1000], device=device, bio2token=False).to(device)
+    with torch.no_grad():
+        for seqs, tokens, structures in loader:
+            tokens = tokens.to(device)
+            structures = structures.to(device)
+            cnn_out = tfold.get_cnn_out_only(seqs)
+            print_tensor(tokens,"tokens")
+            print_tensor(cnn_out,"cnn_out")
+            loss = calc_token_loss(tfold.cnn.criterion, cnn_out, tokens)
+            print(loss.item())
+            break
+
 
