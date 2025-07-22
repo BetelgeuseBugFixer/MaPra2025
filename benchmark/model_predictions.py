@@ -5,6 +5,8 @@ import torch
 from biotite.structure import lddt, rmsd, tm_score
 from biotite.structure.filter import _filter_atom_names
 from biotite.structure.io.pdb import PDBFile
+from matplotlib import pyplot as plt
+from scipy.stats import pearsonr
 from torch.utils.data import Dataset, DataLoader
 
 from models.bio2token.data.utils.utils import pdb_2_dict
@@ -85,6 +87,23 @@ def get_scores(gt_pdb, pred):
     tm_score_score = tm_score(gt_protein, pred_protein, indices, indices, all_atoms)
     return lddt_score, rmsd_score, tm_score_score
 
+def plot_smooth_lddt(lddts,smooth_lddts):
+    # Convert to numpy arrays (optional but useful)
+    lddt = np.array(lddts)
+    smooth_lddt = np.array(smooth_lddts)
+
+    # Compute correlation coefficient
+    r, _ = pearsonr(lddt, smooth_lddt)
+
+    # Plot
+    plt.figure(figsize=(6, 6))
+    plt.scatter(lddt, smooth_lddt, alpha=0.7, color='steelblue', edgecolors='k')
+    plt.xlabel("True lDDT")
+    plt.ylabel("Smoothed lDDT (AlphaFold)")
+    plt.title(f"Scatter Plot with Pearson r = {r:.3f}")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig("smooth_lddt.png")
 
 if __name__ == '__main__':
     # seqs = [
@@ -116,27 +135,30 @@ if __name__ == '__main__':
     print(f"Loading model from checkpoint: {args.checkpoint}")
     model = FinalModel.load_final(args.checkpoint, device=device).to(device)
 
-    final_structs = infer_structures(model, seqs[0:1], batch_size=64)
+    final_structs = infer_structures(model, seqs, batch_size=64)
     # remove padding
-    final_structs = [struct[:len(seq) * 4, ] for struct, seq in zip(final_structs, seqs[0:1])]
+    final_structs = [struct[:len(seq) * 4, ] for struct, seq in zip(final_structs, seqs)]
+
+    actual_lddts = []
     for final_struct, pdb_path in zip(final_structs, pdb_paths):
         np_prediction = final_struct.numpy()
-        print(get_scores(pdb_path, np_prediction))
-        break
+        lddt_score, rmsd_score, tm_score_score = get_scores(pdb_path, np_prediction)
+        actual_lddts.append(lddt_score)
     with torch.no_grad():
+        smooth_lddts = []
         smooth_lddt = SmoothLDDTLoss().to(device)
         for final_struct, pdb_dict in zip(final_structs, pdb_dicts):
-            filttered_pdb_dict=filter_pdb_dict(pdb_dict)
-            gt = torch.tensor(filttered_pdb_dict["coords_groundtruth"]).unsqueeze(0).to(device)
+            filtered_pdb_dict = filter_pdb_dict(pdb_dict)
+            gt = torch.tensor(filtered_pdb_dict["coords_groundtruth"]).unsqueeze(0).to(device)
             pd = final_struct.unsqueeze(0).to(device)
             B, L, _ = gt.shape
             is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
             is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
             mask = torch.ones((B, L), dtype=torch.bool, device=device)
-            print(f"seq length: {len(pdb_dict["seq"])}")
-            print(f"gt shape: {gt.shape}")
-            print(f"pd shape: {pd.shape}")
-            print(1 - smooth_lddt(gt, pd, is_rna, is_rna, mask).item())
-            break
+            lddt_score = 1 - smooth_lddt(gt, pd, is_rna, is_rna, mask).item()
+            smooth_lddts.append(lddt_score)
+    for i in range(len(smooth_lddts)):
+        print(f"{smooth_lddts[i]}->{actual_lddts[i]}")
+    plot_smooth_lddt(actual_lddts, smooth_lddts)
     # bio2_structs = infer_structures(TFold, "path/to/bio2.pt", seqs, batch_size=2, bio2token=True)
     # foldtoken_structs = infer_structures(TFold, "path/to/fold.pt", seqs, batch_size=2, bio2token=False)
