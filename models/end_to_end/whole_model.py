@@ -55,7 +55,7 @@ class FinalFinalModel(nn.Module):
         }, save_path)
 
     @staticmethod
-    def load_final_final(path: str, device="cpu") -> "FinalModel":
+    def load_final_final(path: str, device="cpu") -> "FinalFinalModel":
         checkpoint = torch.load(path, map_location=device)
         model_args = checkpoint["model_args"]
         model_args["device"] = device
