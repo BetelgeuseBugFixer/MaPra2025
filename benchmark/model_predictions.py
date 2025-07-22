@@ -117,11 +117,9 @@ if __name__ == '__main__':
     print(f"Loading model from checkpoint: {args.checkpoint}")
     model = FinalModel.load_final(args.checkpoint, device=device).to(device)
 
-    final_structs = infer_structures(model, seqs[0:1], batch_size=64)
+    final_structs = infer_structures(model, seqs, batch_size=64)
     # remove padding
-    print(final_structs[0].shape)
-    final_structs = [struct[:len(seq)*4,]for struct,seq in zip(final_structs,seqs[0:1])]
-    print(final_structs[0].shape)
+    final_structs = [struct[:len(seq)*4,]for struct,seq in zip(final_structs,seqs)]
     for final_struct, pdb_path in zip(final_structs, pdb_paths):
         np_prediction=final_struct.numpy()
         print(get_scores(pdb_path, np_prediction))
@@ -131,7 +129,11 @@ if __name__ == '__main__':
         for final_struct, pdb_dict in zip(final_structs, pdb_dicts):
             gt = torch.from_numpy(pdb_dict["coords_groundtruth"]).unsqueeze(0).to(device)
             pd = final_struct.unsqueeze(0).to(device)
-            print(1 - smooth_lddt(gt, pd).item())
+            B,L,=gt.shape
+            is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
+            is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
+            mask = torch.ones((B, L), dtype=torch.bool, device=device)
+            print(1 - smooth_lddt(gt, pd,is_rna,is_rna,mask).item())
             break
     # bio2_structs = infer_structures(TFold, "path/to/bio2.pt", seqs, batch_size=2, bio2token=True)
     # foldtoken_structs = infer_structures(TFold, "path/to/fold.pt", seqs, batch_size=2, bio2token=False)
