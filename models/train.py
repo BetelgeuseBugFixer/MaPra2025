@@ -221,7 +221,7 @@ def get_model(args):
             )
         case "t_fold":
             return build_t_fold(args.lora_plm, args.hidden, args.kernel_size, args.dropout, args.lr,
-                                args.device, args.resume,args.bio2token)
+                                args.device, args.bio2token, args.resume)
         case "final":
             return build_final_model(args.lora_plm, args.lora_decoder, args.hidden, args.kernel_size, args.dropout,
                                      args.lr,
