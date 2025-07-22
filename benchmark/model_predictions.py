@@ -103,7 +103,7 @@ if __name__ == '__main__':
     pdb_paths = [os.path.join(in_dir, pdb) for pdb in pdb_names]
     pdb_dicts = [pdb_2_dict(pdb_path) for pdb_path in pdb_paths]
     # filter for length
-    allowed_indices = [i for i, pdb_dict in enumerate(pdb_dicts) if len(pdb_dict["seq"]) <= MAX_LENGTH]
+    allowed_indices = [i for i, pdb_dict in enumerate(pdb_dicts) if len(pdb_dict["seq"]) < MAX_LENGTH]
     pdb_dicts = [pdb_dicts[i] for i in allowed_indices]
     pdb_paths = [pdb_paths[i] for i in allowed_indices]
     seqs = [pdb_dict["seq"] for pdb_dict in pdb_dicts]
@@ -122,7 +122,8 @@ if __name__ == '__main__':
     final_structs = [struct[:len(seq)*4,]for struct,seq in zip(final_structs,seqs[0:1])]
     print(final_structs[0].shape)
     for final_struct, pdb_path in zip(final_structs, pdb_paths):
-        print(get_scores(pdb_path, final_struct))
+        np_prediction=final_struct.numpy()
+        print(get_scores(pdb_path, np_prediction))
         break
     with torch.no_grad():
         smooth_lddt = SmoothLDDTLoss().to(device)
