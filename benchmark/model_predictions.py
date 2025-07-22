@@ -51,12 +51,11 @@ def infer_structures(model: torch.nn.Module, seqs, batch_size=16):
         for seq_batch in loader:
             # forward returns structures
             pred_structs, *_ = model(seq_batch)
+            b = pred_structs.shape[0]
+            # extract single atoms
+            for i in range(b):
+                all_structs.append(pred_structs[i])
 
-            if isinstance(pred_structs, torch.Tensor):
-                for t in pred_structs.cpu():
-                    all_structs.append(t)
-            else:
-                all_structs.extend(pred_structs)
 
     # free GPU memory if needed
     del model
