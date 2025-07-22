@@ -101,7 +101,7 @@ if __name__ == '__main__':
     # filter singletons
     pdb_names = [pdb for pdb in pdb_names if not get_pid_from_file_name(pdb) in singleton_ids]
     pdb_paths = [os.path.join(in_dir, pdb) for pdb in pdb_names]
-    pdb_dicts = [filter_pdb_dict(pdb_2_dict(pdb_path)) for pdb_path in pdb_paths]
+    pdb_dicts = [pdb_2_dict(pdb_path) for pdb_path in pdb_paths]
     # filter for length
     allowed_indices = [i for i, pdb_dict in enumerate(pdb_dicts) if len(pdb_dict["seq"]) < MAX_LENGTH]
     pdb_dicts = [pdb_dicts[i] for i in allowed_indices]
@@ -126,7 +126,8 @@ if __name__ == '__main__':
     with torch.no_grad():
         smooth_lddt = SmoothLDDTLoss().to(device)
         for final_struct, pdb_dict in zip(final_structs, pdb_dicts):
-            gt = torch.from_numpy(pdb_dict["coords_groundtruth"]).unsqueeze(0).to(device)
+            filttered_pdb_dict=filter_pdb_dict(pdb_dict)
+            gt = torch.tensor(filttered_pdb_dict["coords_groundtruth"]).unsqueeze(0).to(device)
             pd = final_struct.unsqueeze(0).to(device)
             B, L, _ = gt.shape
             is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
