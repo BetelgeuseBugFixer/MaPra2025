@@ -12,7 +12,7 @@ from models.end_to_end.whole_model import FinalModel, TFold
 import argparse
 
 from models.model_utils import SmoothLDDTLoss
-from utils.generate_new_data import BACKBONE_ATOMS, get_pdb_dict, get_pid_from_file_name, MAX_LENGTH
+from utils.generate_new_data import BACKBONE_ATOMS, get_pdb_dict, get_pid_from_file_name, MAX_LENGTH, filter_pdb_dict
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -101,7 +101,7 @@ if __name__ == '__main__':
     # filter singletons
     pdb_names = [pdb for pdb in pdb_names if not get_pid_from_file_name(pdb) in singleton_ids]
     pdb_paths = [os.path.join(in_dir, pdb) for pdb in pdb_names]
-    pdb_dicts = [pdb_2_dict(pdb_path) for pdb_path in pdb_paths]
+    pdb_dicts = [filter_pdb_dict(pdb_2_dict(pdb_path)) for pdb_path in pdb_paths]
     # filter for length
     allowed_indices = [i for i, pdb_dict in enumerate(pdb_dicts) if len(pdb_dict["seq"]) < MAX_LENGTH]
     pdb_dicts = [pdb_dicts[i] for i in allowed_indices]
