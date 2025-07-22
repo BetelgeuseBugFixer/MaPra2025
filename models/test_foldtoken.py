@@ -24,7 +24,7 @@ from models.bio2token.utils.configs import utilsyaml_to_dict, pi_instantiate
 from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores, SmoothLDDTLoss, \
     batch_pdbs_for_bio2token, print_trainable_parameters, masked_mse_loss
 from models.prot_t5.prot_t5 import ProtT5
-from models.datasets.datasets import PAD_LABEL, StructureAndTokenSet
+from models.datasets.datasets import PAD_LABEL, StructureAndTokenSet, TokenSet
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
 from models.bio2token.data.utils.utils import pdb_2_dict, uniform_dataframe, compute_masks, pad_and_stack_batch, \
     filter_batch, pad_and_stack_tensors
@@ -34,7 +34,7 @@ from models.end_to_end.whole_model import TFold, FinalModel
 from transformers import T5EncoderModel, T5Tokenizer
 from hydra_zen import load_from_yaml, builds, instantiate
 
-from models.train import collate_emb_struc_tok_batch, collate_seq_struc_tok_batch
+from models.train import collate_emb_struc_tok_batch, collate_seq_struc_tok_batch, collate_seq_tok_batch
 
 
 def load_prot_from_pdb(pdb_file):
@@ -715,13 +715,13 @@ def selin_debug():
 
 if __name__ == '__main__':
     device = "cuda"
-    dataset = StructureAndTokenSet("/mnt/data/large/subset2/val", "foldtoken", precomputed_embeddings=False)
-    loader = DataLoader(dataset, batch_size=1, collate_fn=collate_seq_struc_tok_batch)
+    dataset = TokenSet("/mnt/data/large/subset2/val", token_type="foldtoken", precomputed_embeddings=False)
+    collate_function=collate_seq_tok_batch
+    loader = DataLoader(dataset, batch_size=1, collate_fn=collate_function)
     tfold = TFold([1000], device=device, bio2token=False).to(device)
     with torch.no_grad():
-        for seqs, tokens, structures in loader:
+        for seqs, tokens in loader:
             tokens = tokens.to(device)
-            structures = structures.to(device)
             cnn_out = tfold.get_cnn_out_only(seqs)
             print_tensor(tokens,"tokens")
             print_tensor(cnn_out,"cnn_out")
