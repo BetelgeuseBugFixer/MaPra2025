@@ -17,7 +17,6 @@ export PYTHONPATH=~/MaPra2025:$PYTHONPATH
 echo "Starting training script..."
 python -u models/train.py --model t_fold \
                           --lora_plm \
-                          --bio2token \
                           --hidden 512 256 128 \
                           --kernel 17 5 1 \
                           --data_dir /mnt/data/large/subset2/ \

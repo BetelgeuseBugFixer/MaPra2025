@@ -113,11 +113,11 @@ def create_cnn_data_loaders(emb_source, tok_jsonl, train_ids, val_ids, test_ids,
     )
 
 
-def build_t_fold(lora_plm, hidden, kernel_size, dropout, lr, device, resume):
+def build_t_fold(lora_plm, hidden, kernel_size, dropout, lr, device,bio2token, resume):
     if resume:
         model = TFold.load_tfold(resume, device=device).to(device)
     else:
-        model = TFold(hidden=hidden, kernel_sizes=kernel_size, dropout=dropout, device=device, use_lora=lora_plm).to(
+        model = TFold(hidden=hidden, kernel_sizes=kernel_size, dropout=dropout, device=device, use_lora=lora_plm,bio2token=bio2token).to(
             device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     return model, optimizer
@@ -221,7 +221,7 @@ def get_model(args):
             )
         case "t_fold":
             return build_t_fold(args.lora_plm, args.hidden, args.kernel_size, args.dropout, args.lr,
-                                args.device, args.resume)
+                                args.device, args.resume,args.bio2token)
         case "final":
             return build_final_model(args.lora_plm, args.lora_decoder, args.hidden, args.kernel_size, args.dropout,
                                      args.lr,

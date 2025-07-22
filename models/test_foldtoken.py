@@ -728,5 +728,3 @@ if __name__ == '__main__':
             loss = calc_token_loss(tfold.cnn.criterion, cnn_out, tokens)
             print(loss.item())
             break
-
-
