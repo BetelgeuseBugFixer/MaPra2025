@@ -87,17 +87,29 @@ def get_scores(gt_pdb, pred):
     tm_score_score = tm_score(gt_protein, pred_protein, indices, indices, all_atoms)
     return lddt_score, rmsd_score, tm_score_score
 
+def get_smooth_lddt(lddt_loss_module,prediction,pdb_dict):
+    filtered_pdb_dict = filter_pdb_dict(pdb_dict)
+    gt = torch.tensor(filtered_pdb_dict["coords_groundtruth"]).unsqueeze(0).to(device)
+    pd = prediction.unsqueeze(0).to(device)
+    B, L, _ = gt.shape
+    is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
+    is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
+    mask = torch.ones((B, L), dtype=torch.bool, device=device)
+    lddt_score = 1 - smooth_lddt(gt, pd, is_dna, is_rna, mask).item()
+    return lddt_score
+
+
 def plot_smooth_lddt(lddts,smooth_lddts):
     # Convert to numpy arrays (optional but useful)
-    lddt = np.array(lddts)
-    smooth_lddt = np.array(smooth_lddts)
+    lddts = np.array(lddts)
+    smooth_lddts = np.array(smooth_lddts)
 
     # Compute correlation coefficient
-    r, _ = pearsonr(lddt, smooth_lddt)
+    r, _ = pearsonr(lddts, smooth_lddts)
 
     # Plot
     plt.figure(figsize=(6, 6))
-    plt.scatter(lddt, smooth_lddt, alpha=0.7, color='steelblue', edgecolors='k')
+    plt.scatter(lddts, smooth_lddts, alpha=0.7, color='steelblue', edgecolors='k')
     plt.xlabel("True lDDT")
     plt.ylabel("Smoothed lDDT (AlphaFold)")
     plt.title(f"Scatter Plot with Pearson r = {r:.3f}")
@@ -148,15 +160,7 @@ if __name__ == '__main__':
         smooth_lddts = []
         smooth_lddt = SmoothLDDTLoss().to(device)
         for final_struct, pdb_dict in zip(final_structs, pdb_dicts):
-            filtered_pdb_dict = filter_pdb_dict(pdb_dict)
-            gt = torch.tensor(filtered_pdb_dict["coords_groundtruth"]).unsqueeze(0).to(device)
-            pd = final_struct.unsqueeze(0).to(device)
-            B, L, _ = gt.shape
-            is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
-            is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
-            mask = torch.ones((B, L), dtype=torch.bool, device=device)
-            lddt_score = 1 - smooth_lddt(gt, pd, is_rna, is_rna, mask).item()
-            smooth_lddts.append(lddt_score)
+            smooth_lddts.append(get_smooth_lddt(smooth_lddt,final_struct, pdb_dict))
     for i in range(len(smooth_lddts)):
         print(f"{smooth_lddts[i]}->{actual_lddts[i]}")
     plot_smooth_lddt(actual_lddts, smooth_lddts)
