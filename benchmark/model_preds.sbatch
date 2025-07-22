@@ -20,5 +20,5 @@ echo "Now in: $(pwd)"
 export PYTHONPATH="/mnt/dir/MaPra2025:$PYTHONPATH"
 
 echo "Starting eval script..."
-python -u benchmark/model_predictions.py --checkpoint mnt/models/final_k21_3_3_h16384_8192_2048_a_1_b_1/final_k21_3_3_h16384_8192_2048_a_1_b_1_latest.pt
+python -u benchmark/model_predictions.py --checkpoint /mnt/models/final_k21_3_3_h16384_8192_2048_a_1_b_1/final_k21_3_3_h16384_8192_2048_a_1_b_1_latest.pt
 echo "Eval script finished."
