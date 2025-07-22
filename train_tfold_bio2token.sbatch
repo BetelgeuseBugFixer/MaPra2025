@@ -22,8 +22,8 @@ python -u models/train.py --model t_fold \
                           --data_dir /mnt/data/large/subset2/ \
                           --epochs 50 \
                           --out_folder /mnt/models \
-                          --batch 32 \
-                          --val_batch 32 \
+                          --batch 16 \
+                          --val_batch 16 \
                           --patience 20 \
                           --lr 0.0001
 echo "Training script finished."
