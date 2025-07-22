@@ -54,7 +54,7 @@ def infer_structures(model: torch.nn.Module, seqs, batch_size=16):
             b = pred_structs.shape[0]
             # extract single atoms
             for i in range(b):
-                all_structs.append(pred_structs[i])
+                all_structs.append(pred_structs[i].cpu())
 
 
     # free GPU memory if needed
