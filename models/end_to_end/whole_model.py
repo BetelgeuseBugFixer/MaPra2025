@@ -221,6 +221,7 @@ class TFold(nn.Module):
         return self.forward_from_embedding(x, true_lengths)
 
     def forward_from_embedding_bio2token(self, x, true_lengths=None):
+        x.to(self.device)
         if true_lengths is None:
             # if we do not have lengths derive them from embeddings
             true_lengths = (x.abs().sum(-1) > 0).sum(dim=1)
@@ -299,7 +300,6 @@ class TFold(nn.Module):
         total_loss = total_acc = total_samples = 0
         # run through model
         for model_in, tokens in loader:
-            model_in = model_in.to(device)
             tokens = tokens.to(device)
             mask = (tokens != PAD_LABEL)
             logits = forward_method(model_in)

@@ -22,7 +22,7 @@ python -u models/train.py --model t_fold \
                           --data_dir /mnt/data/large/subset2/ \
                           --epochs 50 \
                           --out_folder /mnt/models \
-                          --batch 200 \
+                          --batch 64 \
                           --val_batch 64 \
                           --patience 20 \
                           --lr 0.0001
