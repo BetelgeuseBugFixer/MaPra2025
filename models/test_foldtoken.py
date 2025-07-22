@@ -24,17 +24,17 @@ from models.bio2token.utils.configs import utilsyaml_to_dict, pi_instantiate
 from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores, SmoothLDDTLoss, \
     batch_pdbs_for_bio2token, print_trainable_parameters, masked_mse_loss
 from models.prot_t5.prot_t5 import ProtT5
-from models.datasets.datasets import PAD_LABEL, StructureAndTokenSet
+from models.datasets.datasets import PAD_LABEL, StructureAndTokenSet, StructureSet
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
 from models.bio2token.data.utils.utils import pdb_2_dict, uniform_dataframe, compute_masks, pad_and_stack_batch, \
     filter_batch, pad_and_stack_tensors
 
 from models.foldtoken_decoder.foldtoken import FoldToken
-from models.end_to_end.whole_model import TFold, FinalModel
+from models.end_to_end.whole_model import TFold, FinalModel, FinalFinalModel
 from transformers import T5EncoderModel, T5Tokenizer
 from hydra_zen import load_from_yaml, builds, instantiate
 
-from models.train import collate_emb_struc_tok_batch, collate_seq_struc_tok_batch
+from models.train import collate_emb_struc_tok_batch, collate_seq_struc_tok_batch, collate_seq_struc
 
 
 def load_prot_from_pdb(pdb_file):
@@ -713,5 +713,17 @@ def selin_debug():
 
 
 if __name__ == '__main__':
-   look_at_weird_lddt()
+    device = "cuda"
+    final_final_model=FinalFinalModel([500],device=device,dropout=0.0,plm_lora=True,decoder_lora=True).to(device)
+    dataset = StructureSet("/mnt/data/large/subset2/val")
+    dataloader = DataLoader(dataset, batch_size=1, collate_fn=collate_seq_struc)
+    for seq,structure in dataloader:
+        print(len(seq))
+        structure=structure.to(device)
+        prediction, final_mask, cnn_out = final_final_model(seq)
+        print_tensor(prediction,"prediction")
+        print_tensor(final_mask,"final_mask")
+        print_tensor(cnn_out,"cnn_out")
+        break
+
 

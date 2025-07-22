@@ -8,18 +8,18 @@ from torch import nn
 from models.bio2token.decoder import Bio2tokenDecoder
 from models.foldtoken_decoder.foldtoken import FoldToken
 from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores, SmoothLDDTLoss, masked_mse_loss
-from models.prot_t5.prot_t5 import ProtT5
+from models.prot_t5.prot_t5 import ProtT5, ProstT5
 from models.datasets.datasets import PAD_LABEL
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
 
 class FinalFinalModel(nn.Module):
     def __init__(self, hidden: list, device="cpu", kernel_sizes=[5], dropout: float = 0.1, plm_lora=False,
-                 decoder_lora=False,alpha=1,beta=1):
+                 decoder_lora=False):
         for kernel_size in kernel_sizes:
             assert kernel_size % 2 == 1, f"Kernel size {kernel_size} is invalid. Must be odd for symmetric context."
         super().__init__()
         self.device = device
-        self.plm = ProtT5(use_lora=plm_lora, device=device).to(self.device)
+        self.plm = ProstT5(use_lora=plm_lora, device=device).to(self.device)
         embeddings_size = 1024
         self.decoder = Bio2tokenDecoder(device=device, use_lora=decoder_lora).to(device)
         codebook_size = 128
