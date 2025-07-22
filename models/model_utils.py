@@ -41,7 +41,7 @@ def masked_mse_loss(prediction: torch.Tensor,
     return masked_loss
 
 def calc_token_loss(criterion, tokens_predictions, tokens_reference):
-    return criterion(tokens_predictions.transpose(1, 2), tokens_reference)
+    return criterion(tokens_predictions.transpose(1, 2), tokens_reference.long())
 
 
 def batch_pdbs_for_bio2token(pdbs, device):

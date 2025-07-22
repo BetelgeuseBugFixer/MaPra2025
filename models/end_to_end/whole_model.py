@@ -172,7 +172,7 @@ class TFold(nn.Module):
 
         self.lddt_loss = SmoothLDDTLoss()
         # save args
-        decoder_type = "bio2token" if bio2token else "foldotken"
+        decoder_type = "bio2token" if bio2token else "foldtoken"
         self.args = {
             "hidden": hidden,
             "kernel_sizes": kernel_sizes,
