@@ -20,7 +20,7 @@ class ProstT5(nn.Module):
         super().__init__()
         self.device = device
         print("device: ", device)
-        self.tokenizer = T5Tokenizer.from_pretrained('Rostlab/ProstT5', do_lower_case=False).to(device)
+        self.tokenizer = T5Tokenizer.from_pretrained('Rostlab/ProstT5', do_lower_case=False)
         print("downloaded tokenizer")
         base_model = T5EncoderModel.from_pretrained(transformer_link).to(device)
         print("downloaded model")
