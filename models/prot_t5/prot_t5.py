@@ -19,10 +19,13 @@ class ProstT5(nn.Module):
     ):
         super().__init__()
         self.device = device
-        self.tokenizer = T5Tokenizer.from_pretrained(transformer_link, do_lower_case=False, use_fast=False)
+        print("device: ", device)
+        self.tokenizer = T5Tokenizer.from_pretrained(transformer_link, do_lower_case=False).to(device)
+        print("downloaded tokenizer")
         base_model = T5EncoderModel.from_pretrained(transformer_link).to(device)
+        print("downloaded model")
         base_model.full() if device=='cpu' else base_model.half()
-
+        print("loaded model")
         if use_lora:
             lora_config = LoraConfig(
                 r=lora_r,
