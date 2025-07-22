@@ -103,7 +103,7 @@ if __name__ == '__main__':
     pdb_paths = [os.path.join(in_dir, pdb) for pdb in pdb_names]
     pdb_dicts = [pdb_2_dict(pdb_path) for pdb_path in pdb_paths]
     # filter for length
-    allowed_indices = [i for i, pdb_dict in enumerate(pdb_dicts) if len(pdb_dict["seq"]) >= MAX_LENGTH]
+    allowed_indices = [i for i, pdb_dict in enumerate(pdb_dicts) if len(pdb_dict["seq"]) <= MAX_LENGTH]
     pdb_dicts = [pdb_dicts[i] for i in allowed_indices]
     pdb_paths = [pdb_paths[i] for i in allowed_indices]
     seqs = [pdb_dict["seq"] for pdb_dict in pdb_dicts]
@@ -114,22 +114,22 @@ if __name__ == '__main__':
     args = p.parse_args()
 
     print(f"Loading model from checkpoint: {args.checkpoint}")
-    model = FinalModel.load_final(args.checkpoint, device=device)
+    model = FinalModel.load_final(args.checkpoint, device=device).to(device)
 
     final_structs = infer_structures(model, seqs[0:1], batch_size=64)
     # remove padding
     print(final_structs[0].shape)
-    final_structs = [struct[:len(seq),]for struct,seq in zip(final_structs,seqs[0:1])]
+    final_structs = [struct[:len(seq)*4,]for struct,seq in zip(final_structs,seqs[0:1])]
     print(final_structs[0].shape)
     for final_struct, pdb_path in zip(final_structs, pdb_paths):
         print(get_scores(pdb_path, final_struct))
         break
-
-    smooth_lddt = SmoothLDDTLoss()
-    for final_struct, pdb_dict in zip(final_structs, pdb_dicts):
-        gt = torch.from_numpy(pdb_dict["coords_groundtruth"]).unsqueeze(0)
-        pd = final_struct.unsqueeze(0)
-        print(1 - smooth_lddt(gt, pd).item())
-        break
+    with torch.no_grad():
+        smooth_lddt = SmoothLDDTLoss().to(device)
+        for final_struct, pdb_dict in zip(final_structs, pdb_dicts):
+            gt = torch.from_numpy(pdb_dict["coords_groundtruth"]).unsqueeze(0).to(device)
+            pd = final_struct.unsqueeze(0).to(device)
+            print(1 - smooth_lddt(gt, pd).item())
+            break
     # bio2_structs = infer_structures(TFold, "path/to/bio2.pt", seqs, batch_size=2, bio2token=True)
     # foldtoken_structs = infer_structures(TFold, "path/to/fold.pt", seqs, batch_size=2, bio2token=False)
