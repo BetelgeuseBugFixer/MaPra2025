@@ -56,7 +56,6 @@ def infer_structures(model: torch.nn.Module, seqs, batch_size=16):
             for i in range(b):
                 all_structs.append(pred_structs[i].cpu())
 
-
     # free GPU memory if needed
     del model
     torch.cuda.empty_cache()
@@ -119,9 +118,9 @@ if __name__ == '__main__':
 
     final_structs = infer_structures(model, seqs, batch_size=64)
     # remove padding
-    final_structs = [struct[:len(seq)*4,]for struct,seq in zip(final_structs,seqs)]
+    final_structs = [struct[:len(seq) * 4, ] for struct, seq in zip(final_structs, seqs)]
     for final_struct, pdb_path in zip(final_structs, pdb_paths):
-        np_prediction=final_struct.numpy()
+        np_prediction = final_struct.numpy()
         print(get_scores(pdb_path, np_prediction))
         break
     with torch.no_grad():
@@ -129,11 +128,11 @@ if __name__ == '__main__':
         for final_struct, pdb_dict in zip(final_structs, pdb_dicts):
             gt = torch.from_numpy(pdb_dict["coords_groundtruth"]).unsqueeze(0).to(device)
             pd = final_struct.unsqueeze(0).to(device)
-            B,L,=gt.shape
+            B, L, _ = gt.shape
             is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
             is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
             mask = torch.ones((B, L), dtype=torch.bool, device=device)
-            print(1 - smooth_lddt(gt, pd,is_rna,is_rna,mask).item())
+            print(1 - smooth_lddt(gt, pd, is_rna, is_rna, mask).item())
             break
     # bio2_structs = infer_structures(TFold, "path/to/bio2.pt", seqs, batch_size=2, bio2token=True)
     # foldtoken_structs = infer_structures(TFold, "path/to/fold.pt", seqs, batch_size=2, bio2token=False)
