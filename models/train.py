@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 from models.bio2token.data.utils.utils import pad_and_stack_tensors
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
 from models.datasets.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir, PAD_LABEL, StructureAndTokenSet, \
-    TokenSet
+    TokenSet, StructureSet
 from models.end_to_end.whole_model import TFold, FinalModel
 
 
@@ -38,7 +38,7 @@ def parse_args():
     parser.add_argument("--data_dir", help="Directory with train, validation and test sub directories")
 
     # model
-    parser.add_argument("--model", type=str, default="cnn", help="type of model to use, options: cnn, tfold, final")
+    parser.add_argument("--model", type=str, default="cnn", help="type of model to use, options: cnn, tfold, final, final_final")
     parser.add_argument("--resume", type=str, help="path to an existing model to resume training")
     parser.add_argument("--wandb_resume_id", type=str, help="W&B id of an existing wandb run")
     # end to end exclusive setting
@@ -75,11 +75,11 @@ def parse_args():
     return parser.parse_args()
 
 
-def create_tfold_data_loaders(data_dir, batch_size, val_batch_size, fine_tune_plm, bio2token=False, final_model=False):
+def create_tfold_data_loaders(data_dir, batch_size, val_batch_size, fine_tune_plm, bio2token=False, model_type="final"):
     train_dir = os.path.join(data_dir, "train")
     val_dir = os.path.join(data_dir, "val")
 
-    if final_model:
+    if model_type=="final":
         token_type = "encoding"
         train_set = StructureAndTokenSet(train_dir, token_type, precomputed_embeddings=not fine_tune_plm)
         val_set = StructureAndTokenSet(val_dir, token_type, precomputed_embeddings=not fine_tune_plm)
@@ -89,17 +89,24 @@ def create_tfold_data_loaders(data_dir, batch_size, val_batch_size, fine_tune_pl
             DataLoader(train_set, batch_size=batch_size, collate_fn=collate_function),
             DataLoader(val_set, batch_size=batch_size, collate_fn=collate_function)
         )
-    else:
+    elif model_type=="tfold":
         token_type = "bio2token" if bio2token else "foldtoken"
         train_set = TokenSet(train_dir, token_type=token_type, precomputed_embeddings=not fine_tune_plm)
         val_set = StructureAndTokenSet(val_dir, token_type, precomputed_embeddings=not fine_tune_plm)
         # get padding function based on input
         val_collate_function = collate_seq_struc_tok_batch if fine_tune_plm else collate_emb_struc_tok_batch
         train_collate_function = collate_seq_tok_batch if fine_tune_plm else collate_emb_tok_batch
-
         return (
             DataLoader(train_set, batch_size=batch_size, collate_fn=train_collate_function),
             DataLoader(val_set, batch_size=val_batch_size, collate_fn=val_collate_function)
+        )
+    elif model_type=="final_final":
+        train_set = StructureSet(train_dir, precomputed_embeddings=not fine_tune_plm)
+        val_set = StructureSet(val_dir, precomputed_embeddings=not fine_tune_plm)
+        collate_function = collate_seq_struc if fine_tune_plm else collate_emb_struc
+        return (
+            DataLoader(train_set, batch_size=batch_size, collate_fn=collate_function),
+            DataLoader(val_set, batch_size=batch_size, collate_fn=collate_function)
         )
 
 
@@ -148,6 +155,15 @@ def collate_seq_struc(batch):
     # Pad structure
     structures = pad_and_stack_tensors(structures, 0)
     return list(sequences), structures
+
+
+def collate_emb_struc(batch):
+    embs, structures = zip(*batch)
+    embs_padded = pad_sequence(embs, batch_first=True)
+    # Pad structure
+    structures = pad_and_stack_tensors(structures, 0)
+    return embs_padded, structures
+
 
 
 def collate_seq_struc_tok_batch(batch):
@@ -226,6 +242,9 @@ def get_model(args):
             return build_final_model(args.lora_plm, args.lora_decoder, args.hidden, args.kernel_size, args.dropout,
                                      args.lr,
                                      args.device,args.alpha,args.beta, args.resume)
+        case "final_final":
+            return build_final_final_model(args.lora_plm, args.lora_decoder, args.hidden, args.kernel_size, args.dropout,
+                             args.lr,args.device, args.resume)
         case _:
             raise NotImplementedError
 
@@ -271,10 +290,9 @@ def get_dataset(args):
         return create_cnn_data_loaders(
             emb_source, args.tok_jsonl, train_ids, val_ids, test_ids, args.batch, use_file
         )
-    elif args.model == "t_fold" or args.model == "final":
-        final_model = args.model == "final"
+    else:
         return create_tfold_data_loaders(args.data_dir, args.batch, args.val_batch, args.lora_plm, args.bio2token,
-                                         final_model)
+                                         args.model)
 
 
 def print_epoch_end(score_dict, epoch, start):

@@ -20,7 +20,7 @@ class ProstT5(nn.Module):
         super().__init__()
         self.device = device
         self.tokenizer = T5Tokenizer.from_pretrained(transformer_link, do_lower_case=False, use_fast=False)
-        base_model = T5EncoderModel.from_pretrained(transformer_link)
+        base_model = T5EncoderModel.from_pretrained(transformer_link).to(device)
         base_model.full() if device=='cpu' else base_model.half()
 
         if use_lora:
@@ -32,7 +32,7 @@ class ProstT5(nn.Module):
                 task_type=TaskType.FEATURE_EXTRACTION,
                 target_modules=["q", "v"]
             )
-            self.model = get_peft_model(base_model, lora_config).to(device)
+            self.model = get_peft_model(base_model, lora_config)
         else:
             for param in base_model.parameters():
                 param.requires_grad = False
@@ -72,7 +72,7 @@ class ProtT5(nn.Module):
         self.device = device
         self.tokenizer = T5Tokenizer.from_pretrained(transformer_link, do_lower_case=False, use_fast=False)
         base_model = T5EncoderModel.from_pretrained(transformer_link)
-
+        print("downloaded model")
         if use_lora:
             lora_config = LoraConfig(
                 r=lora_r,

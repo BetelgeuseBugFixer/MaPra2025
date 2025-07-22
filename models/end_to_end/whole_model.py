@@ -19,7 +19,9 @@ class FinalFinalModel(nn.Module):
             assert kernel_size % 2 == 1, f"Kernel size {kernel_size} is invalid. Must be odd for symmetric context."
         super().__init__()
         self.device = device
+        print("loading model...")
         self.plm = ProstT5(use_lora=plm_lora, device=device).to(self.device)
+        print("inited ProstT5 model")
         embeddings_size = 1024
         self.decoder = Bio2tokenDecoder(device=device, use_lora=decoder_lora).to(device)
         codebook_size = 128
