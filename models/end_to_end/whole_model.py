@@ -332,7 +332,6 @@ class TFold(nn.Module):
             for model_in, tokens, structure in loader:
                 # get predictions
                 structure = structure.to(device)
-                model_in = model_in.to(device)
                 tokens = tokens.to(device)
                 mask = (tokens != PAD_LABEL)
                 protein_predictions, logits, atom_mask = forward_method(model_in)
