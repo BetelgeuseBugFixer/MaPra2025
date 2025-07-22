@@ -715,12 +715,14 @@ def selin_debug():
 if __name__ == '__main__':
     device = "cuda"
     final_final_model=FinalFinalModel([500],device=device,dropout=0.0,plm_lora=True,decoder_lora=True).to(device)
+    print("inited model")
     dataset = StructureSet("/mnt/data/large/subset2/val")
     dataloader = DataLoader(dataset, batch_size=1, collate_fn=collate_seq_struc)
-    for seq,structure in dataloader:
-        print(len(seq))
+    for seqs,structure in dataloader:
+        for seq in seqs:
+            print(len(seq))
         structure=structure.to(device)
-        prediction, final_mask, cnn_out = final_final_model(seq)
+        prediction, final_mask, cnn_out = final_final_model(seqs)
         print_tensor(prediction,"prediction")
         print_tensor(final_mask,"final_mask")
         print_tensor(cnn_out,"cnn_out")
