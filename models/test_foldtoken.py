@@ -617,7 +617,7 @@ def test_foldtoken_model():
 def look_at_weird_lddt():
     device = "cuda"
     dataset = StructureAndTokenSet("/mnt/data/large/subset2/val", "foldtoken", precomputed_embeddings=False)
-    loader = DataLoader(dataset, batch_size=2, collate_fn=collate_seq_struc_tok_batch)
+    loader = DataLoader(dataset, batch_size=1, collate_fn=collate_seq_struc_tok_batch)
     tfold = TFold([1000], device=device, bio2token=False).to(device)
     i = 0
     with torch.no_grad():
@@ -669,7 +669,7 @@ def look_at_weird_lddt():
     print("done")
 
 
-if __name__ == '__main__':
+def selin_debug():
     device = "cuda"
     dataset = StructureAndTokenSet("/mnt/data/large/subset2/val", "encoding", precomputed_embeddings=False)
     loader = DataLoader(dataset, batch_size=1, collate_fn=collate_seq_struc_tok_batch)
@@ -677,7 +677,8 @@ if __name__ == '__main__':
     dataset2 = StructureAndTokenSet("/mnt/data/large/subset2/val", "encoding", precomputed_embeddings=True)
     loader2 = DataLoader(dataset2, batch_size=1, collate_fn=collate_emb_struc_tok_batch)
 
-    model=FinalModel([512, 256, 256], kernel_sizes=[17, 3, 3],device=device , dropout=0.0, decoder_lora=True,plm_lora=True)
+    model = FinalModel([512, 256, 256], kernel_sizes=[17, 3, 3], device=device, dropout=0.0, decoder_lora=True,
+                       plm_lora=True)
     model.to(device)
     model.eval()
     with torch.no_grad():
@@ -694,12 +695,12 @@ if __name__ == '__main__':
             # encoding_loss = masked_mse_loss(cnn_out, encoding, final_mask)
             # print(encoding_loss.item())
             print("test")
-            test=model.plm.encode_list_of_seqs(sequences,2)
+            test = model.plm.encode_list_of_seqs(sequences, 2)
             for s in test:
                 print_tensor(s, "s")
             break
         for emb, encoding, structure in loader2:
-            print_tensor(emb,"embedding")
+            print_tensor(emb, "embedding")
             encoding.to(device)
             structure.to(device)
             emb.to(device)
@@ -709,4 +710,8 @@ if __name__ == '__main__':
             print_tensor(structure, "structure")
             print_tensor(encoding, "encoding")
             break
+
+
+if __name__ == '__main__':
+   look_at_weird_lddt()
 
