@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -p lrz-hgx-h100-94x4,lrz-hgx-a100-80x4,lrz-dgx-a100-80x8
+#SBATCH -p lrz-hgx-h100-94x4
 #SBATCH --gres=gpu:1
 #SBATCH -o slurm_out/train_tfold_bio_std_output.out
 #SBATCH -e slurm_out/train_tfold_bio_std_err.err
@@ -22,8 +22,8 @@ python -u models/train.py --model t_fold \
                           --data_dir /mnt/data/large/subset2/ \
                           --epochs 50 \
                           --out_folder /mnt/models \
-                          --batch 16 \
-                          --val_batch 16 \
+                          --batch 8 \
+                          --val_batch 8 \
                           --patience 20 \
                           --lr 0.0001
 echo "Training script finished."
