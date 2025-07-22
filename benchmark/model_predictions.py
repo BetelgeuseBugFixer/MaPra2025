@@ -76,7 +76,8 @@ def get_scores(gt_pdb, pred):
     if isinstance(pred, str):
         pred_protein = load_prot_from_pdb(pred)
     else:
-        pred_protein = pred
+        pred_protein = gt_protein.copy
+        pred_protein.coords = pred
     lddt_score = float(lddt(gt_protein, pred_protein))
     rmsd_score = float(rmsd(gt_protein, pred_protein))
     # get indices for tm score
