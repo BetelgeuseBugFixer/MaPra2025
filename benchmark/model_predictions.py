@@ -117,8 +117,11 @@ if __name__ == '__main__':
     print(f"Loading model from checkpoint: {args.checkpoint}")
     model = FinalModel.load_final(args.checkpoint, device=device)
 
-    final_structs = infer_structures(model, seqs, batch_size=64)
-    print(final_structs[0])
+    final_structs = infer_structures(model, seqs[0:1], batch_size=64)
+    # remove padding
+    print(final_structs[0].shape)
+    final_structs = [struct[:len(seq),]for struct,seq in zip(final_structs,seqs[0:1])]
+    print(final_structs[0].shape)
     for final_struct, pdb_path in zip(final_structs, pdb_paths):
         print(get_scores(pdb_path, final_struct))
         break
