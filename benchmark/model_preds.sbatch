@@ -13,12 +13,16 @@ source ~/.bashrc
 source /opt/miniconda/etc/profile.d/conda.sh
 conda activate /opt/envs/f_token
 
-echo "Now in: $(pwd)"
-cd /mnt/dir/MaPra2025
-echo "Now in: $(pwd)"
+#echo "Now in: $(pwd)"
+#cd /mnt/dir/MaPra2025
+#echo "Now in: $(pwd)"
+#
+#export PYTHONPATH="/mnt/dir/MaPra2025:$PYTHONPATH"
 
-export PYTHONPATH="/mnt/dir/MaPra2025:$PYTHONPATH"
+
+cd ~/MaPra2025
+export PYTHONPATH=~/MaPra2025:$PYTHONPATH
 
 echo "Starting eval script..."
-python -u benchmark/model_predictions.py --checkpoint /mnt/models/final_k21_3_3_h16384_8192_2048_a_1_b_1/final_k21_3_3_h16384_8192_2048_a_1_b_1_latest.pt
+python -u benchmark/model_predictions.py --checkpoint /mnt/models/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora_lr0.0002/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora.pt
 echo "Eval script finished."
