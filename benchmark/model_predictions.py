@@ -21,14 +21,13 @@ def collate_seqs(batch):
     return list(batch)
 
 
-def infer_structures(load_fn, seqs, batch_size=16):
+def infer_structures(model: torch.nn.Module, seqs, batch_size=16):
     """
-    load_fn: a function like FinalModel.load_final or TFold.load_tfold
-    ckpt_path: path to your .pt checkpoint
+    model: an already-loaded model instance (e.g. FinalModel)
     seqs: List[str]
+    batch_size: int
     returns: List of predicted structures (one per sequence)
     """
-    model = load_fn()
     model.eval()
 
     ds     = SeqDataset(seqs)
@@ -47,7 +46,7 @@ def infer_structures(load_fn, seqs, batch_size=16):
             else:
                 all_structs.extend(pred_structs)
 
-    # free GPU memory before loading the next model
+    # free GPU memory if needed
     del model
     torch.cuda.empty_cache()
 
@@ -64,8 +63,11 @@ if __name__ == '__main__':
                    required=True,
                    help="Path to your .pt checkpoint")
     args = p.parse_args()
-    print(f"before infer struct: {args.checkpoint}")
-    final_structs = infer_structures(FinalModel.load_final(args.checkpoint, device=device), seqs, batch_size=2)
+
+    print(f"Loading model from checkpoint: {args.checkpoint}")
+    model = FinalModel.load_final(args.checkpoint, device=device)
+
+    final_structs = infer_structures(model, seqs, batch_size=2)
+    print(final_structs)
     #bio2_structs = infer_structures(TFold, "path/to/bio2.pt", seqs, batch_size=2, bio2token=True)
     #foldtoken_structs = infer_structures(TFold, "path/to/fold.pt", seqs, batch_size=2, bio2token=False)
-    print(final_structs)
