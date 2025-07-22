@@ -17,7 +17,6 @@ export PYTHONPATH=~/MaPra2025:$PYTHONPATH
 echo "Starting training script..."
 python -u models/train.py --model t_fold \
                           --lora_plm \
-                          --lora_decoder \
                           --hidden 512 256 128 \
                           --kernel 17 5 1 \
                           --data_dir /mnt/data/large/subset2/ \
@@ -25,5 +24,6 @@ python -u models/train.py --model t_fold \
                           --out_folder /mnt/models \
                           --batch 200 \
                           --val_batch 64 \
-                          --patience 20
+                          --patience 20 \
+                          --lr 0.0001
 echo "Training script finished."
