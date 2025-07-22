@@ -10,7 +10,7 @@
 # #SBATCH --mem=150G
 
 # command to execute and track it
-# sbatch model_preds.sbatch & tail -f slurm_out/model_preds.out
+# sbatch benchmark/model_preds.sbatch & tail -f slurm_out/model_preds.out
 source ~/.bashrc
 source /opt/miniconda/etc/profile.d/conda.sh
 conda activate /opt/envs/f_token

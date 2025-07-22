@@ -97,7 +97,7 @@ if __name__ == '__main__':
     # get singletons to filter
     with open("/mnt/data/large/prostt5_IDs/afdb50best_foldseek_clu_singleton.ids") as f:
         singleton_ids = {line.strip().split("-")[1] for line in f if "-" in line}
-    in_dir = "/data/large/zip_file/final_data_PDB/val/val_pdb"
+    in_dir = "/mnt/data/large/zip_file/final_data_PDB/val/val_pdb"
     pdb_names = [pdb for pdb in os.listdir(in_dir) if pdb.endswith("pdb")]
     # filter singletons
     pdb_names = [pdb for pdb in pdb_names if not get_pid_from_file_name(pdb) in singleton_ids]
