@@ -724,8 +724,8 @@ if __name__ == '__main__':
             for seq in seqs:
                 print(len(seq))
             structure=structure.to(device)
-            prediction, final_mask, cnn_out = final_final_model(seqs)
-            print_tensor(prediction,"prediction")
+            predictions, final_mask, cnn_out = final_final_model(seqs)
+            print_tensor(predictions,"prediction")
             print_tensor(final_mask,"final_mask")
             print_tensor(cnn_out,"cnn_out")
             B, L, _ = predictions.shape
