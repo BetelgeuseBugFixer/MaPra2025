@@ -27,7 +27,7 @@ python -u models/train.py --model final \
                           --batch 8 \
                           --patience 20 \
                           --lr 0.00009 \
+                          --alpha 1 \
                           --beta 0 \
                           --resume /mnt/models/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora_lr0.0002/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora_latest.pt \
-                          --wandb_resume_id u1r5wpuj
 echo "Training script finished."
