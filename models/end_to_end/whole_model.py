@@ -105,7 +105,7 @@ class FinalFinalModel(nn.Module):
             forward = self.forward
         else:
             forward = self.forward_from_embedding
-        for model_in ,structure in loader:
+        for model_in, structure in loader:
             # model in is not loaded to device, because it might be a list of sequences
             structure = structure.to(device)
             predictions, final_mask, cnn_out = forward(model_in)
@@ -160,6 +160,8 @@ class FinalModel(nn.Module):
             "device": device,
             "plm_lora": plm_lora,
             "decoder_lora": decoder_lora,
+            "alpha": alpha,
+            "beta": beta
         }
         hidden_layers_string = "_".join(str(i) for i in hidden)
         kernel_sizes_string = "_".join(str(i) for i in kernel_sizes)
@@ -189,6 +191,14 @@ class FinalModel(nn.Module):
         model.to(device)
         model.eval()
         return model
+
+    def set_alpha(self, alpha):
+        self.alpha = alpha
+        self.args["alpha"] = alpha
+
+    def set_beta(self, beta):
+        self.beta = beta
+        self.args["beta"] = beta
 
     def forward(self, seqs: List[str]):
         # save the lengths of the sequences

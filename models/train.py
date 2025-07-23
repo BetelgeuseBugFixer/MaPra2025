@@ -134,6 +134,10 @@ def build_t_fold(lora_plm, hidden, kernel_size, dropout, lr, device, resume):
 def build_final_model(lora_plm, lora_decoder, hidden, kernel_size, dropout, lr, device, alpha, beta, resume):
     if resume:
         model = FinalModel.load_final(resume, device=device).to(device)
+        # this part overrides the alpha and beta value saved with the model
+        # this was introduced because alpha and beta was originally not saved with the model
+        model.set_alpha(alpha)
+        model.set_beta(beta)
     else:
         model = FinalModel(hidden, kernel_sizes=kernel_size, plm_lora=lora_plm, decoder_lora=lora_decoder,
                            device=device,
