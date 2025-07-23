@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -p lrz-hgx-h100-94x4
+#SBATCH -p -p lrz-hgx-h100-94x4,lrz-hgx-a100-80x4,lrz-dgx-a100-80x8
 #SBATCH --gres=gpu:1
 #SBATCH -o slurm_out/train_final_final_lora_std_output.out
 #SBATCH -e slurm_out/train_final_final_lora_std_err.err
@@ -18,13 +18,12 @@ echo "Starting training script..."
 python -u models/train.py --model final_final \
                           --lora_plm \
                           --lora_decoder \
-                          --hidden 16384 8192 2048 \
-                          --kernel 21 3 3 \
+                          --hidden 4096 2048 1024 \
+                          --kernel 17 3 3 \
                           --data_dir /mnt/data/large/subset2/ \
                           --epochs 2 \
                           --out_folder /mnt/models \
                           --batch 8 \
                           --patience 6 \
                           --lr 0.0001 \
-
 echo "Training script finished."
