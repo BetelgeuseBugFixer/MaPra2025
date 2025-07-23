@@ -9,7 +9,7 @@
 #SBATCH --mem=150G
 
 # command to execute and track it
-# sbatch train_final_lora_plm_resume.sbatch &  tail -f slurm_out/train_final_lora_resume_std_output.out slurm_out/train_final_lora_resume_std_err.err
+# sbatch train_scripts/train_final_lora_plm_resume.sbatch &  tail -f slurm_out/train_final_lora_resume_std_output.out slurm_out/train_final_lora_resume_std_err.err
 source ~/.bashrc
 source /opt/miniconda/etc/profile.d/conda.sh
 conda activate /opt/envs/f_token
@@ -22,10 +22,12 @@ python -u models/train.py --model final \
                           --hidden 16384 8192 2048 \
                           --kernel 21 3 3 \
                           --data_dir /mnt/data/large/subset2/ \
-                          --epochs 20 \
+                          --epochs 38 \
                           --out_folder /mnt/models \
                           --batch 8 \
                           --patience 20 \
-                          --resume /mnt/models/final_k21_3_3_h16384_8192_2048_plm_lora/final_k21_3_3_h16384_8192_2048_plm_lora_latest.pt \
-                          --wandb_resume_id 60mqev5v
+                          --lr 0.00009 \
+                          --beta 0 \
+                          --resume /mnt/models/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora_lr0.0002/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora_latest.pt \
+                          --wandb_resume_id u1r5wpuj
 echo "Training script finished."
