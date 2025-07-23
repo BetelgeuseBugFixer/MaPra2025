@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -p -p lrz-hgx-h100-94x4,lrz-hgx-a100-80x4,lrz-dgx-a100-80x8
+#SBATCH -p lrz-hgx-h100-94x4,lrz-hgx-a100-80x4,lrz-dgx-a100-80x8
 #SBATCH --gres=gpu:1
 #SBATCH -o slurm_out/train_final_final_lora_std_output.out
 #SBATCH -e slurm_out/train_final_final_lora_std_err.err
@@ -8,7 +8,7 @@
 #SBATCH --time=1:00:00
 
 # command to execute and track it
-# sbatch train_final_final_lora_plm.sbatch &  tail -f slurm_out/train_final_final_lora_std_output.out slurm_out/train_final_final_lora_std_err.err
+# sbatch train_scripts/train_final_final_lora_plm.sbatch &  tail -f slurm_out/train_final_final_lora_std_output.out slurm_out/train_final_final_lora_std_err.err
 source ~/.bashrc
 source /opt/miniconda/etc/profile.d/conda.sh
 conda activate /opt/envs/f_token
