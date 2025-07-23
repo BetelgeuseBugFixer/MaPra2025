@@ -21,11 +21,8 @@ class ProstT5(nn.Module):
         self.device = device
         print("device: ", device)
         self.tokenizer = T5Tokenizer.from_pretrained('Rostlab/ProstT5', do_lower_case=False)
-        print("downloaded tokenizer")
         base_model = T5EncoderModel.from_pretrained(transformer_link).to(device)
-        print("downloaded model")
         base_model.full() if device=='cpu' else base_model.half()
-        print("loaded model")
         if use_lora:
             lora_config = LoraConfig(
                 r=lora_r,
@@ -49,8 +46,6 @@ class ProstT5(nn.Module):
             ids.input_ids,
             attention_mask=ids.attention_mask
         )
-        print(f"ids.input_ids. {ids.input_ids}")
-
         hidden = embedding_repr.last_hidden_state  # (B, L+2, D)
         # remove embeddings from eos and padding
         valid_positions = (ids.input_ids != 0) & (ids.input_ids != 1)

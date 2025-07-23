@@ -147,7 +147,7 @@ def build_final_final_model(lora_plm, lora_decoder, hidden, kernel_size, dropout
     if resume:
         model = FinalFinalModel.load_final_final(resume, device=device).to(device)
     else:
-        model = FinalModel(hidden, kernel_sizes=kernel_size, plm_lora=lora_plm, decoder_lora=lora_decoder,
+        model = FinalFinalModel(hidden, kernel_sizes=kernel_size, plm_lora=lora_plm, decoder_lora=lora_decoder,
                            device=device,
                            dropout=dropout)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)

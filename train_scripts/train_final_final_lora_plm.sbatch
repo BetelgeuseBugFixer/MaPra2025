@@ -8,7 +8,7 @@
 #SBATCH --time=1:00:00
 
 # command to execute and track it
-# sbatch train_final_final_lora_plm.sbatch &  tail -f slurm_out/train_final_lora_std_output.out slurm_out/train_final_lora_std_err.err
+# sbatch train_final_final_lora_plm.sbatch &  tail -f slurm_out/train_final_final_lora_std_output.out slurm_out/train_final_final_lora_std_err.err
 source ~/.bashrc
 source /opt/miniconda/etc/profile.d/conda.sh
 conda activate /opt/envs/f_token
