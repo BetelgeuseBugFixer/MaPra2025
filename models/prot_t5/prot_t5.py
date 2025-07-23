@@ -58,6 +58,8 @@ class ProstT5(nn.Module):
         hidden = hidden * valid_positions.unsqueeze(-1).to(hidden.dtype)
         # remove last "residue" embeddings, because it is the eos from the longest seq
         hidden = hidden[:, 1:-1, :]
+        # convert to float
+        hidden = hidden.float()
         return hidden
 
 
