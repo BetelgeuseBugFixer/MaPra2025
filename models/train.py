@@ -281,7 +281,7 @@ def init_wand_db(args):
         "alpha": args.alpha,
         "beta": args.beta,
     }
-    if args.resume:
+    if args.wandb_resume_id:
         return wandb.init(
             entity="MaPra",
             project="monomer-structure-prediction",
