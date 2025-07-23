@@ -14,7 +14,7 @@ from models.bio2token.data.utils.utils import pad_and_stack_tensors
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
 from models.datasets.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir, PAD_LABEL, StructureAndTokenSet, \
     TokenSet, StructureSet
-from models.end_to_end.whole_model import TFold, FinalModel
+from models.end_to_end.whole_model import TFold, FinalModel, FinalFinalModel
 
 
 # ------------------------------------------------------------
@@ -38,15 +38,16 @@ def parse_args():
     parser.add_argument("--data_dir", help="Directory with train, validation and test sub directories")
 
     # model
-    parser.add_argument("--model", type=str, default="cnn", help="type of model to use, options: cnn, tfold, final, final_final")
+    parser.add_argument("--model", type=str, default="cnn",
+                        help="type of model to use, options: cnn, tfold, final, final_final")
     parser.add_argument("--resume", type=str, help="path to an existing model to resume training")
     parser.add_argument("--wandb_resume_id", type=str, help="W&B id of an existing wandb run")
     # end to end exclusive setting
     parser.add_argument("--lora_plm", action="store_true", help=" use lora to finetune the plm")
     parser.add_argument("--lora_decoder", action="store_true", help=" use lora to finetune the plm")
     parser.add_argument("--bio2token", action="store_true", help="use bio2token instead of foldtoken in tfold")
-    parser.add_argument("--alpha",type=int,help="weight of the lddt loss",default=1)
-    parser.add_argument("--beta",type=int,help="weight of the encoding loss",default=1)
+    parser.add_argument("--alpha", type=int, help="weight of the lddt loss", default=1)
+    parser.add_argument("--beta", type=int, help="weight of the encoding loss", default=1)
 
     # cnn exclusive setting
     parser.add_argument("--codebook_size", type=int, default=1024,
@@ -76,10 +77,11 @@ def parse_args():
 
 
 def create_tfold_data_loaders(data_dir, batch_size, val_batch_size, fine_tune_plm, bio2token=False, model_type="final"):
-    train_dir = os.path.join(data_dir, "train")
+    #train_dir = os.path.join(data_dir, "train")
+    train_dir = os.path.join(data_dir, "val")
     val_dir = os.path.join(data_dir, "val")
 
-    if model_type=="final":
+    if model_type == "final":
         token_type = "encoding"
         train_set = StructureAndTokenSet(train_dir, token_type, precomputed_embeddings=not fine_tune_plm)
         val_set = StructureAndTokenSet(val_dir, token_type, precomputed_embeddings=not fine_tune_plm)
@@ -89,7 +91,7 @@ def create_tfold_data_loaders(data_dir, batch_size, val_batch_size, fine_tune_pl
             DataLoader(train_set, batch_size=batch_size, collate_fn=collate_function),
             DataLoader(val_set, batch_size=batch_size, collate_fn=collate_function)
         )
-    elif model_type=="tfold":
+    elif model_type == "tfold":
         token_type = "bio2token" if bio2token else "foldtoken"
         train_set = TokenSet(train_dir, token_type=token_type, precomputed_embeddings=not fine_tune_plm)
         val_set = StructureAndTokenSet(val_dir, token_type, precomputed_embeddings=not fine_tune_plm)
@@ -100,7 +102,7 @@ def create_tfold_data_loaders(data_dir, batch_size, val_batch_size, fine_tune_pl
             DataLoader(train_set, batch_size=batch_size, collate_fn=train_collate_function),
             DataLoader(val_set, batch_size=val_batch_size, collate_fn=val_collate_function)
         )
-    elif model_type=="final_final":
+    elif model_type == "final_final":
         train_set = StructureSet(train_dir, precomputed_embeddings=not fine_tune_plm)
         val_set = StructureSet(val_dir, precomputed_embeddings=not fine_tune_plm)
         collate_function = collate_seq_struc if fine_tune_plm else collate_emb_struc
@@ -130,13 +132,24 @@ def build_t_fold(lora_plm, hidden, kernel_size, dropout, lr, device, resume):
     return model, optimizer
 
 
-def build_final_model(lora_plm, lora_decoder, hidden, kernel_size, dropout, lr, device,alpha,beta, resume):
+def build_final_model(lora_plm, lora_decoder, hidden, kernel_size, dropout, lr, device, alpha, beta, resume):
     if resume:
         model = FinalModel.load_final(resume, device=device).to(device)
     else:
         model = FinalModel(hidden, kernel_sizes=kernel_size, plm_lora=lora_plm, decoder_lora=lora_decoder,
                            device=device,
-                           dropout=dropout,alpha=alpha,beta=beta)
+                           dropout=dropout, alpha=alpha, beta=beta)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    return model, optimizer
+
+
+def build_final_final_model(lora_plm, lora_decoder, hidden, kernel_size, dropout, lr, device, resume):
+    if resume:
+        model = FinalFinalModel.load_final_final(resume, device=device).to(device)
+    else:
+        model = FinalModel(hidden, kernel_sizes=kernel_size, plm_lora=lora_plm, decoder_lora=lora_decoder,
+                           device=device,
+                           dropout=dropout)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     return model, optimizer
 
@@ -163,7 +176,6 @@ def collate_emb_struc(batch):
     # Pad structure
     structures = pad_and_stack_tensors(structures, 0)
     return embs_padded, structures
-
 
 
 def collate_seq_struc_tok_batch(batch):
@@ -241,10 +253,11 @@ def get_model(args):
         case "final":
             return build_final_model(args.lora_plm, args.lora_decoder, args.hidden, args.kernel_size, args.dropout,
                                      args.lr,
-                                     args.device,args.alpha,args.beta, args.resume)
+                                     args.device, args.alpha, args.beta, args.resume)
         case "final_final":
-            return build_final_final_model(args.lora_plm, args.lora_decoder, args.hidden, args.kernel_size, args.dropout,
-                             args.lr,args.device, args.resume)
+            return build_final_final_model(args.lora_plm, args.lora_decoder, args.hidden, args.kernel_size,
+                                           args.dropout,
+                                           args.lr, args.device, args.resume)
         case _:
             raise NotImplementedError
 
@@ -322,6 +335,7 @@ def get_unique_folder(base_path):
         new_path = f"{base_path}_{counter}"
     return new_path
 
+
 def main(args):
     # init wand db
     run = None
@@ -335,9 +349,18 @@ def main(args):
     print(f"done: {time.time() - start:.2f}s")
     print("preparing model...")
     model, optimizer = get_model(args)
+    #create scheduler:
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer,
+        mode='min',
+        factor=0.5,
+        patience=3,
+        min_lr=0.000001,
+    )
+
 
     # init output
-    folder_name=f"{model.model_name}_lr{args.lr}"
+    folder_name = f"{model.model_name}_lr{args.lr}"
     out_folder = (os.path.join(args.out_folder, folder_name))
     # here we check if the folder already exists and if so add number at the end of it
     out_folder = get_unique_folder(out_folder)
@@ -358,6 +381,9 @@ def main(args):
         train_score_dict = model.run_epoch(train_loader, optimizer=optimizer, device=args.device)
         val_score_dict = model.run_epoch(val_loader, device=args.device)
         score_dict = train_score_dict | val_score_dict
+
+        #update scheduler
+        scheduler.step(score_dict[model.key_metric])
 
         if not args.no_wandb:
             run.log(score_dict)

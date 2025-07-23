@@ -12,6 +12,7 @@ from models.prot_t5.prot_t5 import ProtT5, ProstT5
 from models.datasets.datasets import PAD_LABEL
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
 
+
 class FinalFinalModel(nn.Module):
     def __init__(self, hidden: list, device="cpu", kernel_sizes=[5], dropout: float = 0.1, plm_lora=False,
                  decoder_lora=False):
@@ -30,7 +31,6 @@ class FinalFinalModel(nn.Module):
 
         self.plm_lora = plm_lora
 
-
         self.args = {
             "hidden": hidden,
             "kernel_sizes": kernel_sizes,
@@ -45,7 +45,7 @@ class FinalFinalModel(nn.Module):
         self.model_name = f"final_final_k{kernel_sizes_string}_h{hidden_layers_string}{lora_string}"
 
         # define most important metric and whether it needs to be minimized or maximized
-        self.key_metric = "val_loss"
+        self.key_metric = "val_lddt_loss"
         self.maximize = False
 
     def save(self, output_dir: str, suffix=""):
@@ -98,7 +98,7 @@ class FinalFinalModel(nn.Module):
         is_train = optimizer is not None
         self.train() if is_train else self.eval()
         # init statistics
-        total_loss = total_lddt_loss = total_encoding_loss = total_samples = 0
+        total_lddt_loss = total_samples = 0
 
         torch.set_grad_enabled(is_train)
         lddt_loss_module = SmoothLDDTLoss().to(device)
@@ -108,7 +108,7 @@ class FinalFinalModel(nn.Module):
         else:
             forward = self.forward_from_embedding
         for model_in, encoding, structure in loader:
-            #model in is not loaded to device, because it might be a list of sequences
+            # model in is not loaded to device, because it might be a list of sequences
             encoding, structure = encoding.to(device), structure.to(device)
             predictions, final_mask, cnn_out = forward(model_in)
             # get loss:
@@ -122,7 +122,7 @@ class FinalFinalModel(nn.Module):
                 lddt_loss.backward()
                 optimizer.step()
 
-            total_lddt_loss += lddt_loss.detach().item() * B
+            total_lddt_loss += lddt_loss.detach().cpu().item() * B
             total_samples += B
             del predictions, final_mask, lddt_loss
 
@@ -135,10 +135,9 @@ class FinalFinalModel(nn.Module):
         return score_dict
 
 
-
 class FinalModel(nn.Module):
     def __init__(self, hidden: list, device="cpu", kernel_sizes=[5], dropout: float = 0.1, plm_lora=False,
-                 decoder_lora=False,alpha=1,beta=1):
+                 decoder_lora=False, alpha=1, beta=1):
         for kernel_size in kernel_sizes:
             assert kernel_size % 2 == 1, f"Kernel size {kernel_size} is invalid. Must be odd for symmetric context."
         super().__init__()
@@ -155,7 +154,6 @@ class FinalModel(nn.Module):
         self.alpha = alpha
         # weight of vector loss
         self.beta = beta
-
 
         self.args = {
             "hidden": hidden,
@@ -234,7 +232,7 @@ class FinalModel(nn.Module):
         else:
             forward = self.forward_from_embedding
         for model_in, encoding, structure in loader:
-            #model in is not loaded to device, because it might be a list of sequences
+            # model in is not loaded to device, because it might be a list of sequences
             encoding, structure = encoding.to(device), structure.to(device)
             predictions, final_mask, cnn_out = forward(model_in)
             # get loss:

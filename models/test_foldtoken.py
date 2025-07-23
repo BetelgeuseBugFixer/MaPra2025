@@ -614,6 +614,7 @@ def test_foldtoken_model():
             print(lddt_loss.item())
             break
 
+
 def look_at_weird_lddt():
     device = "cuda"
     dataset = StructureAndTokenSet("/mnt/data/large/subset2/val", "foldtoken", precomputed_embeddings=False)
@@ -714,25 +715,23 @@ def selin_debug():
 
 if __name__ == '__main__':
     device = "cuda"
-    final_final_model=FinalFinalModel([500],device=device,dropout=0.0,plm_lora=True,decoder_lora=True).to(device)
+    final_final_model = FinalFinalModel([500], device=device, dropout=0.0, plm_lora=True, decoder_lora=True).to(device)
     print("inited model")
     dataset = StructureSet("/mnt/data/large/subset2/val")
     dataloader = DataLoader(dataset, batch_size=1, collate_fn=collate_seq_struc)
     with torch.no_grad():
-        lddt_loss_module = SmoothLDDTLoss()
-        for seqs,structure in dataloader:
+        lddt_loss_module = SmoothLDDTLoss().to(device)
+        for seqs, structure in dataloader:
             for seq in seqs:
                 print(len(seq))
-            structure=structure.to(device)
+            structure = structure.to(device)
             predictions, final_mask, cnn_out = final_final_model(seqs)
-            print_tensor(predictions,"prediction")
-            print_tensor(final_mask,"final_mask")
-            print_tensor(cnn_out,"cnn_out")
+            print_tensor(predictions, "prediction")
+            print_tensor(final_mask, "final_mask")
+            print_tensor(cnn_out, "cnn_out")
             B, L, _ = predictions.shape
             is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
             is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
             lddt_loss = lddt_loss_module(predictions, structure, is_dna, is_rna, final_mask)
             print(lddt_loss.item())
             break
-
-
