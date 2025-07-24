@@ -25,5 +25,5 @@ python -u models/train.py --model final_final \
                           --out_folder /mnt/models \
                           --batch 8 \
                           --patience 6 \
-                          --lr 0.0001
+                          --lr 0.00001
 echo "Training script finished."

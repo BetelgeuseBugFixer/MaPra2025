@@ -357,7 +357,7 @@ def main(args):
         optimizer,
         mode='min',
         factor=0.5,
-        patience=3,
+        patience=4,
         min_lr=0.000005,
     )
 
@@ -418,7 +418,7 @@ def main(args):
     #    epochs_range = range(1, len(train_losses) + 1)
     #    plot_training(args.out_folder, epochs_range, train_accs, train_losses, val_accs, val_losses)
 
-    print(f"Saved best model in → {args.out_folder}")
+    print(f"Saved best model in → {out_folder}")
 
 
 def plot_training(out_folder, epochs_range, train_accs, train_losses, val_accs, val_losses):

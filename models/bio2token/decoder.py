@@ -42,27 +42,14 @@ class Bio2tokenDecoder(nn.Module):
         self.quantizer.eval()
 
         self.decoder = self.decoder.to(device)
-        # init lora
-        self.use_lora = use_lora
-        if use_lora:
-            target_modules = ["x_proj", "dt_proj", "out_proj"]
 
-            self.lora_config = LoraConfig(
-                r=8,
-                lora_alpha=32,
-                target_modules=target_modules,
-                bias="none",
-                task_type=TaskType.FEATURE_EXTRACTION,
-            )
-            #add important configs for lora
-            self.decoder.config = {"tie_word_embeddings": False}
-
-            self.decoder = get_peft_model(self.decoder, self.lora_config)
-        else:
-            # freeze model if we don't use lora
+        # freeze model if we don't use lora = retrain
+        if not use_lora:
             for param in self.decoder.parameters():
                 param.requires_grad = False
             self.decoder.eval()
+
+
 
 
     def forward(self, x,eos_mask):
