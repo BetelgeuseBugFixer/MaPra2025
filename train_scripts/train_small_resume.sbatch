@@ -11,7 +11,7 @@
 # Default-Werte für Batch-Size und Learning-Rate
 BATCH_SIZE=8
 LR=0.0001
-BETA=0
+BETA=1
 
 # Flag-Parsing: -b für Batch-Size, -l für Learning-Rate
 while getopts "b:l:z:" opt; do
@@ -55,7 +55,7 @@ python -u models/train.py \
   --patience 20 \
   --lr $LR \
   --beta $BETA \
-  --resume /mnt/dir/models/final_k17_5_1_h512_256_128_a_1_b_0_plm_lora_lr0.0001_2/final_k17_5_1_h512_256_128_a_1_b_0_plm_lora_latest.pt \
-  --wandb_resume_id aiszu465
+  --resume /mnt/dir/models/final_k17_5_1_h512_256_128_a_1_b_1_plm_lora_lr0.0001/final_k17_5_1_h512_256_128_a_1_b_1_plm_lora_latest.pt \
+  --wandb_resume_id sc5j5rq7
 
 echo "Training script finished."
