@@ -55,7 +55,7 @@ python -u models/train.py \
   --patience 20 \
   --lr $LR \
   --beta $BETA \
-  --resume /mnt/dir/models/final_k17_5_1_h512_256_128_a_1_b_0_plm_lora_lr0.0001_2/final_k17_5_1_h512_256_128_a_1_b_0_plm_lora_lr0.0001_2_latest.pt \
-  --wandb_resume_id aiszu465
+  --resume /mnt/dir/models/final_k17_5_1_h512_256_128_a_1_b_0_plm_lora_lr0.0001_1/final_k17_5_1_h512_256_128_a_1_b_0_plm_lora_lr0.0001_1_latest.pt \
+  --wandb_resume_id eintteaz
 
 echo "Training script finished."
