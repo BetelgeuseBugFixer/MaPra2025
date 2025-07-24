@@ -77,7 +77,8 @@ def parse_args():
 
 
 def create_tfold_data_loaders(data_dir, batch_size, val_batch_size, fine_tune_plm, bio2token=False, model_type="final"):
-    train_dir = os.path.join(data_dir, "train")
+    #train_dir = os.path.join(data_dir, "train")
+    train_dir = os.path.join(data_dir, "val")
     val_dir = os.path.join(data_dir, "val")
 
     if model_type == "final":
@@ -87,7 +88,7 @@ def create_tfold_data_loaders(data_dir, batch_size, val_batch_size, fine_tune_pl
         # adapt padding function to whether the model will receive embeddings or seqs as input
         collate_function = collate_seq_struc_tok_batch if fine_tune_plm else collate_emb_struc_tok_batch
         return (
-            DataLoader(train_set, batch_size=batch_size, collate_fn=collate_function),
+            DataLoader(train_set, batch_size=batch_size, collate_fn=collate_function,shuffle=True),
             DataLoader(val_set, batch_size=batch_size, collate_fn=collate_function)
         )
     elif model_type == "tfold":
@@ -98,7 +99,7 @@ def create_tfold_data_loaders(data_dir, batch_size, val_batch_size, fine_tune_pl
         val_collate_function = collate_seq_struc_tok_batch if fine_tune_plm else collate_emb_struc_tok_batch
         train_collate_function = collate_seq_tok_batch if fine_tune_plm else collate_emb_tok_batch
         return (
-            DataLoader(train_set, batch_size=batch_size, collate_fn=train_collate_function),
+            DataLoader(train_set, batch_size=batch_size, collate_fn=train_collate_function,shuffle=True),
             DataLoader(val_set, batch_size=val_batch_size, collate_fn=val_collate_function)
         )
     elif model_type == "final_final":
@@ -106,7 +107,7 @@ def create_tfold_data_loaders(data_dir, batch_size, val_batch_size, fine_tune_pl
         val_set = StructureSet(val_dir, precomputed_embeddings=not fine_tune_plm)
         collate_function = collate_seq_struc if fine_tune_plm else collate_emb_struc
         return (
-            DataLoader(train_set, batch_size=batch_size, collate_fn=collate_function),
+            DataLoader(train_set, batch_size=batch_size, collate_fn=collate_function,shuffle=True),
             DataLoader(val_set, batch_size=batch_size, collate_fn=collate_function)
         )
 
