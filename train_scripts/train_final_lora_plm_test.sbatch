@@ -8,7 +8,7 @@
 
 
 # command to execute and track it
-# sbatch train_scripts/train_final_lora_test_plm.sbatch &  tail -f slurm_out/train_final_lora_test_std_output.out slurm_out/train_final_lora_test_std_err.err
+# sbatch train_scripts/train_final_lora_plm_test.sbatch & tail -f slurm_out/train_final_lora_test_std_output.out slurm_out/train_final_lora_test_std_err.err
 source ~/.bashrc
 source /opt/miniconda/etc/profile.d/conda.sh
 conda activate /opt/envs/f_token
@@ -25,6 +25,6 @@ python -u models/train.py --model final \
                           --out_folder /mnt/models \
                           --batch 8 \
                           --patience 20 \
-                          --lr 0.00005 \
+                          --lr 0.00001 \
                           --beta 0
 echo "Training script finished."
