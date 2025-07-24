@@ -56,6 +56,6 @@ python -u models/train.py \
   --lr $LR \
   --beta $BETA \
   --resume /mnt/dir/models/final_k17_5_1_h512_256_128_a_1_b_0_plm_lora_lr0.0001_1/final_k17_5_1_h512_256_128_a_1_b_0_plm_lora_latest.pt \
-  --wandb_resume_id aiszu465
+  --wandb_resume_id eintteaz
 
 echo "Training script finished."
