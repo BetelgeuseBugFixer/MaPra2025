@@ -29,5 +29,5 @@ python -u models/train.py --model final \
                           --lr 0.00009 \
                           --alpha 1 \
                           --beta 0 \
-                          --resume /mnt/models/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora_lr0.0002/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora_latest.pt \
+                          --resume /mnt/models/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora_lr0.0002/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora_latest.pt
 echo "Training script finished."
