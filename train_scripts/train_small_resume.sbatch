@@ -54,6 +54,8 @@ python -u models/train.py \
   --batch $BATCH_SIZE \
   --patience 20 \
   --lr $LR \
-  --beta $BETA
+  --beta $BETA \
+  --resume /mnt/dir/models/final_k17_5_1_h512_256_128_a_1_b_0_plm_lora_lr0.0001_2/final_k17_5_1_h512_256_128_a_1_b_0_plm_lora_lr0.0001_2_latest.pt \
+  --wandb_resume_id aiszu465
 
 echo "Training script finished."
