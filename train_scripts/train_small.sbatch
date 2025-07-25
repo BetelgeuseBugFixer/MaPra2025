@@ -12,6 +12,7 @@
 BATCH_SIZE=8
 LR=0.0001
 BETA=0
+DROPOUT=0.1
 
 # Flag-Parsing: -b für Batch-Size, -l für Learning-Rate
 while getopts "b:l:z:" opt; do
@@ -19,7 +20,8 @@ while getopts "b:l:z:" opt; do
     b) BATCH_SIZE=$OPTARG ;;
     l) LR=$OPTARG        ;;
     z) BETA=$OPTARG        ;;
-    *) echo "Usage: sbatch train_small.sbatch [-b batch_size] [-l learning_rate] [-z beta]" >&2
+    d) DROPOUT=$OPTARG        ;;
+    *) echo "Usage: sbatch train_small.sbatch [-b batch_size] [-l learning_rate] [-z beta] [-d dropout]" >&2
        exit 1 ;;
   esac
 done
@@ -46,14 +48,15 @@ python -u models/train.py \
   --model final \
   --lora_plm \
   --lora_decoder \
-  --hidden 512 256 128 \
-  --kernel 17 5 1 \
+  --hidden 512 256 256 \
+  --kernel 17 5 3 \
   --data_dir /mnt/data/large/subset2/ \
   --epochs 20 \
   --out_folder /mnt/dir/models \
   --batch $BATCH_SIZE \
   --patience 20 \
   --lr $LR \
-  --beta $BETA
+  --beta $BETA \
+  --dropout $DROPOUT
 
 echo "Training script finished."
