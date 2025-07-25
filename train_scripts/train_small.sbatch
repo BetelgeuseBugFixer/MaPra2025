@@ -48,8 +48,8 @@ python -u models/train.py \
   --model final \
   --lora_plm \
   --lora_decoder \
-  --hidden 512 256 256 \
-  --kernel 17 5 3 \
+  --hidden 512 256 128 \
+  --kernel 17 5 1 \
   --data_dir /mnt/data/large/subset2/ \
   --epochs 20 \
   --out_folder /mnt/dir/models \
