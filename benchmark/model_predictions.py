@@ -82,11 +82,14 @@ def get_smooth_lddt(lddt_loss_module, prediction, pdb_dict):
     return lddt_score
 
 
-def compute_and_save_scores_for_model(checkpoint_path, model, seqs, pdb_paths, pdb_dicts, batch_size=64):
+def compute_and_save_scores_for_model(checkpoint_path, model, seqs, pdb_paths, pdb_dicts, batch_size=64, dataset_name=""):
     # directories
     base = os.path.splitext(os.path.basename(checkpoint_path))[0]
+    if dataset_name:
+        base = f"{base}_{dataset_name}"
     cwd = os.getcwd()
     out_dir = os.path.join(cwd, base)
+
     os.makedirs(out_dir, exist_ok=True)
 
     csv_path = os.path.join(out_dir, f"{base}_scores.csv")
@@ -154,6 +157,16 @@ if __name__ == '__main__':
 
     seqs = [d["seq"] for d in pdb_dicts]
 
+    # casp15 data prep
+    print(f"now in: {os.getcwd()}")
+    casp_dir = "/mnt/dir/MaPra2025/tokenizer_benchmark/casps/casp15_backbone"
+
+    pdb_casp = [p for p in os.listdir(casp_dir) if p.endswith("pdb")]
+    pdb_casp = [os.path.join(in_dir, p) for p in pdb_casp]
+    casp_dicts = [pdb_2_dict(p) for p in pdb_casp]
+
+    seqs_casp = [d["seq"] for d in casp_dicts]
+
     # parser
     p = argparse.ArgumentParser()
     p.add_argument("--final", nargs="+", default=[], help="Path(s) to FinalModel checkpoint(s)")
@@ -165,7 +178,8 @@ if __name__ == '__main__':
     for ckpt in args.final:
         print(f"Processing FinalModel checkpoint: {ckpt}")
         model = FinalModel.load_final(ckpt, device=device)
-        compute_and_save_scores_for_model(ckpt, model, seqs, pdb_paths, pdb_dicts, batch_size=32)
+        compute_and_save_scores_for_model(ckpt, model, seqs, pdb_paths, pdb_dicts, batch_size=32, dataset_name="test")
+        compute_and_save_scores_for_model(ckpt, model, seqs_casp, pdb_casp, casp_dicts, batch_size=32, dataset_name="casp")
 
     # bio2token models
     for ckpt in args.bio2token:
@@ -184,7 +198,9 @@ if __name__ == '__main__':
         model = TFold(**model_args)
         model.load_state_dict(ckpt_data["state_dict"])
 
-        compute_and_save_scores_for_model(ckpt, model, seqs, pdb_paths, pdb_dicts, batch_size=32)
+        compute_and_save_scores_for_model(ckpt, model, seqs, pdb_paths, pdb_dicts, batch_size=32, dataset_name="test")
+        compute_and_save_scores_for_model(ckpt, model, seqs_casp, pdb_casp, casp_dicts, batch_size=32, dataset_name="casp")
+
 
     # foldtoken models
     for ckpt in args.foldtoken:
@@ -203,4 +219,5 @@ if __name__ == '__main__':
         model = TFold(**model_args)
         model.load_state_dict(ckpt_data["state_dict"])
 
-        compute_and_save_scores_for_model(ckpt, model, seqs, pdb_paths, pdb_dicts, batch_size=32)
+        compute_and_save_scores_for_model(ckpt, model, seqs, pdb_paths, pdb_dicts, batch_size=32, dataset_name="test")
+        compute_and_save_scores_for_model(ckpt, model, seqs_casp, pdb_casp, casp_dicts, batch_size=32, dataset_name="casp")
