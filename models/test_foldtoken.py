@@ -35,7 +35,7 @@ from transformers import T5EncoderModel, T5Tokenizer
 from hydra_zen import load_from_yaml, builds, instantiate
 
 from models.train import collate_emb_struc_tok_batch, collate_seq_struc_tok_batch, collate_seq_struc
-
+from transformers import AutoTokenizer, EsmForProteinFolding
 
 def load_prot_from_pdb(pdb_file):
     # load
@@ -736,7 +736,7 @@ def smooth_lddt_sanity_test():
             print(lddt_loss.item())
             break
 
-if __name__ == '__main__':
+def weird_lddt_part2():
     device = "cuda"
     model=FinalModel.load_old_final("/mnt/models/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora_lr0.0002/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora_latest.pt",device)
     model.to(device)
@@ -756,3 +756,13 @@ if __name__ == '__main__':
             is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
             lddt_loss = lddt_loss_module(predictions, structure, is_dna, is_rna, final_mask)
             print(lddt_loss.item())
+
+if __name__ == '__main__':
+    model = EsmForProteinFolding.from_pretrained("facebook/esmfold_v1")
+    tokenizer = AutoTokenizer.from_pretrained("facebook/esmfold_v1")
+    inputs = tokenizer(["MLKNVQVQLV","SEQVENCE"], return_tensors="pt", add_special_tokens=False)  # A tiny random peptide
+    outputs = model(**inputs)
+    folded_positions = outputs.positions
+    aa_types=outputs.aatype
+    print(folded_positions)
+    print(aa_types)

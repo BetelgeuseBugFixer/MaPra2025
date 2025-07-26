@@ -51,3 +51,4 @@ models/prot_t5/__pycache__/
 
 /container/f_token2.tar.gz
 /data/large/
+/data/test_pdb/
