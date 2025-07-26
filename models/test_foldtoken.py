@@ -773,7 +773,8 @@ if __name__ == '__main__':
             inputs = inputs.to(device)
             outputs = model(**inputs)
             folded_positions = outputs.positions
-            backbone_coords = folded_positions[-1,:, :, :4, :]
+            last_iteration=folded_positions[-1]
+            backbone_coords = last_iteration.reshape(last_iteration.shape[0], -1, 3)
 
             B, L, _ = backbone_coords.shape
             final_mask = torch.zeros(B, L, dtype=torch.bool, device=device)
