@@ -775,10 +775,10 @@ if __name__ == '__main__':
             folded_positions = outputs.positions
             backbone_coords = folded_positions[-1,:, :, :4, :]
 
+            B, L, _ = backbone_coords.shape
             final_mask = torch.zeros(B, L, dtype=torch.bool, device=device)
             for i, seq in enumerate(seqs):
                 final_mask[i, :len(seq) * 4] = False
-            B, L, _ = backbone_coords.shape
             is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
             is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
             lddt_loss=lddt_loss_module(structure, backbone_coords,is_dna, is_rna,final_mask)
