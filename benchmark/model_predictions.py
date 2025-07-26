@@ -2,6 +2,8 @@ import os
 import csv
 import numpy as np
 import torch
+import time
+
 from biotite.structure import lddt, rmsd, tm_score
 from biotite.structure.filter import _filter_atom_names
 from biotite.structure.io.pdb import PDBFile
@@ -39,11 +41,16 @@ def infer_structures(model: torch.nn.Module, seqs, batch_size=16):
     ds = SeqDataset(seqs)
     loader = DataLoader(ds, batch_size=batch_size, collate_fn=collate_seqs, shuffle=False)
     all_structs = []
+
+    start_time = time.time()  # Startzeit
     with torch.inference_mode():
         for seq_batch in loader:
             pred_structs, *_ = model(seq_batch)
             for i in range(pred_structs.shape[0]):
                 all_structs.append(pred_structs[i].cpu())
+    end_time = time.time()
+    print(f"[inference] Time needed for {len(seqs)} sequences: {end_time - start_time:.2f} seconds")
+
     del model
     torch.cuda.empty_cache()
     return all_structs
@@ -182,7 +189,7 @@ if __name__ == '__main__':
         try:
             compute_and_save_scores_for_model(ckpt, model, seqs_casp, pdb_casp, casp_dicts, batch_size=32, dataset_name="casp")
         except Exception as e:
-            print("casp fail")
+            print(e)
 
     # bio2token models
     for ckpt in args.bio2token:
