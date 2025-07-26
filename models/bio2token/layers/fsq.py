@@ -218,26 +218,26 @@ class FSQ(Module):
             - The method applies inverse scaling and shifting to revert the indices to original code values.
         """
         is_img_or_video = indices.ndim >= (3 + int(self.keep_num_codebooks_dim))
-        print(f"is_img_or_video:{is_img_or_video}")
+        # print(f"is_img_or_video:{is_img_or_video}")
         indices = rearrange(indices, "... -> ... 1")
         codes_non_centered = (indices // self._basis) % self._levels
         codes = self._scale_and_shift_inverse(codes_non_centered)
 
-        print(f"1codes: {codes.shape}\n{codes}")
+        # print(f"1codes: {codes.shape}\n{codes}")
         if self.keep_num_codebooks_dim:
             codes = rearrange(codes, "... c d -> ... (c d)")
-            print("elo")
-            print(f"1.5 codes: {codes.shape}\n{codes}")
+            # print("elo")
+            # print(f"1.5 codes: {codes.shape}\n{codes}")
 
         if project_out:
             codes = self.project_out(codes)
-            print("elo")
-            print(f"1.75 codes: {codes.shape}\n{codes}")
+            # print("elo")
+            # print(f"1.75 codes: {codes.shape}\n{codes}")
 
         if is_img_or_video:
             codes = rearrange(codes, "b ... d -> b d ...")
-            print("elo")
-            print(f"1.99 codes: {codes.shape}\n{codes}")
+            # print("elo")
+            # print(f"1.99 codes: {codes.shape}\n{codes}")
 
         return codes
 
