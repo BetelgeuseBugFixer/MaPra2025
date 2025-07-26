@@ -159,7 +159,7 @@ if __name__ == '__main__':
     pdb_paths = [os.path.join(in_dir, p) for p in pdb_names]
     pdb_dicts = [pdb_2_dict(p) for p in pdb_paths]
 
-    allowed = [i for i, d in enumerate(pdb_dicts) if len(d["seq"]) < MAX_LENGTH]
+    allowed = [i for i, d in enumerate(pdb_dicts) if len(d["seq"]) < MAX_LENGTH and len(d["seq"]) * 4 == ["atom_length"]]
     pdb_paths = [pdb_paths[i] for i in allowed]
     pdb_dicts = [pdb_dicts[i] for i in allowed]
 
