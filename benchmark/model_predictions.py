@@ -162,7 +162,7 @@ if __name__ == '__main__':
     casp_dir = "/mnt/dir/MaPra2025/tokenizer_benchmark/casps/casp15_backbone"
 
     pdb_casp = [p for p in os.listdir(casp_dir) if p.endswith("pdb")]
-    pdb_casp = [os.path.join(in_dir, p) for p in pdb_casp]
+    pdb_casp = [os.path.join(casp_dir, p) for p in pdb_casp]
     casp_dicts = [pdb_2_dict(p) for p in pdb_casp]
 
     seqs_casp = [d["seq"] for d in casp_dicts]
