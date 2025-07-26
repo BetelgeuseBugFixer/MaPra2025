@@ -21,6 +21,7 @@ from models.bio2token.decoder import Bio2tokenDecoder, load_bio2token_decoder_an
 from models.bio2token.losses.rmsd import RMSDConfig, RMSD
 from models.bio2token.models.autoencoder import AutoencoderConfig, Autoencoder
 from models.bio2token.utils.configs import utilsyaml_to_dict, pi_instantiate
+from models.collab_fold.esmfold import EsmFold
 from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores, SmoothLDDTLoss, \
     batch_pdbs_for_bio2token, print_trainable_parameters, masked_mse_loss
 from models.prot_t5.prot_t5 import ProtT5
@@ -762,24 +763,15 @@ if __name__ == '__main__':
     os.environ["WANDB_MODE"] = "disabled"
     os.environ["WANDB_CONSOLE"] = "off"
     device = "cuda"
-    model = EsmForProteinFolding.from_pretrained("facebook/esmfold_v1").to(device)
-    tokenizer = AutoTokenizer.from_pretrained("facebook/esmfold_v1")
+    esm_fold=EsmFold(device)
+    esm_fold.eval()
     dataset = StructureSet("/mnt/data/large/subset2/val")
-    dataloader = DataLoader(dataset, batch_size=8, collate_fn=collate_seq_struc)
+    dataloader = DataLoader(dataset, batch_size=4, collate_fn=collate_seq_struc)
     with torch.no_grad():
         lddt_loss_module = SmoothLDDTLoss().to(device)
         for seqs, structure in dataloader:
             structure = structure.to(device)
-            inputs = tokenizer(seqs, return_tensors="pt", add_special_tokens=False, padding=True)  # A tiny random peptide
-            inputs = inputs.to(device)
-            outputs = model(**inputs)
-            folded_positions = outputs.positions
-            last_iteration=folded_positions[-1]
-            backbone_coords = last_iteration[:, :, :4, :]
-            backbone_coords = backbone_coords.reshape(backbone_coords.shape[0], -1, 3)
-            # print(max([len(seq) for seq in seqs]))
-            # print(backbone_coords.shape)
-            # print(structure.shape)
+            backbone_coords = esm_fold(seqs)
             B, L, _ = backbone_coords.shape
             final_mask = torch.zeros(B, L, dtype=torch.bool, device=device)
             for i, seq in enumerate(seqs):
@@ -788,4 +780,5 @@ if __name__ == '__main__':
             is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
             lddt_loss=lddt_loss_module(structure, backbone_coords,is_dna, is_rna,final_mask)
             print(lddt_loss.detach().item())
+            del lddt_loss
 
