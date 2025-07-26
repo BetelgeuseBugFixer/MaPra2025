@@ -769,6 +769,7 @@ if __name__ == '__main__':
     with torch.no_grad():
         lddt_loss_module = SmoothLDDTLoss().to(device)
         for seqs, structure in dataloader:
+            structure = structure.to(device)
             inputs = tokenizer(seqs, return_tensors="pt", add_special_tokens=False, padding=True)  # A tiny random peptide
             inputs = inputs.to(device)
             outputs = model(**inputs)
