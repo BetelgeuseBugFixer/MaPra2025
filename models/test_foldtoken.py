@@ -783,7 +783,7 @@ if __name__ == '__main__':
             B, L, _ = backbone_coords.shape
             final_mask = torch.zeros(B, L, dtype=torch.bool, device=device)
             for i, seq in enumerate(seqs):
-                final_mask[i, :len(seq) * 4] = False
+                final_mask[i, :len(seq) * 4] = True
             is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
             is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
             lddt_loss=lddt_loss_module(structure, backbone_coords,is_dna, is_rna,final_mask)
