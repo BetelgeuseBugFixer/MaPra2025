@@ -64,7 +64,7 @@ def load_prot_from_pdb(pdb_file):
 
 def get_scores(gt_pdb, pred):
     gt_protein = load_prot_from_pdb(gt_pdb)
-    print(gt_pdb)
+
     if isinstance(pred, str):
         pred_protein = load_prot_from_pdb(pred)
     else:
