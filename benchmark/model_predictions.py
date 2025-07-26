@@ -145,6 +145,21 @@ def plot_smooth_lddt(lddts, smooth_lddts, out_path="smooth_lddt.png"):
     plt.savefig(out_path)
     plt.close()
 
+def prepare_data(in_dir,singleton_ids=None):
+    pdb_names = [p for p in os.listdir(in_dir) if p.endswith("pdb")]
+    if singleton_ids:
+        pdb_names = [p for p in pdb_names if get_pid_from_file_name(p) not in singleton_ids]
+    pdb_paths = [os.path.join(in_dir, p) for p in pdb_names]
+    pdb_dicts = [pdb_2_dict(p) for p in pdb_paths]
+
+    allowed = [i for i, d in enumerate(pdb_dicts) if
+               len(d["seq"]) < MAX_LENGTH and len(d["seq"]) * 4 == ["atom_length"]]
+    pdb_paths = [pdb_paths[i] for i in allowed]
+    pdb_dicts = [pdb_dicts[i] for i in allowed]
+
+    seqs = [d["seq"] for d in pdb_dicts]
+    return pdb_paths, pdb_dicts, seqs
+
 
 if __name__ == '__main__':
     # singletons
@@ -154,26 +169,14 @@ if __name__ == '__main__':
     # test data prep
     in_dir = "/mnt/data/large/zip_file/final_data_PDB/test/test_pdb"
 
-    pdb_names = [p for p in os.listdir(in_dir) if p.endswith("pdb")]
-    pdb_names = [p for p in pdb_names if get_pid_from_file_name(p) not in singleton_ids]
-    pdb_paths = [os.path.join(in_dir, p) for p in pdb_names]
-    pdb_dicts = [pdb_2_dict(p) for p in pdb_paths]
-
-    allowed = [i for i, d in enumerate(pdb_dicts) if len(d["seq"]) < MAX_LENGTH and len(d["seq"]) * 4 == ["atom_length"]]
-    pdb_paths = [pdb_paths[i] for i in allowed]
-    pdb_dicts = [pdb_dicts[i] for i in allowed]
-
-    seqs = [d["seq"] for d in pdb_dicts]
+    pdb_paths, pdb_dicts, seqs = prepare_data(in_dir=in_dir, singleton_ids=singleton_ids)
 
     # casp15 data prep
     print(f"now in: {os.getcwd()}")
     casp_dir = "/mnt/dir/MaPra2025/tokenizer_benchmark/casps/casp15_backbone"
 
-    pdb_casp = [p for p in os.listdir(casp_dir) if p.endswith("pdb")]
-    pdb_casp = [os.path.join(casp_dir, p) for p in pdb_casp]
-    casp_dicts = [pdb_2_dict(p) for p in pdb_casp]
+    pdb_casp, casp_dicts, seqs_casp=prepare_data(casp_dir)
 
-    seqs_casp = [d["seq"] for d in casp_dicts]
 
     # parser
     p = argparse.ArgumentParser()
