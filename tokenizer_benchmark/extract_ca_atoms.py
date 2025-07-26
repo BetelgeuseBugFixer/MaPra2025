@@ -46,6 +46,29 @@ def get_normalize_casp15():
             new_array_stack = load_prot_from_pdb(fixed_pbd_path)
             break
 
+def get_pid_from_file_name(file_name):
+    return file_name.split("-")[1]
+
+
+def prepare_data(in_dir,singleton_ids=None):
+    pdb_names = [p for p in os.listdir(in_dir) if p.endswith("pdb")]
+    if singleton_ids:
+        pdb_names = [p for p in pdb_names if get_pid_from_file_name(p) not in singleton_ids]
+    pdb_paths = [os.path.join(in_dir, p) for p in pdb_names]
+    pdb_dicts = [pdb_2_dict(p) for p in pdb_paths]
+
+    allowed = [i for i, d in enumerate(pdb_dicts) if len(d["seq"]) < 800 and len(d["seq"]) * 4 == d["atom_length"]]
+    pdb_paths = [pdb_paths[i] for i in allowed]
+    pdb_dicts = [pdb_dicts[i] for i in allowed]
+
+    seqs = [d["seq"] for d in pdb_dicts]
+    return pdb_paths, pdb_dicts, seqs
 
 if __name__ == '__main__':
-    get_normalize_casp15()
+
+    casp_dir = "tokenizer_benchmark/casps/casp15_backbone"
+    pdb_casp, casp_dicts, seqs_casp = prepare_data(casp_dir)
+
+    pdb_casp, casp_dicts, seqs_casp=prepare_data(casp_dir)
+
+    print(len(casp_dicts))

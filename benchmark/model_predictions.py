@@ -153,7 +153,7 @@ def prepare_data(in_dir,singleton_ids=None):
     pdb_dicts = [pdb_2_dict(p) for p in pdb_paths]
 
     allowed = [i for i, d in enumerate(pdb_dicts) if
-               len(d["seq"]) < MAX_LENGTH and len(d["seq"]) * 4 == ["atom_length"]]
+               len(d["seq"]) < MAX_LENGTH and len(d["seq"]) * 4 == d["atom_length"]]
     pdb_paths = [pdb_paths[i] for i in allowed]
     pdb_dicts = [pdb_dicts[i] for i in allowed]
 
