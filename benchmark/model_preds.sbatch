@@ -23,6 +23,6 @@ echo "Now in: $(pwd)"
 
 echo "Starting eval script..."
 python -u benchmark/model_predictions.py \
---final /mnt/models/final_k17_5_1_h512_256_128_a_1_b_1_plm_lora_lr0.0001_3/final_k17_5_1_h512_256_128_a_1_b_1_plm_lora_latest.pt
+--final /mnt/dir/models/final_k17_5_1_h512_256_128_a_1_b_1_plm_lora_lr0.0001_3/final_k17_5_1_h512_256_128_a_1_b_1_plm_lora_latest.pt
 
 echo "Eval script finished."
