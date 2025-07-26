@@ -6,6 +6,7 @@ class EsmFold(nn.Module):
         super().__init__()
         self.model = EsmForProteinFolding.from_pretrained("facebook/esmfold_v1").to(device)
         self.tokenizer = AutoTokenizer.from_pretrained("facebook/esmfold_v1")
+        self.device=device
 
     def forward(self, seqs):
         inputs = self.tokenizer(seqs, return_tensors="pt", add_special_tokens=False, padding=True)
