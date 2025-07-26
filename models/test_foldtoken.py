@@ -765,7 +765,7 @@ if __name__ == '__main__':
     model = EsmForProteinFolding.from_pretrained("facebook/esmfold_v1").to(device)
     tokenizer = AutoTokenizer.from_pretrained("facebook/esmfold_v1")
     dataset = StructureSet("/mnt/data/large/subset2/val")
-    dataloader = DataLoader(dataset, batch_size=28, collate_fn=collate_seq_struc)
+    dataloader = DataLoader(dataset, batch_size=8, collate_fn=collate_seq_struc)
     with torch.no_grad():
         lddt_loss_module = SmoothLDDTLoss().to(device)
         for seqs, structure in dataloader:
@@ -776,5 +776,5 @@ if __name__ == '__main__':
             coords = folded_positions.positions[-1]
             backbone_coords = coords[:, :, :4, :]
             lddt_loss=lddt_loss_module(structure, backbone_coords)
-            print(lddt_loss.item())
+            print(lddt_loss.detach().item())
 
