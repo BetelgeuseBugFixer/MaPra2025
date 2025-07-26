@@ -145,15 +145,18 @@ def plot_smooth_lddt(lddts, smooth_lddts, out_path="smooth_lddt.png"):
     plt.savefig(out_path)
     plt.close()
 
-def prepare_data(in_dir,singleton_ids=None):
+def prepare_data(in_dir,singleton_ids=None,casp=False):
     pdb_names = [p for p in os.listdir(in_dir) if p.endswith("pdb")]
     if singleton_ids:
         pdb_names = [p for p in pdb_names if get_pid_from_file_name(p) not in singleton_ids]
     pdb_paths = [os.path.join(in_dir, p) for p in pdb_names]
     pdb_dicts = [pdb_2_dict(p) for p in pdb_paths]
 
-    allowed = [i for i, d in enumerate(pdb_dicts) if
-               len(d["seq"]) < MAX_LENGTH and len(d["seq"]) * 4 == d["atom_length"]]
+    if casp:
+        allowed = [i for i, d in enumerate(pdb_dicts) if len(d["seq"]) * 4 == d["atom_length"]]
+    else:
+        allowed = [i for i, d in enumerate(pdb_dicts) if len(d["seq"]) < MAX_LENGTH]
+
     pdb_paths = [pdb_paths[i] for i in allowed]
     pdb_dicts = [pdb_dicts[i] for i in allowed]
 
@@ -170,13 +173,13 @@ if __name__ == '__main__':
     # test data prep
     in_dir = "/mnt/data/large/zip_file/final_data_PDB/test/test_pdb"
 
-    pdb_paths, pdb_dicts, seqs = prepare_data(in_dir=in_dir, singleton_ids=singleton_ids)
+    pdb_paths, pdb_dicts, seqs = prepare_data(in_dir=in_dir, singleton_ids=singleton_ids,casp=False)
 
     # casp15 data prep
     print(f"now in: {os.getcwd()}")
     casp_dir = "/mnt/dir/MaPra2025/tokenizer_benchmark/casps/casp15_backbone"
 
-    pdb_casp, casp_dicts, seqs_casp=prepare_data(casp_dir)
+    pdb_casp, casp_dicts, seqs_casp=prepare_data(casp_dir,casp=True)
 
 
     # parser
