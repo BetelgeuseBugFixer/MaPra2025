@@ -764,9 +764,17 @@ if __name__ == '__main__':
     device = "cuda"
     model = EsmForProteinFolding.from_pretrained("facebook/esmfold_v1").to(device)
     tokenizer = AutoTokenizer.from_pretrained("facebook/esmfold_v1")
-    inputs = tokenizer(["MLKNVQVQLV","SEQVENCE"], return_tensors="pt", add_special_tokens=False, padding=True)  # A tiny random peptide
-    inputs = inputs.to(device)
-    outputs = model(**inputs)
-    folded_positions = outputs.positions
-    print_tensor(folded_positions,"coords")
+    dataset = StructureSet("/mnt/data/large/subset2/val")
+    dataloader = DataLoader(dataset, batch_size=28, collate_fn=collate_seq_struc)
+    with torch.no_grad():
+        lddt_loss_module = SmoothLDDTLoss().to(device)
+        for seqs, structure in dataloader:
+            inputs = tokenizer(seqs, return_tensors="pt", add_special_tokens=False, padding=True)  # A tiny random peptide
+            inputs = inputs.to(device)
+            outputs = model(**inputs)
+            folded_positions = outputs.positions
+            coords = folded_positions.positions[-1]
+            backbone_coords = coords[:, :, :4, :]
+            lddt_loss=lddt_loss_module(structure, backbone_coords)
+            print(lddt_loss.item())
 
