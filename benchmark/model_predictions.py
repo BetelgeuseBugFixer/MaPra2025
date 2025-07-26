@@ -179,7 +179,10 @@ if __name__ == '__main__':
         print(f"Processing FinalModel checkpoint: {ckpt}")
         model = FinalModel.load_old_final(ckpt, device=device)
         compute_and_save_scores_for_model(ckpt, model, seqs, pdb_paths, pdb_dicts, batch_size=32, dataset_name="test")
-        compute_and_save_scores_for_model(ckpt, model, seqs_casp, pdb_casp, casp_dicts, batch_size=32, dataset_name="casp")
+        try:
+            compute_and_save_scores_for_model(ckpt, model, seqs_casp, pdb_casp, casp_dicts, batch_size=32, dataset_name="casp")
+        except Exception as e:
+            print("casp fail")
 
     # bio2token models
     for ckpt in args.bio2token:
@@ -199,8 +202,10 @@ if __name__ == '__main__':
         model.load_state_dict(ckpt_data["state_dict"])
 
         compute_and_save_scores_for_model(ckpt, model, seqs, pdb_paths, pdb_dicts, batch_size=32, dataset_name="test")
-        compute_and_save_scores_for_model(ckpt, model, seqs_casp, pdb_casp, casp_dicts, batch_size=32, dataset_name="casp")
-
+        try:
+            compute_and_save_scores_for_model(ckpt, model, seqs_casp, pdb_casp, casp_dicts, batch_size=32, dataset_name="casp")
+        except Exception as e:
+            print("casp fail")
 
     # foldtoken models
     for ckpt in args.foldtoken:
@@ -220,4 +225,7 @@ if __name__ == '__main__':
         model.load_state_dict(ckpt_data["state_dict"])
 
         compute_and_save_scores_for_model(ckpt, model, seqs, pdb_paths, pdb_dicts, batch_size=32, dataset_name="test")
-        compute_and_save_scores_for_model(ckpt, model, seqs_casp, pdb_casp, casp_dicts, batch_size=32, dataset_name="casp")
+        try:
+            compute_and_save_scores_for_model(ckpt, model, seqs_casp, pdb_casp, casp_dicts, batch_size=32, dataset_name="casp")
+        except Exception as e:
+            print("casp fail")
