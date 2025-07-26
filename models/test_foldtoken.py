@@ -765,6 +765,5 @@ if __name__ == '__main__':
     inputs = inputs.to(device)
     outputs = model(**inputs)
     folded_positions = outputs.positions
-    aa_types=outputs.aatype
-    print(folded_positions)
-    print(aa_types)
+    print_tensor(folded_positions,"coords")
+
