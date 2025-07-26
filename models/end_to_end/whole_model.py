@@ -11,6 +11,8 @@ from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scor
 from models.prot_t5.prot_t5 import ProtT5, ProstT5
 from models.datasets.datasets import PAD_LABEL
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
+from peft import get_peft_model, LoraConfig, TaskType
+
 
 
 class FinalFinalModel(nn.Module):
@@ -63,7 +65,6 @@ class FinalFinalModel(nn.Module):
         model = FinalFinalModel(**model_args)
         model.load_state_dict(checkpoint["state_dict"])
         model.to(device)
-        model.eval()
         return model
 
     def forward(self, seqs: List[str]):
@@ -189,7 +190,33 @@ class FinalModel(nn.Module):
         model = FinalModel(**model_args)
         model.load_state_dict(checkpoint["state_dict"])
         model.to(device)
-        model.eval()
+        return model
+
+    @staticmethod
+    def load_old_final(path: str, device="cpu") -> "FinalModel":
+        checkpoint = torch.load(path, map_location=device)
+        model_args = checkpoint["model_args"]
+        model_args["device"] = device
+
+        # create new model
+        model = FinalModel(**model_args)
+        # convert decoder model to lora model
+        # conver decoder model to lora model so we can load it
+        target_modules = ["x_proj", "dt_proj", "out_proj"]
+
+        lora_config = LoraConfig(
+            r=8,
+            lora_alpha=32,
+            target_modules=target_modules,
+            bias="none",
+            task_type=TaskType.FEATURE_EXTRACTION,
+        )
+        # add important configs for lora
+        model.decoder.decoder.config = {"tie_word_embeddings": False}
+
+        model.decoder.decoder = get_peft_model(model.decoder.decoder, lora_config)
+        model.load_state_dict(checkpoint["state_dict"])
+        model.to(device)
         return model
 
     def set_alpha(self, alpha):

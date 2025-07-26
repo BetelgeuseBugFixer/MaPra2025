@@ -713,7 +713,7 @@ def selin_debug():
             break
 
 
-if __name__ == '__main__':
+def smooth_lddt_sanity_test():
     device = "cuda"
     final_final_model = FinalFinalModel([500], device=device, dropout=0.0, plm_lora=True, decoder_lora=True).to(device)
     print("inited model")
@@ -735,3 +735,24 @@ if __name__ == '__main__':
             lddt_loss = lddt_loss_module(predictions, structure, is_dna, is_rna, final_mask)
             print(lddt_loss.item())
             break
+
+if __name__ == '__main__':
+    device = "cuda"
+    model=FinalModel.load_old_final("/mnt/models/final_final_k21_3_3_h16384_8192_2048_plm_lora_lr5e-05/final_final_k21_3_3_h16384_8192_2048_plm_lora_latest.pt",device)
+    model.to(device)
+    print("inited model")
+    dataset = StructureSet("/mnt/data/large/subset2/val")
+    dataloader = DataLoader(dataset, batch_size=28, collate_fn=collate_seq_struc)
+    with torch.no_grad():
+        lddt_loss_module = SmoothLDDTLoss().to(device)
+        for seqs, structure in dataloader:
+            structure = structure.to(device)
+            predictions, final_mask, cnn_out = model(seqs)
+            print_tensor(predictions, "prediction")
+            print_tensor(final_mask, "final_mask")
+            print_tensor(cnn_out, "cnn_out")
+            B, L, _ = predictions.shape
+            is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
+            is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
+            lddt_loss = lddt_loss_module(predictions, structure, is_dna, is_rna, final_mask)
+            print(lddt_loss.item())
