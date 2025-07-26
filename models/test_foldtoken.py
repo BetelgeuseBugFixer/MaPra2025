@@ -736,7 +736,7 @@ def smooth_lddt_sanity_test():
             print(lddt_loss.item())
             break
 
-def weird_lddt_part2():
+def test_load_old_model():
     device = "cuda"
     model=FinalModel.load_old_final("/mnt/models/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora_lr0.0002/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora_latest.pt",device)
     model.to(device)
@@ -758,9 +758,11 @@ def weird_lddt_part2():
             print(lddt_loss.item())
 
 if __name__ == '__main__':
-    model = EsmForProteinFolding.from_pretrained("facebook/esmfold_v1")
+    device = "cuda"
+    model = EsmForProteinFolding.from_pretrained("facebook/esmfold_v1").to(device)
     tokenizer = AutoTokenizer.from_pretrained("facebook/esmfold_v1")
-    inputs = tokenizer(["MLKNVQVQLV","SEQVENCE"], return_tensors="pt", add_special_tokens=False)  # A tiny random peptide
+    inputs = tokenizer(["MLKNVQVQLV","SEQVENCE"], return_tensors="pt", add_special_tokens=False, padding=True)  # A tiny random peptide
+    inputs = inputs.to(device)
     outputs = model(**inputs)
     folded_positions = outputs.positions
     aa_types=outputs.aatype
