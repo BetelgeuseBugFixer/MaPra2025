@@ -91,7 +91,6 @@ def get_smooth_lddt(lddt_loss_module, prediction, pdb_dict):
 
 
 def compute_and_save_scores_for_model(checkpoint_path, model, seqs, pdb_paths, pdb_dicts, batch_size=64, dataset_name=""):
-    # directories
     base = os.path.splitext(os.path.basename(checkpoint_path))[0]
     if dataset_name:
         base = f"{base}_{dataset_name}"
@@ -107,29 +106,41 @@ def compute_and_save_scores_for_model(checkpoint_path, model, seqs, pdb_paths, p
     final_structs = infer_structures(model, seqs, batch_size=batch_size)
     final_structs = [struct[:len(seq)*4] for struct, seq in zip(final_structs, seqs)]
 
-    actual_lddts, rmsd_scores, tm_scores = [], [], []
-    for struct, pdb in zip(final_structs, pdb_paths):
-        l, r, t = get_scores(pdb, struct.numpy())
+    # Scores berechnen – skippe problematische Einträge
+    actual_lddts, rmsd_scores, tm_scores, smooth_lddts = [], [], [], []
+    kept_pdb_paths, kept_pdb_dicts = [], []
+
+    smooth_loss = SmoothLDDTLoss().to(device)
+
+    for i, (struct, pdb, pdb_dict) in enumerate(zip(final_structs, pdb_paths, pdb_dicts)):
+        try:
+            l, r, t = get_scores(pdb, struct.numpy())
+            s = get_smooth_lddt(smooth_loss, struct, pdb_dict)
+        except Exception as e:
+            print(f"[SKIPPED] PDB {pdb} (index {i}) caused error: {e}")
+            continue
+
+        # Falls alles erfolgreich war → speichern
         actual_lddts.append(l)
         rmsd_scores.append(r)
         tm_scores.append(t)
+        smooth_lddts.append(s)
+        kept_pdb_paths.append(pdb)
 
-    with torch.no_grad():
-        smooth_lddts = []
-        smooth_loss = SmoothLDDTLoss().to(device)
-        for struct, pdb_dict in zip(final_structs, pdb_dicts):
-            smooth_lddts.append(get_smooth_lddt(smooth_loss, struct, pdb_dict))
-
-    # save
+    # Save results
     with open(csv_path, "w", newline="") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(["pdb_path", "lddt", "rmsd", "tm_score", "smooth_lddt"])
-        for pdb, l, r, t, s in zip(pdb_paths, actual_lddts, rmsd_scores, tm_scores, smooth_lddts):
+        for pdb, l, r, t, s in zip(kept_pdb_paths, actual_lddts, rmsd_scores, tm_scores, smooth_lddts):
             writer.writerow([pdb, l, r, t, s])
     print(f"Scores saved to {csv_path}")
 
-    plot_smooth_lddt(actual_lddts, smooth_lddts, out_path=plot_path)
-    print(f"Scatterplot saved to {plot_path}")
+    if len(actual_lddts) > 0:
+        plot_smooth_lddt(actual_lddts, smooth_lddts, out_path=plot_path)
+        print(f"Scatterplot saved to {plot_path}")
+    else:
+        print("[WARN] No valid entries to plot.")
+
 
 def plot_smooth_lddt(lddts, smooth_lddts, out_path="smooth_lddt.png"):
     lddts = np.array(lddts)
