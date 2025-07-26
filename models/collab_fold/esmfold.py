@@ -3,6 +3,7 @@ from transformers import AutoTokenizer, EsmForProteinFolding
 
 class EsmFold(nn.Module):
     def __init__(self, device):
+        super().__init__()
         self.model = EsmForProteinFolding.from_pretrained("facebook/esmfold_v1").to(device)
         self.tokenizer = AutoTokenizer.from_pretrained("facebook/esmfold_v1")
 
