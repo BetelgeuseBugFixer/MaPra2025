@@ -758,6 +758,9 @@ def test_load_old_model():
             print(lddt_loss.item())
 
 if __name__ == '__main__':
+    os.environ["WANDB_DISABLED"] = "true"
+    os.environ["WANDB_MODE"] = "disabled"
+    os.environ["WANDB_CONSOLE"] = "off"
     device = "cuda"
     model = EsmForProteinFolding.from_pretrained("facebook/esmfold_v1").to(device)
     tokenizer = AutoTokenizer.from_pretrained("facebook/esmfold_v1")
