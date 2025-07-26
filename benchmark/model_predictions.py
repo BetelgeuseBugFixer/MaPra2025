@@ -158,6 +158,7 @@ def prepare_data(in_dir,singleton_ids=None):
     pdb_dicts = [pdb_dicts[i] for i in allowed]
 
     seqs = [d["seq"] for d in pdb_dicts]
+    print(f"[prepare_data] #paths: {len(pdb_paths)} | #dicts: {len(pdb_dicts)} | #seqs: {len(seqs)}")
     return pdb_paths, pdb_dicts, seqs
 
 
