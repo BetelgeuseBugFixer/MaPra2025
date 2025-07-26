@@ -775,7 +775,7 @@ if __name__ == '__main__':
             folded_positions = outputs.positions
             backbone_coords = folded_positions[-1,:, :, :4, :]
 
-            final_mask = torch.zeros(B, L, dtype=torch.bool, device=x.device)
+            final_mask = torch.zeros(B, L, dtype=torch.bool, device=device)
             for i, seq in enumerate(seqs):
                 final_mask[i, :len(seq) * 4] = False
             B, L, _ = backbone_coords.shape
