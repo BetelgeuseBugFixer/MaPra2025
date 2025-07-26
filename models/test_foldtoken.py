@@ -775,7 +775,9 @@ if __name__ == '__main__':
             folded_positions = outputs.positions
             last_iteration=folded_positions[-1]
             backbone_coords = last_iteration.reshape(last_iteration.shape[0], -1, 3)
-
+            print(max([len(seq) for seq in seqs]))
+            print(backbone_coords.shape)
+            print(structure.shape)
             B, L, _ = backbone_coords.shape
             final_mask = torch.zeros(B, L, dtype=torch.bool, device=device)
             for i, seq in enumerate(seqs):
