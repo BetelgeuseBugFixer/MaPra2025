@@ -200,22 +200,23 @@ class FinalModel(nn.Module):
 
         # create new model
         model = FinalModel(**model_args)
-        # convert decoder model to lora model
-        # conver decoder model to lora model so we can load it
-        target_modules = ["x_proj", "dt_proj", "out_proj"]
+        # convert decoder model to lora model so we can load it
+        if model_args["decoder_lora"]:
+            target_modules = ["x_proj", "dt_proj", "out_proj"]
 
-        lora_config = LoraConfig(
-            r=8,
-            lora_alpha=32,
-            target_modules=target_modules,
-            bias="none",
-            task_type=TaskType.FEATURE_EXTRACTION,
-        )
-        # add important configs for lora
-        model.decoder.decoder.config = {"tie_word_embeddings": False}
+            lora_config = LoraConfig(
+                r=8,
+                lora_alpha=32,
+                target_modules=target_modules,
+                bias="none",
+                task_type=TaskType.FEATURE_EXTRACTION,
+            )
+            # add important configs for lora
+            model.decoder.decoder.config = {"tie_word_embeddings": False}
 
-        model.decoder.decoder = get_peft_model(model.decoder.decoder, lora_config)
-        model.load_state_dict(checkpoint["state_dict"])
+            model.decoder.decoder = get_peft_model(model.decoder.decoder, lora_config)
+            # after changing the decoder we can load the state dict
+            model.load_state_dict(checkpoint["state_dict"])
         model.to(device)
         return model
 

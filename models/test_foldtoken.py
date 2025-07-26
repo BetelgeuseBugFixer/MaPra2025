@@ -738,7 +738,7 @@ def smooth_lddt_sanity_test():
 
 if __name__ == '__main__':
     device = "cuda"
-    model=FinalModel.load_old_final("/mnt/models/final_final_k21_3_3_h16384_8192_2048_plm_lora_lr5e-05/final_final_k21_3_3_h16384_8192_2048_plm_lora_latest.pt",device)
+    model=FinalModel.load_old_final("/mnt/models/final_k17_5_1_h512_256_128_a_1_b_1_plm_lora_lr0.0001_3/final_k17_5_1_h512_256_128_a_1_b_1_plm_lora_latest.pt",device)
     model.to(device)
     print("inited model")
     dataset = StructureSet("/mnt/data/large/subset2/val")
