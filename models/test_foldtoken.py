@@ -773,8 +773,7 @@ if __name__ == '__main__':
             inputs = inputs.to(device)
             outputs = model(**inputs)
             folded_positions = outputs.positions
-            coords = folded_positions.positions[-1]
-            backbone_coords = coords[:, :, :4, :]
+            backbone_coords = folded_positions[-1,:, :, :4, :]
             lddt_loss=lddt_loss_module(structure, backbone_coords)
             print(lddt_loss.detach().item())
 
