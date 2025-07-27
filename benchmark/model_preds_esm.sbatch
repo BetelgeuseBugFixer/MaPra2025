@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH -p lrz-hgx-h100-94x4
 #SBATCH --gres=gpu:1
-#SBATCH -o slurm_out/foldtoken_test_std_output.out
-#SBATCH -e slurm_out/foldtoken_test_std_err.err
+#SBATCH -o slurm_out/foldtoken_test_std_esm_output.out
+#SBATCH -e slurm_out/foldtoken_test_std_esm_output.err
 #SBATCH --container-image="/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/container/final_final.sqsh"
 #SBATCH --container-mounts=/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/data:/mnt/data,/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/models:/mnt/models
 
-# sbatch
+# sbatch benchmark/model_preds_esm.sbatch & tail -f foldtoken_test_std_esm_output
 source /opt/miniconda/etc/profile.d/conda.sh
 conda activate /opt/envs/f_token
 cd ~/MaPra2025
