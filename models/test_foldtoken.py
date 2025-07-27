@@ -828,11 +828,10 @@ if __name__ == '__main__':
             pdb_path = pdb_paths[i]
             seq = seqs[i]
             structure = pdb_dicts[i]["coords_groundtruth"]
-            structure_tensor=torch.as_tensor(np.array(structure)).to(device)
-
+            structure_tensor = torch.as_tensor(np.array(structure)).to(device)
 
             # predict structure
-            backbone_coords = model(seq)
+            backbone_coords, _, _ = model(seq)
 
             # calc lddt
             B, L, _ = backbone_coords.shape
@@ -855,14 +854,13 @@ if __name__ == '__main__':
 
             print(f"smooth: {smoooth_lddt}; normal: {normal_lddt}; loss: {orig_value}")
             # write pdbs
-            #pred
+            # pred
             file = PDBFile()
             file.set_structure(pred_protein)
-            file_name=extract_filename_with_suffix(pdb_path)
+            file_name = extract_filename_with_suffix(pdb_path)
             file.write(f"{file_name}_pred.pdb")
-            #gt
+            # gt
             shutil.copy2(pdb_path, out_dir)
-
 
             del lddt_loss, structure_tensor, backbone_coords
 
