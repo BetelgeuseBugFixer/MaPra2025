@@ -820,7 +820,7 @@ if __name__ == '__main__':
     pdb_paths, pdb_dicts, seqs = prepare_data(in_dir=in_dir, singleton_ids=singleton_ids, casp=False)
 
     # run model
-    with torch.no_grad():
+    with torch.inference_mode():
         smooth_lddts, normal_lddts = [], []
         lddt_loss_module = SmoothLDDTLoss().to(device)
         for i in range(10):
@@ -832,13 +832,12 @@ if __name__ == '__main__':
 
 
             # predict structure
-            backbone_coords = model(seqs)
+            backbone_coords = model(seq)
 
             # calc lddt
             B, L, _ = backbone_coords.shape
             final_mask = torch.zeros(B, L, dtype=torch.bool, device=device)
-            for i, seq in enumerate(seqs):
-                final_mask[i, :len(seq) * 4] = True
+            final_mask[i, :len(seq) * 4] = True
             is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
             is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
             lddt_loss = lddt_loss_module(structure_tensor, backbone_coords, is_dna, is_rna, final_mask)
