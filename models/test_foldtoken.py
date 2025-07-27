@@ -830,9 +830,9 @@ if __name__ == '__main__':
             pdb_path = pdb_paths[i]
             seq = seqs[i]
             print(len(seq))
+            structure = filter_pdb_dict(pdb_dicts[i])["coords_groundtruth"]
             print(structure)
             print("="*30)
-            structure = filter_pdb_dict(pdb_dicts[i])["coords_groundtruth"]
             structure_tensor = torch.as_tensor(np.array(structure)).unsqueeze(0).to(device)
             print_tensor(structure_tensor, "structure_tensor")
 
