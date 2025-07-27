@@ -803,12 +803,10 @@ def extract_filename_with_suffix(path, suffix='', keep_extension=False):
     else:
         return f"{name}{suffix}"
 
-
-if __name__ == '__main__':
-    test_load_old_model()
-    print("="*30)
+def write_pdb():
     device = "cuda"
     out_dir = "test"
+    os.makedirs(out_dir, exist_ok=True)
     # prepare model
     model = FinalModel.load_final(
         "/mnt/models/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora_lr5e-05/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora.pt",
@@ -828,23 +826,23 @@ if __name__ == '__main__':
     with torch.inference_mode():
         smooth_lddts, normal_lddts = [], []
         lddt_loss_module = SmoothLDDTLoss().to(device)
-        for i in range(10):
+        for i in range(len(seqs)):
             # get data
             pdb_path = pdb_paths[i]
-            seq = seqs[i]
-            print(seq)
+            seq = [seqs[i]]
+
             structure = filter_pdb_dict(pdb_dicts[i])["coords_groundtruth"]
             structure_tensor = torch.as_tensor(np.array(structure)).unsqueeze(0).to(device)
-            print_tensor(structure_tensor, "structure_tensor")
+            # print_tensor(structure_tensor, "structure_tensor")
 
             # predict structure
             backbone_coords, _, _ = model(seq)
-            print_tensor(backbone_coords, "pred")
+            # print_tensor(backbone_coords, "pred")
 
             # calc lddt
             B, L, _ = backbone_coords.shape
             final_mask = torch.zeros(B, L, dtype=torch.bool, device=device)
-            final_mask[i, :len(seq) * 4] = True
+            final_mask[0, :len(seq) * 4] = True
             is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
             is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
             lddt_loss = lddt_loss_module(structure_tensor, backbone_coords, is_dna, is_rna, final_mask)
@@ -853,7 +851,7 @@ if __name__ == '__main__':
             # calc other scores
             gt_protein = load_prot_from_pdb(pdb_path)
             pred_protein = gt_protein.copy()
-            pred_protein.coord = backbone_coords
+            pred_protein.coord = backbone_coords.squeeze(0).detach().cpu().numpy().astype(np.float32)
             normal_lddt = float(lddt(gt_protein, pred_protein))
 
             # append score to list
@@ -866,10 +864,14 @@ if __name__ == '__main__':
             file = PDBFile()
             file.set_structure(pred_protein)
             file_name = extract_filename_with_suffix(pdb_path)
-            file.write(f"{file_name}_pred.pdb")
+            file.write(os.path.join(out_dir, f"{file_name}_pred.pdb"))
             # gt
             shutil.copy2(pdb_path, out_dir)
 
             del lddt_loss, structure_tensor, backbone_coords
 
-    plot_smooth_lddt(normal_lddts, smooth_lddts, "new_smooth_lddt.png")
+    plot_smooth_lddt(normal_lddts, smooth_lddts, os.path.join(out_dir, "new_smooth_lddt.png"))
+
+
+if __name__ == '__main__':
+    device = "cuda"

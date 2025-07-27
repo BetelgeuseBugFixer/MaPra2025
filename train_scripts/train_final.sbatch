@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH -p lrz-hgx-h100-94x4
 #SBATCH --gres=gpu:1
-#SBATCH -o slurm_out/train_final_std_output.out
-#SBATCH -e slurm_out/train_final_std_err.err
+#SBATCH -o slurm_out/train_final_std_output1.out
+#SBATCH -e slurm_out/train_final_std_err1.err
 #SBATCH --container-image="/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/container/final_final.sqsh"
 #SBATCH --container-mounts=/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/data:/mnt/data,/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/models:/mnt/models
-#SBATCH --time=14:00:00
-#SBATCH --mem=150G
+#SBATCH --time=3:00:00
+#SBATCH --mem=250G
 
 # command to execute and track it
 # sbatch train_final.sbatch &  tail -f slurm_out/train_final_std_output.out slurm_out/train_final_std_err.err
@@ -16,5 +16,15 @@ conda activate /opt/envs/f_token
 cd ~/MaPra2025
 export PYTHONPATH=~/MaPra2025:$PYTHONPATH
 echo "Starting training script..."
-python -u models/train.py --model final --lora_decoder --hidden 16384 8192 2048 --kernel 21 3 3 --data_dir /mnt/data/large/subset2/ --epochs 14 --out_folder /mnt/models --batch 32 --patience 20
+python -u models/train.py --model final \
+                          --lora_decoder \
+                          --hidden 1400 8000 2048 \
+                          --kernel 3 1 1 \
+                          --data_dir /mnt/data/large/subset2/ \
+                          --epochs 18 \
+                          --out_folder /mnt/models \
+                          --batch 64 \
+                          --patience 20 \
+                          --beta 0 \
+                          --lr 0.00001
 echo "Training script finished."
