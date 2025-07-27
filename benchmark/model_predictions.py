@@ -12,6 +12,7 @@ from scipy.stats import pearsonr
 from torch.utils.data import Dataset, DataLoader
 
 from models.bio2token.data.utils.utils import pdb_2_dict
+from models.collab_fold.esmfold import EsmFold
 from models.end_to_end.whole_model import FinalModel, TFold
 import argparse
 
@@ -90,8 +91,11 @@ def get_smooth_lddt(lddt_loss_module, prediction, pdb_dict):
     return lddt_score
 
 
-def compute_and_save_scores_for_model(checkpoint_path, model, seqs, pdb_paths, pdb_dicts, batch_size=64, dataset_name=""):
-    base = os.path.splitext(os.path.basename(checkpoint_path))[0]
+def compute_and_save_scores_for_model(checkpoint_path, model, seqs, pdb_paths, pdb_dicts, batch_size=64, dataset_name="",given_base=None):
+    if given_base is None:
+        base = os.path.splitext(os.path.basename(checkpoint_path))[0]
+    else:
+        base = given_base
     if dataset_name:
         base = f"{base}_{dataset_name}"
     cwd = os.getcwd()
@@ -253,3 +257,13 @@ if __name__ == '__main__':
             compute_and_save_scores_for_model(ckpt, model, seqs_casp, pdb_casp, casp_dicts, batch_size=32, dataset_name="casp")
         except Exception as e:
             print("casp fail")
+
+
+    # ESMFold
+    model = EsmFold(device)
+    compute_and_save_scores_for_model("", model, seqs, pdb_paths, pdb_dicts, batch_size=8, dataset_name="test",given_base="ESMFold")
+    try:
+        compute_and_save_scores_for_model("", model, seqs_casp, pdb_casp, casp_dicts, batch_size=8,
+                                          dataset_name="casp",given_base="ESMFold")
+    except Exception as e:
+        print("casp fail")
