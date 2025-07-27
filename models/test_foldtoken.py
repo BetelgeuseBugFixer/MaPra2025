@@ -851,7 +851,7 @@ if __name__ == '__main__':
             # calc other scores
             gt_protein = load_prot_from_pdb(pdb_path)
             pred_protein = gt_protein.copy()
-            pred_protein.coord = backbone_coords.detach().cpu()
+            pred_protein.coord = backbone_coords.squeeze(0).detach().cpu()
             normal_lddt = float(lddt(gt_protein, pred_protein))
 
             # append score to list
