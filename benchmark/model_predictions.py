@@ -205,66 +205,75 @@ if __name__ == '__main__':
     p.add_argument("--foldtoken", nargs="+", default=[], help="Path(s) to foldtoken token checkpoint(s)")
     args = p.parse_args()
 
+    # Zähler vorbereiten
+    final_count = 1
+    final_final_count = 1
+    bio2token_count = 1
+    foldtoken_count = 1
+
     # final models
     for ckpt in args.final:
         print(f"Processing FinalModel checkpoint: {ckpt}")
         model = FinalModel.load_old_final(ckpt, device=device)
-        compute_and_save_scores_for_model(ckpt, model, seqs, pdb_paths, pdb_dicts, batch_size=32, dataset_name="test")
-        compute_and_save_scores_for_model(ckpt, model, seqs_casp, pdb_casp, casp_dicts, batch_size=32, dataset_name="casp")
+        base_name = f"final_{final_count}"
+        compute_and_save_scores_for_model(ckpt, model, seqs, pdb_paths, pdb_dicts, batch_size=32, dataset_name="test",
+                                          given_base=base_name)
+        compute_and_save_scores_for_model(ckpt, model, seqs_casp, pdb_casp, casp_dicts, batch_size=32,
+                                          dataset_name="casp", given_base=base_name)
+        final_count += 1
 
     # final final models, whole decoder
     for ckpt in args.final_final:
         print(f"Processing FinalModel checkpoint: {ckpt}")
         model = FinalModel.load_final(ckpt, device=device)
-        compute_and_save_scores_for_model(ckpt, model, seqs, pdb_paths, pdb_dicts, batch_size=32, dataset_name="test")
-        compute_and_save_scores_for_model(ckpt, model, seqs_casp, pdb_casp, casp_dicts, batch_size=32, dataset_name="casp")
+        base_name = f"final_final_{final_final_count}"
+        compute_and_save_scores_for_model(ckpt, model, seqs, pdb_paths, pdb_dicts, batch_size=32, dataset_name="test",
+                                          given_base=base_name)
+        compute_and_save_scores_for_model(ckpt, model, seqs_casp, pdb_casp, casp_dicts, batch_size=32,
+                                          dataset_name="casp", given_base=base_name)
+        final_final_count += 1
 
     # bio2token models
     for ckpt in args.bio2token:
         print(f"Processing TFold (bio2token) checkpoint: {ckpt}")
         ckpt_data = torch.load(ckpt, map_location=device)
         model_args = ckpt_data["model_args"]
-
-        # rm old decoder-String
         model_args.pop("decoder", None)
-
-        # activate bio2token and to device
         model_args["bio2token"] = True
         model_args["device"] = device
-
-        # load model
         model = TFold(**model_args)
         model.load_state_dict(ckpt_data["state_dict"])
 
-        compute_and_save_scores_for_model(ckpt, model, seqs, pdb_paths, pdb_dicts, batch_size=32, dataset_name="test")
+        base_name = f"bio2token_{bio2token_count}"
+        compute_and_save_scores_for_model(ckpt, model, seqs, pdb_paths, pdb_dicts, batch_size=32, dataset_name="test",
+                                          given_base=base_name)
         try:
-            compute_and_save_scores_for_model(ckpt, model, seqs_casp, pdb_casp, casp_dicts, batch_size=32, dataset_name="casp")
+            compute_and_save_scores_for_model(ckpt, model, seqs_casp, pdb_casp, casp_dicts, batch_size=32,
+                                              dataset_name="casp", given_base=base_name)
         except Exception as e:
             print("casp fail")
+        bio2token_count += 1
 
     # foldtoken models
     for ckpt in args.foldtoken:
         print(f"Processing TFold (foldtoken) checkpoint: {ckpt}")
         ckpt_data = torch.load(ckpt, map_location=device)
         model_args = ckpt_data["model_args"]
-
-        # rm old decoder-String
         model_args.pop("decoder", None)
-
-        # deactivate bio2token for foldtoken model and to device
         model_args["bio2token"] = False
         model_args["device"] = device
-
-        # load model
         model = TFold(**model_args)
         model.load_state_dict(ckpt_data["state_dict"])
 
-        compute_and_save_scores_for_model(ckpt, model, seqs, pdb_paths, pdb_dicts, batch_size=32, dataset_name="test")
+        base_name = f"foldtoken_{foldtoken_count}"
+        compute_and_save_scores_for_model(ckpt, model, seqs, pdb_paths, pdb_dicts, batch_size=32, dataset_name="test",
+                                          given_base=base_name)
         try:
-            compute_and_save_scores_for_model(ckpt, model, seqs_casp, pdb_casp, casp_dicts, batch_size=32, dataset_name="casp")
+            compute_and_save_scores_for_model(ckpt, model, seqs_casp, pdb_casp, casp_dicts, batch_size=32,
+                                              dataset_name="casp", given_base=base_name)
         except Exception as e:
             print("casp fail")
-
+        foldtoken_count += 1
 
     # ESMFold
     model = EsmFold(device)
