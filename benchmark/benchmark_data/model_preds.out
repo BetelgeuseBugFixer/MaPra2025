@@ -1,0 +1,145 @@
+Now in: /workspace
+Now in: /mnt/dir/MaPra2025
+Starting eval script...
+[prepare_data] #paths: 913 | #dicts: 913 | #seqs: 913
+now in: /mnt/dir/MaPra2025
+[prepare_data] #paths: 95 | #dicts: 95 | #seqs: 95
+Processing FinalModel checkpoint: /mnt/dir/models/final_k17_5_1_h512_256_128_a_1_b_1_plm_lora_lr0.0001_3/final_k17_5_1_h512_256_128_a_1_b_1_plm_lora_latest.pt
+You are using the default legacy behaviour of the <class 'transformers.models.t5.tokenization_t5.T5Tokenizer'>. This is expected, and simply means that the `legacy` (previous) behavior will be used so nothing changes for you. If you want to use the new behaviour, set `legacy=False`. This should only be set if you understand what it means, and thoroughly read the reason why this was added as explained in https://github.com/huggingface/transformers/pull/24565
+downloaded model
+[inference] Time needed for 913 sequences: 37.65 seconds
+/mnt/dir/MaPra2025/benchmark/model_predictions.py:84: UserWarning: Creating a tensor from a list of numpy.ndarrays is extremely slow. Please consider converting the list to a single numpy.ndarray with numpy.array() before converting to a tensor. (Triggered internally at /pytorch/torch/csrc/utils/tensor_new.cpp:254.)
+  gt = torch.tensor(filtered["coords_groundtruth"]).unsqueeze(0).to(device)
+Scores saved to /mnt/dir/MaPra2025/final_1_test/final_1_test_scores.csv
+Scatterplot saved to /mnt/dir/MaPra2025/final_1_test/final_1_test_smooth_lddt.png
+[inference] Time needed for 95 sequences: 7.97 seconds
+[SKIPPED] PDB /mnt/dir/MaPra2025/tokenizer_benchmark/casps/casp15_backbone/T1125-D5.pdb (index 9) caused error: Expected array length 600, but got 596
+[SKIPPED] PDB /mnt/dir/MaPra2025/tokenizer_benchmark/casps/casp15_backbone/T1125-D2.pdb (index 60) caused error: Expected array length 592, but got 588
+[SKIPPED] PDB /mnt/dir/MaPra2025/tokenizer_benchmark/casps/casp15_backbone/T1125-D3.pdb (index 72) caused error: Expected array length 460, but got 452
+[SKIPPED] PDB /mnt/dir/MaPra2025/tokenizer_benchmark/casps/casp15_backbone/T1125-D4.pdb (index 74) caused error: Expected array length 564, but got 556
+Scores saved to /mnt/dir/MaPra2025/final_1_casp/final_1_casp_scores.csv
+Scatterplot saved to /mnt/dir/MaPra2025/final_1_casp/final_1_casp_smooth_lddt.png
+Processing FinalModel checkpoint: /mnt/dir/models/final_k17_5_1_h512_256_128_a_1_b_0_plm_lora_lr0.0001_4/final_k17_5_1_h512_256_128_a_1_b_0_plm_lora_latest.pt
+downloaded model
+[inference] Time needed for 913 sequences: 35.40 seconds
+Scores saved to /mnt/dir/MaPra2025/final_final_1_test/final_final_1_test_scores.csv
+Scatterplot saved to /mnt/dir/MaPra2025/final_final_1_test/final_final_1_test_smooth_lddt.png
+[inference] Time needed for 95 sequences: 7.95 seconds
+[SKIPPED] PDB /mnt/dir/MaPra2025/tokenizer_benchmark/casps/casp15_backbone/T1125-D5.pdb (index 9) caused error: Expected array length 600, but got 596
+[SKIPPED] PDB /mnt/dir/MaPra2025/tokenizer_benchmark/casps/casp15_backbone/T1125-D2.pdb (index 60) caused error: Expected array length 592, but got 588
+[SKIPPED] PDB /mnt/dir/MaPra2025/tokenizer_benchmark/casps/casp15_backbone/T1125-D3.pdb (index 72) caused error: Expected array length 460, but got 452
+[SKIPPED] PDB /mnt/dir/MaPra2025/tokenizer_benchmark/casps/casp15_backbone/T1125-D4.pdb (index 74) caused error: Expected array length 564, but got 556
+Scores saved to /mnt/dir/MaPra2025/final_final_1_casp/final_final_1_casp_scores.csv
+Scatterplot saved to /mnt/dir/MaPra2025/final_final_1_casp/final_final_1_casp_smooth_lddt.png
+Processing FinalModel checkpoint: /mnt/dir/models/final_k17_5_1_h512_256_128_a_1_b_1_plm_lora_lr0.0001_5/final_k17_5_1_h512_256_128_a_1_b_1_plm_lora_latest.pt
+downloaded model
+[inference] Time needed for 913 sequences: 35.40 seconds
+Scores saved to /mnt/dir/MaPra2025/final_final_2_test/final_final_2_test_scores.csv
+Scatterplot saved to /mnt/dir/MaPra2025/final_final_2_test/final_final_2_test_smooth_lddt.png
+[inference] Time needed for 95 sequences: 7.95 seconds
+[SKIPPED] PDB /mnt/dir/MaPra2025/tokenizer_benchmark/casps/casp15_backbone/T1125-D5.pdb (index 9) caused error: Expected array length 600, but got 596
+[SKIPPED] PDB /mnt/dir/MaPra2025/tokenizer_benchmark/casps/casp15_backbone/T1125-D2.pdb (index 60) caused error: Expected array length 592, but got 588
+[SKIPPED] PDB /mnt/dir/MaPra2025/tokenizer_benchmark/casps/casp15_backbone/T1125-D3.pdb (index 72) caused error: Expected array length 460, but got 452
+[SKIPPED] PDB /mnt/dir/MaPra2025/tokenizer_benchmark/casps/casp15_backbone/T1125-D4.pdb (index 74) caused error: Expected array length 564, but got 556
+Scores saved to /mnt/dir/MaPra2025/final_final_2_casp/final_final_2_casp_scores.csv
+Scatterplot saved to /mnt/dir/MaPra2025/final_final_2_casp/final_final_2_casp_smooth_lddt.png
+Processing TFold (bio2token) checkpoint: /mnt/models/t_fold_bio2token_k17_5_1_h512_256_128_lora_lr0.0001_2/t_fold_bio2token_k17_5_1_h512_256_128_lora_latest.pt
+downloaded model
+[inference] Time needed for 913 sequences: 35.57 seconds
+Scores saved to /mnt/dir/MaPra2025/bio2token_1_test/bio2token_1_test_scores.csv
+Scatterplot saved to /mnt/dir/MaPra2025/bio2token_1_test/bio2token_1_test_smooth_lddt.png
+[inference] Time needed for 95 sequences: 7.97 seconds
+[SKIPPED] PDB /mnt/dir/MaPra2025/tokenizer_benchmark/casps/casp15_backbone/T1125-D5.pdb (index 9) caused error: Expected array length 600, but got 596
+[SKIPPED] PDB /mnt/dir/MaPra2025/tokenizer_benchmark/casps/casp15_backbone/T1125-D2.pdb (index 60) caused error: Expected array length 592, but got 588
+[SKIPPED] PDB /mnt/dir/MaPra2025/tokenizer_benchmark/casps/casp15_backbone/T1125-D3.pdb (index 72) caused error: Expected array length 460, but got 452
+[SKIPPED] PDB /mnt/dir/MaPra2025/tokenizer_benchmark/casps/casp15_backbone/T1125-D4.pdb (index 74) caused error: Expected array length 564, but got 556
+Scores saved to /mnt/dir/MaPra2025/bio2token_1_casp/bio2token_1_casp_scores.csv
+Scatterplot saved to /mnt/dir/MaPra2025/bio2token_1_casp/bio2token_1_casp_smooth_lddt.png
+Processing TFold (foldtoken) checkpoint: /mnt/models/t_fold_foldtoken_k17_5_1_h512_256_128_lora_lr0.0001/t_fold_foldtoken_k17_5_1_h512_256_128_lora_latest.pt
+downloaded model
+[inference] Time needed for 913 sequences: 86.39 seconds
+Scores saved to /mnt/dir/MaPra2025/foldtoken_1_test/foldtoken_1_test_scores.csv
+Scatterplot saved to /mnt/dir/MaPra2025/foldtoken_1_test/foldtoken_1_test_smooth_lddt.png
+[inference] Time needed for 95 sequences: 13.55 seconds
+[SKIPPED] PDB /mnt/dir/MaPra2025/tokenizer_benchmark/casps/casp15_backbone/T1125-D5.pdb (index 9) caused error: Expected array length 600, but got 596
+[SKIPPED] PDB /mnt/dir/MaPra2025/tokenizer_benchmark/casps/casp15_backbone/T1125-D2.pdb (index 60) caused error: Expected array length 592, but got 588
+[SKIPPED] PDB /mnt/dir/MaPra2025/tokenizer_benchmark/casps/casp15_backbone/T1125-D3.pdb (index 72) caused error: Expected array length 460, but got 452
+[SKIPPED] PDB /mnt/dir/MaPra2025/tokenizer_benchmark/casps/casp15_backbone/T1125-D4.pdb (index 74) caused error: Expected array length 564, but got 556
+Scores saved to /mnt/dir/MaPra2025/foldtoken_1_casp/foldtoken_1_casp_scores.csv
+Scatterplot saved to /mnt/dir/MaPra2025/foldtoken_1_casp/foldtoken_1_casp_smooth_lddt.png
+
+
+Some weights of the model checkpoint at facebook/esmfold_v1 were not used when initializing EsmForProteinFolding: ['esm.embeddings.position_embeddings.weight']
+- This IS expected if you are initializing EsmForProteinFolding from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing EsmForProteinFolding from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+Some weights of EsmForProteinFolding were not initialized from the model checkpoint at facebook/esmfold_v1 and are newly initialized: ['esm.contact_head.regression.bias', 'esm.contact_head.regression.weight']
+You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
+Traceback (most recent call last):
+  File "/mnt/dir/MaPra2025/benchmark/model_predictions.py", line 280, in <module>
+    compute_and_save_scores_for_model("", model, seqs, pdb_paths, pdb_dicts, batch_size=8, dataset_name="test",given_base="ESMFold")
+  File "/mnt/dir/MaPra2025/benchmark/model_predictions.py", line 110, in compute_and_save_scores_for_model
+    final_structs = infer_structures(model, seqs, batch_size=batch_size)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/dir/MaPra2025/benchmark/model_predictions.py", line 49, in infer_structures
+    pred_structs, *_ = model(seq_batch)
+                       ^^^^^^^^^^^^^^^^
+  File "/opt/envs/f_token/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/envs/f_token/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/dir/MaPra2025/models/collab_fold/esmfold.py", line 14, in forward
+    outputs = self.model(**inputs)
+              ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/envs/f_token/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/envs/f_token/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/envs/f_token/lib/python3.12/site-packages/transformers/models/esm/modeling_esmfold.py", line 2136, in forward
+    structure: dict = self.trunk(s_s_0, s_z_0, aa, position_ids, attention_mask, no_recycles=num_recycles)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/envs/f_token/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/envs/f_token/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/envs/f_token/lib/python3.12/site-packages/transformers/models/esm/modeling_esmfold.py", line 1934, in forward
+    s_s, s_z = trunk_iter(s_s_0 + recycle_s, s_z_0 + recycle_z, residx, mask)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/envs/f_token/lib/python3.12/site-packages/transformers/models/esm/modeling_esmfold.py", line 1918, in trunk_iter
+    s, z = block(s, z, mask=mask, residue_index=residx, chunk_size=self.chunk_size)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/envs/f_token/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/envs/f_token/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/envs/f_token/lib/python3.12/site-packages/transformers/models/esm/modeling_esmfold.py", line 1214, in forward
+    self.tri_att_start(pairwise_state, mask=tri_mask, chunk_size=chunk_size)
+  File "/opt/envs/f_token/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/envs/f_token/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/envs/f_token/lib/python3.12/site-packages/transformers/models/esm/modeling_esmfold.py", line 571, in forward
+    x = self.mha(
+        ^^^^^^^^^
+  File "/opt/envs/f_token/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/envs/f_token/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/envs/f_token/lib/python3.12/site-packages/transformers/models/esm/modeling_esmfold.py", line 458, in forward
+    output = torch.matmul(query, key)
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 55.06 GiB. GPU 0 has a total capacity of 79.15 GiB of which 17.58 GiB is free. Including non-PyTorch memory, this process has 61.56 GiB memory in use. Of the allocated memory 47.20 GiB is allocated by PyTorch, and 13.83 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+Eval script finished.
+ssh: Could not resolve hostname lrz-ai: Temporary failure in name resolution
+scp: Connection closed

@@ -23,9 +23,7 @@ echo "Now in: $(pwd)"
 
 echo "Starting eval script..."
 python -u benchmark/model_predictions.py \
---final /mnt/dir/models/final_k17_5_1_h512_256_128_a_1_b_1_plm_lora_lr0.0001_3/final_k17_5_1_h512_256_128_a_1_b_1_plm_lora_latest.pt \
---final_final /mnt/dir/models/final_k17_5_1_h512_256_128_a_1_b_0_plm_lora_lr0.0001_4/final_k17_5_1_h512_256_128_a_1_b_0_plm_lora_latest.pt \
-/mnt/dir/models/final_k17_5_1_h512_256_128_a_1_b_1_plm_lora_lr0.0001_5/final_k17_5_1_h512_256_128_a_1_b_1_plm_lora_latest.pt \
+--final_final /mnt/models/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora_lr5e-05/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora_lr5e-05_latest.pt \
 --bio2token /mnt/models/t_fold_bio2token_k17_5_1_h512_256_128_lora_lr0.0001_2/t_fold_bio2token_k17_5_1_h512_256_128_lora_latest.pt \
 --foldtoken /mnt/models/t_fold_foldtoken_k17_5_1_h512_256_128_lora_lr0.0001/t_fold_foldtoken_k17_5_1_h512_256_128_lora_latest.pt
 
