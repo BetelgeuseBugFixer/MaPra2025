@@ -833,16 +833,16 @@ if __name__ == '__main__':
 
             structure = filter_pdb_dict(pdb_dicts[i])["coords_groundtruth"]
             structure_tensor = torch.as_tensor(np.array(structure)).unsqueeze(0).to(device)
-            print_tensor(structure_tensor, "structure_tensor")
+            # print_tensor(structure_tensor, "structure_tensor")
 
             # predict structure
             backbone_coords, _, _ = model(seq)
-            print_tensor(backbone_coords, "pred")
+            # print_tensor(backbone_coords, "pred")
 
             # calc lddt
             B, L, _ = backbone_coords.shape
             final_mask = torch.zeros(B, L, dtype=torch.bool, device=device)
-            final_mask[i, :len(seq) * 4] = True
+            final_mask[0, :len(seq) * 4] = True
             is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
             is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
             lddt_loss = lddt_loss_module(structure_tensor, backbone_coords, is_dna, is_rna, final_mask)
