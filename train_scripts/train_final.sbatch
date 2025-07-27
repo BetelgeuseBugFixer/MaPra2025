@@ -21,10 +21,10 @@ python -u models/train.py --model final \
                           --hidden 1400 8000 2048 \
                           --kernel 3 1 1 \
                           --data_dir /mnt/data/large/subset2/ \
-                          --epochs 14 \
+                          --epochs 18 \
                           --out_folder /mnt/models \
                           --batch 64 \
                           --patience 20 \
                           --beta 0 \
-                          --lr 0.00005
+                          --lr 0.00001
 echo "Training script finished."
