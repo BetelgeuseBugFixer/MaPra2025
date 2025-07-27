@@ -805,7 +805,7 @@ if __name__ == '__main__':
     device = "cuda"
     out_dir = "test"
     # prepare model
-    model = FinalFinalModel.load_final(
+    model = FinalModel.load_final(
         "/mnt/models/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora_lr5e-05/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora.pt",
         device).to(device)
 
