@@ -192,7 +192,7 @@ if __name__ == '__main__':
 
     # casp15 data prep
     print(f"now in: {os.getcwd()}")
-    casp_dir = "/mnt/dir/MaPra2025/tokenizer_benchmark/casps/casp15_backbone"
+    casp_dir = "tokenizer_benchmark/casps/casp15_backbone"
 
     pdb_casp, casp_dicts, seqs_casp=prepare_data(casp_dir,casp=True)
 
