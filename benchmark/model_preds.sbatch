@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -p lrz-hgx-a100-80x4,lrz-dgx-a100-80x8
+#SBATCH -p lrz-hgx-h100-94x4,lrz-hgx-a100-80x4,lrz-dgx-a100-80x8
 #SBATCH --gres=gpu:1
 #SBATCH -o slurm_out/model_preds.out
 #SBATCH -e slurm_out/model_preds.out
