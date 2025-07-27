@@ -31,4 +31,3 @@ python -u benchmark/model_predictions.py \
 
 echo "Eval script finished."
 
-scp -r lrz-ai:/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/ge43teg2/MaPra2025/final_k17_5_1_h512_256_128_a_1_b_1_plm_lora_latest_casp ~/PycharmProjects/MaPra2025/benchmark/benchmark_data/
