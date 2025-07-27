@@ -766,6 +766,7 @@ def test_load_old_model():
             is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
             lddt_loss = lddt_loss_module(predictions, structure, is_dna, is_rna, final_mask)
             print(lddt_loss.item())
+            break
 
 
 def test_esm_fold():
@@ -804,6 +805,8 @@ def extract_filename_with_suffix(path, suffix='', keep_extension=False):
 
 
 if __name__ == '__main__':
+    test_load_old_model()
+    print("="*30)
     device = "cuda"
     out_dir = "test"
     # prepare model
@@ -829,10 +832,8 @@ if __name__ == '__main__':
             # get data
             pdb_path = pdb_paths[i]
             seq = seqs[i]
-            print(len(seq))
+            print(seq)
             structure = filter_pdb_dict(pdb_dicts[i])["coords_groundtruth"]
-            print(structure)
-            print("="*30)
             structure_tensor = torch.as_tensor(np.array(structure)).unsqueeze(0).to(device)
             print_tensor(structure_tensor, "structure_tensor")
 
