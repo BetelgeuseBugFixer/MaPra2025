@@ -807,7 +807,7 @@ def extract_filename_with_suffix(path, suffix='', keep_extension=False):
 if __name__ == '__main__':
     device = "cuda"
     out_dir = "test"
-    os.mkdirs(out_dir)
+    os.makedirs(out_dir, exist_ok=True)
     # prepare model
     model = FinalModel.load_final(
         "/mnt/models/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora_lr5e-05/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora.pt",
