@@ -200,6 +200,7 @@ if __name__ == '__main__':
     # parser
     p = argparse.ArgumentParser()
     p.add_argument("--final", nargs="+", default=[], help="Path(s) to FinalModel checkpoint(s)")
+    p.add_argument("--final_final", nargs="+", default=[], help="Path(s) to FinalFinalModel checkpoint(s)")
     p.add_argument("--bio2token", nargs="+", default=[], help="Path(s) to bio2token token checkpoint(s)")
     p.add_argument("--foldtoken", nargs="+", default=[], help="Path(s) to foldtoken token checkpoint(s)")
     args = p.parse_args()
@@ -211,6 +212,12 @@ if __name__ == '__main__':
         compute_and_save_scores_for_model(ckpt, model, seqs, pdb_paths, pdb_dicts, batch_size=32, dataset_name="test")
         compute_and_save_scores_for_model(ckpt, model, seqs_casp, pdb_casp, casp_dicts, batch_size=32, dataset_name="casp")
 
+    # final final models, whole decoder
+    for ckpt in args.final_final:
+        print(f"Processing FinalModel checkpoint: {ckpt}")
+        model = FinalModel.load_old_final(ckpt, device=device)
+        compute_and_save_scores_for_model(ckpt, model, seqs, pdb_paths, pdb_dicts, batch_size=32, dataset_name="test")
+        compute_and_save_scores_for_model(ckpt, model, seqs_casp, pdb_casp, casp_dicts, batch_size=32, dataset_name="casp")
 
     # bio2token models
     for ckpt in args.bio2token:
