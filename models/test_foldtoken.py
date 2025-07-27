@@ -41,6 +41,8 @@ from hydra_zen import load_from_yaml, builds, instantiate
 from models.train import collate_emb_struc_tok_batch, collate_seq_struc_tok_batch, collate_seq_struc
 from transformers import AutoTokenizer, EsmForProteinFolding
 
+from utils.generate_new_data import filter_pdb_dict
+
 
 def load_prot_from_pdb(pdb_file):
     # load
@@ -827,8 +829,8 @@ if __name__ == '__main__':
             # get data
             pdb_path = pdb_paths[i]
             seq = seqs[i]
-            structure = pdb_dicts[i]["coords_groundtruth"]
-            structure_tensor = torch.as_tensor(np.array(structure)).to(device)
+            structure = filter_pdb_dict(pdb_dicts[i])["coords_groundtruth"]
+            structure_tensor = torch.as_tensor(np.array(structure)).unsqueeze(0).to(device)
 
             # predict structure
             backbone_coords, _, _ = model(seq)
