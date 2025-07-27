@@ -805,8 +805,6 @@ def extract_filename_with_suffix(path, suffix='', keep_extension=False):
 
 
 if __name__ == '__main__':
-    test_load_old_model()
-    print("="*30)
     device = "cuda"
     out_dir = "test"
     # prepare model
@@ -831,8 +829,8 @@ if __name__ == '__main__':
         for i in range(10):
             # get data
             pdb_path = pdb_paths[i]
-            seq = seqs[i]
-            print(seq)
+            seq = [seqs[i]]
+
             structure = filter_pdb_dict(pdb_dicts[i])["coords_groundtruth"]
             structure_tensor = torch.as_tensor(np.array(structure)).unsqueeze(0).to(device)
             print_tensor(structure_tensor, "structure_tensor")
