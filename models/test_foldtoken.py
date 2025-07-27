@@ -827,7 +827,7 @@ if __name__ == '__main__':
     with torch.inference_mode():
         smooth_lddts, normal_lddts = [], []
         lddt_loss_module = SmoothLDDTLoss().to(device)
-        for i in range(10):
+        for i in range(len(seqs)):
             # get data
             pdb_path = pdb_paths[i]
             seq = [seqs[i]]
