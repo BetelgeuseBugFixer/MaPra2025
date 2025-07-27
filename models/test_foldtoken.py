@@ -807,6 +807,7 @@ def extract_filename_with_suffix(path, suffix='', keep_extension=False):
 if __name__ == '__main__':
     device = "cuda"
     out_dir = "test"
+    os.mkdirs(out_dir)
     # prepare model
     model = FinalModel.load_final(
         "/mnt/models/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora_lr5e-05/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora.pt",
@@ -864,10 +865,10 @@ if __name__ == '__main__':
             file = PDBFile()
             file.set_structure(pred_protein)
             file_name = extract_filename_with_suffix(pdb_path)
-            file.write(f"{file_name}_pred.pdb")
+            file.write(os.path.join(out_dir,f"{file_name}_pred.pdb"))
             # gt
             shutil.copy2(pdb_path, out_dir)
 
             del lddt_loss, structure_tensor, backbone_coords
 
-    plot_smooth_lddt(normal_lddts, smooth_lddts, "new_smooth_lddt.png")
+    plot_smooth_lddt(normal_lddts, smooth_lddts, os.path.join(out_dir,"new_smooth_lddt.png"))
