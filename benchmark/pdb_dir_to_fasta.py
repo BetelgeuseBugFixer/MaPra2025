@@ -21,6 +21,6 @@ if __name__ == '__main__':
     #finally extract all seqs
     pdb_seqs = [pdb_dicts[i]["seq"] for i in allowed]
     pdb_names= [pdb_names[i] for i in allowed]
-    with open("data/casp15.fasta","w") as f:
+    with open("data/casp15.fasta") as f:
         for seq,id in zip(pdb_seqs, pdb_names):
             f.write(f">{id}\n{seq}\n")

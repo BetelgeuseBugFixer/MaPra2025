@@ -3,9 +3,11 @@ import builtins
 import copy
 import gzip
 import json
+import shutil
 from pathlib import Path
 import os
 
+import numpy as np
 import torch
 from biotite.structure.io.pdb import PDBFile
 from biotite.structure import lddt
@@ -16,6 +18,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch.xpu import device
 
+from benchmark.model_predictions import prepare_data, plot_smooth_lddt
 from models.bio2token.data.utils.tokens import PAD_CLASS
 from models.bio2token.decoder import Bio2tokenDecoder, load_bio2token_decoder_and_quantizer, load_bio2token_encoder
 from models.bio2token.losses.rmsd import RMSDConfig, RMSD
@@ -37,6 +40,7 @@ from hydra_zen import load_from_yaml, builds, instantiate
 
 from models.train import collate_emb_struc_tok_batch, collate_seq_struc_tok_batch, collate_seq_struc
 from transformers import AutoTokenizer, EsmForProteinFolding
+
 
 def load_prot_from_pdb(pdb_file):
     # load
@@ -737,9 +741,12 @@ def smooth_lddt_sanity_test():
             print(lddt_loss.item())
             break
 
+
 def test_load_old_model():
     device = "cuda"
-    model=FinalModel.load_old_final("/mnt/models/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora_lr0.0002/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora_latest.pt",device)
+    model = FinalModel.load_old_final(
+        "/mnt/models/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora_lr0.0002/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora_latest.pt",
+        device)
     model.to(device)
     print("inited model")
     dataset = StructureSet("/mnt/data/large/subset2/val")
@@ -758,12 +765,13 @@ def test_load_old_model():
             lddt_loss = lddt_loss_module(predictions, structure, is_dna, is_rna, final_mask)
             print(lddt_loss.item())
 
-if __name__ == '__main__':
+
+def test_esm_fold():
     os.environ["WANDB_DISABLED"] = "true"
     os.environ["WANDB_MODE"] = "disabled"
     os.environ["WANDB_CONSOLE"] = "off"
     device = "cuda"
-    esm_fold=EsmFold(device)
+    esm_fold = EsmFold(device)
     esm_fold.eval()
     dataset = StructureSet("/mnt/data/large/subset2/val")
     dataloader = DataLoader(dataset, batch_size=4, collate_fn=collate_seq_struc)
@@ -778,7 +786,85 @@ if __name__ == '__main__':
                 final_mask[i, :len(seq) * 4] = True
             is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
             is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
-            lddt_loss=lddt_loss_module(structure, backbone_coords,is_dna, is_rna,final_mask)
+            lddt_loss = lddt_loss_module(structure, backbone_coords, is_dna, is_rna, final_mask)
             print(lddt_loss.detach().item())
             del lddt_loss
 
+
+def extract_filename_with_suffix(path, suffix='', keep_extension=False):
+    base = os.path.basename(path)
+    name, ext = os.path.splitext(base)
+
+    if keep_extension:
+        return f"{name}{suffix}{ext}"
+    else:
+        return f"{name}{suffix}"
+
+
+if __name__ == '__main__':
+    device = "cuda"
+    out_dir = "test"
+    # prepare model
+    model = FinalFinalModel.load_final_final(
+        "/mnt/models/final_final_k17_3_3_h4096_2048_1024_plm_lora_lr5e-05/final_final_k17_3_3_h4096_2048_1024_plm_lora.pt",
+        device).to(device)
+
+    # prepare data
+    # singletons
+    with open("/mnt/data/large/prostt5_IDs/afdb50best_foldseek_clu_singleton.ids") as f:
+        singleton_ids = {line.strip().split("-")[1] for line in f if "-" in line}
+
+    # test data prep
+    in_dir = "/mnt/data/large/zip_file/final_data_PDB/test/test_pdb"
+
+    pdb_paths, pdb_dicts, seqs = prepare_data(in_dir=in_dir, singleton_ids=singleton_ids, casp=False)
+
+    # run model
+    with torch.no_grad():
+        smooth_lddts, normal_lddts = [], []
+        lddt_loss_module = SmoothLDDTLoss().to(device)
+        for i in range(10):
+            # get data
+            pdb_path = pdb_paths[i]
+            seq = seqs[i]
+            structure = pdb_dicts[i]["coords_groundtruth"]
+            structure_tensor=torch.as_tensor(np.array(structure)).to(device)
+
+
+            # predict structure
+            backbone_coords = model(seqs)
+
+            # calc lddt
+            B, L, _ = backbone_coords.shape
+            final_mask = torch.zeros(B, L, dtype=torch.bool, device=device)
+            for i, seq in enumerate(seqs):
+                final_mask[i, :len(seq) * 4] = True
+            is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
+            is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
+            lddt_loss = lddt_loss_module(structure_tensor, backbone_coords, is_dna, is_rna, final_mask)
+            orig_value = lddt_loss.detach().cpu().item()
+            smoooth_lddt = 1 - orig_value
+            # calc other scores
+            gt_protein = load_prot_from_pdb(pdb_path)
+            pred_protein = gt_protein.copy()
+            pred_protein.coord = backbone_coords
+            normal_lddt = float(lddt(gt_protein, pred_protein))
+
+            # append score to list
+            normal_lddts.append(normal_lddt)
+            smooth_lddts.append(smoooth_lddt)
+
+            print(f"smooth: {smoooth_lddt}; normal: {normal_lddt}; loss: {orig_value}")
+            # write pdbs
+            #pred
+            file = PDBFile()
+            file.set_structure(pred_protein)
+            file_name=extract_filename_with_suffix(pdb_path)
+            file.write(f"{file_name}_pred.pdb")
+            #gt
+            shutil.copy2(pdb_path, out_dir)
+
+
+            del lddt_loss, structure_tensor, backbone_coords
+
+    plot_smooth_lddt(normal_lddts, smooth_lddts, "new_smooth_lddt.png")
