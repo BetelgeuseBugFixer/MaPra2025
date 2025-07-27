@@ -803,8 +803,7 @@ def extract_filename_with_suffix(path, suffix='', keep_extension=False):
     else:
         return f"{name}{suffix}"
 
-
-if __name__ == '__main__':
+def write_pdb():
     device = "cuda"
     out_dir = "test"
     os.makedirs(out_dir, exist_ok=True)
@@ -865,10 +864,14 @@ if __name__ == '__main__':
             file = PDBFile()
             file.set_structure(pred_protein)
             file_name = extract_filename_with_suffix(pdb_path)
-            file.write(os.path.join(out_dir,f"{file_name}_pred.pdb"))
+            file.write(os.path.join(out_dir, f"{file_name}_pred.pdb"))
             # gt
             shutil.copy2(pdb_path, out_dir)
 
             del lddt_loss, structure_tensor, backbone_coords
 
-    plot_smooth_lddt(normal_lddts, smooth_lddts, os.path.join(out_dir,"new_smooth_lddt.png"))
+    plot_smooth_lddt(normal_lddts, smooth_lddts, os.path.join(out_dir, "new_smooth_lddt.png"))
+
+
+if __name__ == '__main__':
+    device = "cuda"
