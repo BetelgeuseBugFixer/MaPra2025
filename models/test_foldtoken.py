@@ -608,12 +608,14 @@ def test_new_model():
         clip_grad_norm_(model.parameters(), max_norm=1.0)
 
         optimizer.step()
+        bio2token_loss=lddt_loss_module(solution["decoding"],targets,is_dna, is_rna,solution["eos_pad_mask"]).item()
+        print(f"bio2token loss: {bio2token_loss}")
         print(f"lddt loss: {lddt_loss.item()} | mse: {loss.item()}")
         #if epoch % 100 == 0:
         #    print(
         #        f"epoch {epoch}: vector: {vector_loss.item()} | lddt:{lddt_loss.item()} | total loss: {total_loss.item()}")
         #del lddt_loss, vector_loss, total_loss
-        print(model.decoder.decoder.decoder(bio2token_batch["encoding"], bio2token_batch["eos_mask"]))
+        print(model.decoder.decoder.decoder(bio2token_batch["encoding"], bio2token_batch["eos_pad_mask"]))
     print("done")
 
 
