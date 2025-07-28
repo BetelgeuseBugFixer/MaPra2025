@@ -237,17 +237,17 @@ if __name__ == '__main__':
                                           dataset_name="casp", given_base=base_name)
         final_final_count += 1
 
-        # prostt5 models, whole decoder
-        for ckpt in args.prostt5:
-            print(f"Processing Prostt5 checkpoint: {ckpt}")
-            model = FinalModel.load_final(ckpt, device=device)
-            base_name = f"prostt5_{prostt5_count}"
-            compute_and_save_scores_for_model(ckpt, model, seqs, pdb_paths, pdb_dicts, batch_size=32,
-                                              dataset_name="test",
-                                              given_base=base_name)
-            compute_and_save_scores_for_model(ckpt, model, seqs_casp, pdb_casp, casp_dicts, batch_size=32,
-                                              dataset_name="casp", given_base=base_name)
-            prostt5_count += 1
+    # prostt5 models, whole decoder
+    for ckpt in args.prostt5:
+        print(f"Processing Prostt5 checkpoint: {ckpt}")
+        model = FinalModel.load_final(ckpt, device=device)
+        base_name = f"prostt5_{prostt5_count}"
+        compute_and_save_scores_for_model(ckpt, model, seqs, pdb_paths, pdb_dicts, batch_size=32,
+                                          dataset_name="test",
+                                          given_base=base_name)
+        compute_and_save_scores_for_model(ckpt, model, seqs_casp, pdb_casp, casp_dicts, batch_size=32,
+                                          dataset_name="casp", given_base=base_name)
+        prostt5_count += 1
 
     # bio2token models
     for ckpt in args.bio2token:
