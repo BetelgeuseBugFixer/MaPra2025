@@ -203,6 +203,7 @@ if __name__ == '__main__':
     p = argparse.ArgumentParser()
     p.add_argument("--final", nargs="+", default=[], help="Path(s) to FinalModel checkpoint(s)")
     p.add_argument("--final_final", nargs="+", default=[], help="Path(s) to FinalFinalModel checkpoint(s)")
+    p.add_argument("--prostt5", nargs="+", default=[], help="Path(s) to prostt5 checkpoint(s)")
     p.add_argument("--bio2token", nargs="+", default=[], help="Path(s) to bio2token token checkpoint(s)")
     p.add_argument("--foldtoken", nargs="+", default=[], help="Path(s) to foldtoken token checkpoint(s)")
     args = p.parse_args()
@@ -210,6 +211,7 @@ if __name__ == '__main__':
     # Zähler vorbereiten
     final_count = 1
     final_final_count = 1
+    prostt5_count = 1
     bio2token_count = 1
     foldtoken_count = 1
 
@@ -226,14 +228,26 @@ if __name__ == '__main__':
 
     # final final models, whole decoder
     for ckpt in args.final_final:
-        print(f"Processing FinalModel checkpoint: {ckpt}")
+        print(f"Processing FinalFinalModel checkpoint: {ckpt}")
         model = FinalModel.load_final(ckpt, device=device)
-        base_name = f"ProstT5_{final_final_count}"
+        base_name = f"final_final_{final_final_count}"
         compute_and_save_scores_for_model(ckpt, model, seqs, pdb_paths, pdb_dicts, batch_size=32, dataset_name="test",
                                           given_base=base_name)
         compute_and_save_scores_for_model(ckpt, model, seqs_casp, pdb_casp, casp_dicts, batch_size=32,
                                           dataset_name="casp", given_base=base_name)
         final_final_count += 1
+
+        # prostt5 models, whole decoder
+        for ckpt in args.final_final:
+            print(f"Processing Prostt5 checkpoint: {ckpt}")
+            model = FinalModel.load_final(ckpt, device=device)
+            base_name = f"prostt5_{prostt5_count}"
+            compute_and_save_scores_for_model(ckpt, model, seqs, pdb_paths, pdb_dicts, batch_size=32,
+                                              dataset_name="test",
+                                              given_base=base_name)
+            compute_and_save_scores_for_model(ckpt, model, seqs_casp, pdb_casp, casp_dicts, batch_size=32,
+                                              dataset_name="casp", given_base=base_name)
+            final_final_count += 1
 
     # bio2token models
     for ckpt in args.bio2token:
