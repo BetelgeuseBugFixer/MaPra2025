@@ -782,7 +782,7 @@ def test_esm_fold():
         lddt_loss_module = SmoothLDDTLoss().to(device)
         for seqs, structure in dataloader:
             structure = structure.to(device)
-            backbone_coords = esm_fold(seqs)
+            backbone_coords, _ = esm_fold(seqs)
             B, L, _ = backbone_coords.shape
             final_mask = torch.zeros(B, L, dtype=torch.bool, device=device)
             for i, seq in enumerate(seqs):
