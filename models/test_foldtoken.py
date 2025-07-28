@@ -563,10 +563,10 @@ def test_new_model():
     gt_vector = bio2token_batch["encoding"].detach()
     # prepare training
     lddt_loss_module = SmoothLDDTLoss().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.00001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
     model.train()
     # run through model:
-    for epoch in range(25):
+    for epoch in range(40):
         optimizer.zero_grad()
         predictions, final_mask, cnn_out = model(seqs)
         #vector_loss = masked_mse_loss(cnn_out, gt_vector, final_mask)
