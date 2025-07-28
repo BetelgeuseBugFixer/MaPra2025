@@ -547,9 +547,9 @@ def test_new_model():
     device = "cuda"
     model = FinalModel([12_000, 8_192, 2_048], device=device, kernel_sizes=[3, 1, 1], dropout=0.0, decoder_lora=True)
     # input:
-    test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
-                 "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
-    # test_pdbs = ["tokenizer_benchmark/casps/casp15_backbone/T1129s2-D1.pdb"]
+    # test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
+    #              "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
+    test_pdbs = ["tokenizer_benchmark/casps/casp15_backbone/T1129s2-D1.pdb"]
 
     seqs = [get_seq_from_pdb(pdb) for pdb in test_pdbs]
     true_lengths = [len(seq) for seq in seqs]
@@ -563,7 +563,7 @@ def test_new_model():
     gt_vector = bio2token_batch["encoding"].detach()
     # prepare training
     lddt_loss_module = SmoothLDDTLoss().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.00001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.00005)
     model.train()
     # run through model:
     for epoch in range(200):
