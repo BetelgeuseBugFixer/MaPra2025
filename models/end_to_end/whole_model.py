@@ -27,7 +27,7 @@ class FinalFinalModel(nn.Module):
         self.decoder = Bio2tokenDecoder(device=device, use_lora=decoder_lora).to(device)
         codebook_size = 128
         self.cnn = ResidueTokenCNN(embeddings_size, hidden, codebook_size, kernel_sizes, dropout,
-                                   bio2token=True).to(device)
+                                   bio2token=False).to(device)
 
         self.plm_lora = plm_lora
 
@@ -87,7 +87,7 @@ class FinalFinalModel(nn.Module):
         B, L, _ = cnn_out.shape
         eos_mask = torch.ones(B, L, dtype=torch.bool, device=x.device)
         for i, length in enumerate(true_lengths):
-            eos_mask[i, :length * 4] = False
+            eos_mask[i, :length] = False
         x = self.decoder.decoder.decoder(cnn_out, eos_mask)
         # create mask for all relevant positions
         final_mask = ~eos_mask

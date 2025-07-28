@@ -545,7 +545,7 @@ def print_tensor(tensor, name):
 
 def test_new_model():
     device = "cuda"
-    model = FinalModel([12_000, 8_192, 2_048], device=device, kernel_sizes=[3, 1, 1], dropout=0.0, decoder_lora=True)
+    model = FinalFinalModel([12_000, 8_192, 2_048], device=device, kernel_sizes=[3, 1, 1], dropout=0.0, decoder_lora=True)
     # input:
     # test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
     #              "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
@@ -563,7 +563,7 @@ def test_new_model():
     gt_vector = bio2token_batch["encoding"].detach()
     # prepare training
     lddt_loss_module = SmoothLDDTLoss().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.00005)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.00001)
     model.train()
     # run through model:
     for epoch in range(200):
@@ -581,10 +581,15 @@ def test_new_model():
         # lddt
         is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
         is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
-        lddt_loss = lddt_loss_module(predictions, targets, is_dna, is_rna, final_mask)
+
+        #convert strucutre to c-alpha
+        structure = targets.view(B, L, 4, 3)  # → (B, L, 4, 3)
+        c_alpha = structure[:, :, 1, :]  # → (B, L, 3)
+
+        lddt_loss = lddt_loss_module(predictions, c_alpha, is_dna, is_rna, final_mask)
         # print(f"loss: {lddt_loss.item()}")
         lddt_loss.backward()
-        loss = F.mse_loss(predictions[final_mask], targets[final_mask])
+        loss = F.mse_loss(predictions[final_mask], c_alpha[final_mask])
         #loss.backward()
         # print(loss.item())
         #total_loss = vector_loss + lddt_loss
