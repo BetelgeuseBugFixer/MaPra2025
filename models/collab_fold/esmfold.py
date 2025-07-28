@@ -22,6 +22,6 @@ class EsmFold(nn.Module):
         # create masks
         B,L,_ = backbone_coords.shape
         final_mask = torch.zeros(B, L, dtype=torch.bool, device=self.device)
-        for i in range(seqs):
+        for i in range(len(seqs)):
             final_mask[0, :len(seqs[i]) * 4] = True
         return backbone_coords, final_mask
