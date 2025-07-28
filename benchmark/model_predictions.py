@@ -19,7 +19,8 @@ from models.end_to_end.whole_model import FinalModel, TFold, FinalFinalModel
 import argparse
 
 from models.model_utils import SmoothLDDTLoss
-from utils.generate_new_data import BACKBONE_ATOMS, get_pid_from_file_name, MAX_LENGTH, filter_pdb_dict
+from utils.generate_new_data import BACKBONE_ATOMS, get_pid_from_file_name, filter_pdb_dict
+MAX_LENGTH = 780
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -299,4 +300,4 @@ if __name__ == '__main__':
     except Exception as e:
         print("casp fail")
         traceback.print_exc()
-    compute_and_save_scores_for_model("", model, seqs, pdb_paths, pdb_dicts, batch_size=1, dataset_name="test",given_base="ESMFold")
+    # compute_and_save_scores_for_model("", model, seqs, pdb_paths, pdb_dicts, batch_size=1, dataset_name="test",given_base="ESMFold")
