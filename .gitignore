@@ -48,6 +48,21 @@ models/foldtoken_decoder/src/utility/__pycache__/
 models/foldtoken_decoder/src/layers/structure/__pycache__/
 models/foldtoken_decoder/src/layers/__pycache__/
 models/prot_t5/__pycache__/
+__pycache__/
+benchmark/__pycache__/
+models/bio2token/__pycache__/
+models/bio2token/data/utils/__pycache__/
+models/bio2token/layers/__pycache__/
+models/bio2token/losses/__pycache__/
+models/bio2token/models/__pycache__/
+models/bio2token/utils/__pycache__/
+models/collab_fold/__pycache__/
+models/datasets/__pycache__/
+models/end_to_end/__pycache__/
+tokenizer_benchmark/__pycache__/
+utils/__pycache__/
+
+
 
 /container/f_token2.tar.gz
 /data/large/

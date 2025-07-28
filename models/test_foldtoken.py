@@ -545,7 +545,7 @@ def print_tensor(tensor, name):
 
 def test_new_model():
     device = "cuda"
-    model = FinalModel([16_384, 8_192, 2_048], device=device, kernel_sizes=[21, 3, 3], dropout=0.0, decoder_lora=True)
+    model = FinalModel([12_000, 8_192, 2_048], device=device, kernel_sizes=[3, 1, 1], dropout=0.0, decoder_lora=True)
     # input:
     test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
                  "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
@@ -581,9 +581,12 @@ def test_new_model():
         # lddt
         is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
         is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
-        lddt_loss = lddt_loss_module(predictions, targets, is_dna, is_rna, final_mask)
-        print(f"loss: {lddt_loss.item()}")
-        lddt_loss.backward()
+        # lddt_loss = lddt_loss_module(predictions, targets, is_dna, is_rna, final_mask)
+        # print(f"loss: {lddt_loss.item()}")
+        # lddt_loss.backward()
+        loss = F.mse_loss(predictions[final_mask], targets[final_mask])
+        loss.backward()
+        print(loss.item())
         #total_loss = vector_loss + lddt_loss
         # total_loss.backward()
         clip_grad_norm_(model.parameters(), max_norm=1.0)
@@ -881,5 +884,4 @@ def write_pdb():
 
 
 if __name__ == '__main__':
-    # test_esm_fold()
     test_new_model()
