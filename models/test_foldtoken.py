@@ -581,18 +581,18 @@ def test_new_model():
         # lddt
         is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
         is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
-        # lddt_loss = lddt_loss_module(predictions, targets, is_dna, is_rna, final_mask)
+        lddt_loss = lddt_loss_module(predictions, targets, is_dna, is_rna, final_mask)
         # print(f"loss: {lddt_loss.item()}")
         # lddt_loss.backward()
         loss = F.mse_loss(predictions[final_mask], targets[final_mask])
         loss.backward()
-        print(loss.item())
+        # print(loss.item())
         #total_loss = vector_loss + lddt_loss
         # total_loss.backward()
         clip_grad_norm_(model.parameters(), max_norm=1.0)
 
         optimizer.step()
-
+        print(f"lddt loss: {lddt_loss.item()} | mse: {loss.item()}")
         #if epoch % 100 == 0:
         #    print(
         #        f"epoch {epoch}: vector: {vector_loss.item()} | lddt:{lddt_loss.item()} | total loss: {total_loss.item()}")
