@@ -226,7 +226,7 @@ if __name__ == '__main__':
     for ckpt in args.final_final:
         print(f"Processing FinalModel checkpoint: {ckpt}")
         model = FinalModel.load_final(ckpt, device=device)
-        base_name = f"prime_darkness_{final_final_count}"
+        base_name = f"ProstT5_{final_final_count}"
         compute_and_save_scores_for_model(ckpt, model, seqs, pdb_paths, pdb_dicts, batch_size=32, dataset_name="test",
                                           given_base=base_name)
         compute_and_save_scores_for_model(ckpt, model, seqs_casp, pdb_casp, casp_dicts, batch_size=32,
