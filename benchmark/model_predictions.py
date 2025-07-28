@@ -238,7 +238,7 @@ if __name__ == '__main__':
         final_final_count += 1
 
         # prostt5 models, whole decoder
-        for ckpt in args.final_final:
+        for ckpt in args.prostt5:
             print(f"Processing Prostt5 checkpoint: {ckpt}")
             model = FinalModel.load_final(ckpt, device=device)
             base_name = f"prostt5_{prostt5_count}"
