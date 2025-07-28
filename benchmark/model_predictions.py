@@ -1,5 +1,7 @@
 import os
 import csv
+import traceback
+
 import numpy as np
 import torch
 import time
@@ -282,4 +284,5 @@ if __name__ == '__main__':
                                           dataset_name="casp",given_base="ESMFold")
     except Exception as e:
         print("casp fail")
+        traceback.print_exc()
     compute_and_save_scores_for_model("", model, seqs, pdb_paths, pdb_dicts, batch_size=4, dataset_name="test",given_base="ESMFold")
