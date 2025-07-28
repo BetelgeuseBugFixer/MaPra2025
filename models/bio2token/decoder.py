@@ -10,7 +10,6 @@ from peft import get_peft_model, LoraConfig, TaskType
 
 
 def load_bio2token_model():
-
     model_configs = load_from_yaml("models/bio2token/files/model.yaml")["model"]
     model_config = pi_instantiate(AutoencoderConfig, model_configs)
     model = Autoencoder(model_config)

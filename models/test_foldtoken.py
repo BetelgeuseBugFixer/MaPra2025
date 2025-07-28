@@ -21,13 +21,14 @@ from torch.xpu import device
 
 from benchmark.model_predictions import prepare_data, plot_smooth_lddt
 from models.bio2token.data.utils.tokens import PAD_CLASS
-from models.bio2token.decoder import Bio2tokenDecoder, load_bio2token_decoder_and_quantizer, load_bio2token_encoder
+from models.bio2token.decoder import Bio2tokenDecoder, load_bio2token_decoder_and_quantizer, load_bio2token_encoder, \
+    load_bio2token_model
 from models.bio2token.losses.rmsd import RMSDConfig, RMSD
 from models.bio2token.models.autoencoder import AutoencoderConfig, Autoencoder
 from models.bio2token.utils.configs import utilsyaml_to_dict, pi_instantiate
 from models.collab_fold.esmfold import EsmFold
 from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores, SmoothLDDTLoss, \
-    batch_pdbs_for_bio2token, print_trainable_parameters, masked_mse_loss
+    batch_pdbs_for_bio2token, print_trainable_parameters, masked_mse_loss, batch_pdb_dicts
 from models.prot_t5.prot_t5 import ProtT5
 from models.datasets.datasets import PAD_LABEL, StructureAndTokenSet, StructureSet
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
@@ -43,6 +44,7 @@ from models.train import collate_emb_struc_tok_batch, collate_seq_struc_tok_batc
 from transformers import AutoTokenizer, EsmForProteinFolding
 
 from utils.generate_new_data import filter_pdb_dict
+from utils.prepare_data import bio2token_model
 
 
 def load_prot_from_pdb(pdb_file):
@@ -545,11 +547,23 @@ def print_tensor(tensor, name):
 
 def test_new_model():
     device = "cuda"
-    model = FinalFinalModel([12_000, 8_192, 2_048], device=device, kernel_sizes=[3, 1, 1], dropout=0.0, decoder_lora=True)
+    model = FinalModel([12_000, 8_192, 2_048], device=device, kernel_sizes=[3, 1, 1], dropout=0.0, decoder_lora=True)
     # input:
     # test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
     #              "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
     test_pdbs = ["tokenizer_benchmark/casps/casp15_backbone/T1129s2-D1.pdb"]
+    pdb_dicts = [pdb_2_dict(pdb) for pdb in test_pdbs]
+    pdb_dicts = [filter_pdb_dict(pdb_dict) for pdb_dict in pdb_dicts]
+    bio2token_batch = batch_pdb_dicts(pdb_dicts,device)
+    bio2token_model = load_bio2token_model().to(device)
+    with torch.no_grad():
+        solution=bio2token_model(bio2token_batch)
+    print(solution)
+
+
+
+    # structure_tensor = torch.as_tensor(np.array(structure)).unsqueeze(0).to(device)
+
 
     seqs = [get_seq_from_pdb(pdb) for pdb in test_pdbs]
     true_lengths = [len(seq) for seq in seqs]
@@ -566,9 +580,9 @@ def test_new_model():
     optimizer = torch.optim.Adam(model.parameters(), lr=0.00001)
     model.train()
     # run through model:
-    for epoch in range(200):
+    for epoch in range(1):
         optimizer.zero_grad()
-        predictions, final_mask, cnn_out = model(seqs)
+        predictions, final_mask, cnn_out = model.forward(seqs)
         #vector_loss = masked_mse_loss(cnn_out, gt_vector, final_mask)
         # if epoch==0 or epoch==100:
         #     print_tensor(cnn_out,"predictions")
@@ -582,14 +596,11 @@ def test_new_model():
         is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
         is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
 
-        #convert strucutre to c-alpha
-        structure = targets.view(B, L, 4, 3)  # → (B, L, 4, 3)
-        c_alpha = structure[:, :, 1, :]  # → (B, L, 3)
 
-        lddt_loss = lddt_loss_module(predictions, c_alpha, is_dna, is_rna, final_mask)
+        lddt_loss = lddt_loss_module(predictions, targets, is_dna, is_rna, final_mask)
         # print(f"loss: {lddt_loss.item()}")
         lddt_loss.backward()
-        loss = F.mse_loss(predictions[final_mask], c_alpha[final_mask])
+        loss = F.mse_loss(predictions[final_mask], targets[final_mask])
         #loss.backward()
         # print(loss.item())
         #total_loss = vector_loss + lddt_loss
@@ -602,7 +613,7 @@ def test_new_model():
         #    print(
         #        f"epoch {epoch}: vector: {vector_loss.item()} | lddt:{lddt_loss.item()} | total loss: {total_loss.item()}")
         #del lddt_loss, vector_loss, total_loss
-
+        print(model.decoder.decoder.decoder(bio2token_batch["encoding"], bio2token_batch["eos_mask"]))
     print("done")
 
 
