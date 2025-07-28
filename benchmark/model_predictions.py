@@ -247,7 +247,7 @@ if __name__ == '__main__':
                                               given_base=base_name)
             compute_and_save_scores_for_model(ckpt, model, seqs_casp, pdb_casp, casp_dicts, batch_size=32,
                                               dataset_name="casp", given_base=base_name)
-            final_final_count += 1
+            prostt5_count += 1
 
     # bio2token models
     for ckpt in args.bio2token:
