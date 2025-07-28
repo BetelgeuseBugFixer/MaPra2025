@@ -171,7 +171,7 @@ def prepare_data(in_dir,singleton_ids=None,casp=False):
     pdb_dicts = [pdb_2_dict(p) for p in pdb_paths]
 
     if casp:
-        allowed = [i for i, d in enumerate(pdb_dicts) if len(d["seq"]) * 4 == d["atom_length"]]
+        allowed = [i for i, d in enumerate(pdb_dicts) if len(d["seq"]) * 4 == d["atom_length"] and len(d["seq"]) < MAX_LENGTH]
     else:
         allowed = [i for i, d in enumerate(pdb_dicts) if len(d["seq"]) < MAX_LENGTH]
 
