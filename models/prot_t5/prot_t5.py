@@ -72,7 +72,6 @@ class ProtT5(nn.Module):
         self.device = device
         self.tokenizer = T5Tokenizer.from_pretrained(transformer_link, do_lower_case=False, use_fast=False)
         base_model = T5EncoderModel.from_pretrained(transformer_link)
-        print("downloaded model")
         if use_lora:
             lora_config = LoraConfig(
                 r=lora_r,
