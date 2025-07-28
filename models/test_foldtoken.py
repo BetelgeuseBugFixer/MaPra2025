@@ -583,9 +583,9 @@ def test_new_model():
         is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
         lddt_loss = lddt_loss_module(predictions, targets, is_dna, is_rna, final_mask)
         # print(f"loss: {lddt_loss.item()}")
-        # lddt_loss.backward()
+        lddt_loss.backward()
         loss = F.mse_loss(predictions[final_mask], targets[final_mask])
-        loss.backward()
+        #loss.backward()
         # print(loss.item())
         #total_loss = vector_loss + lddt_loss
         # total_loss.backward()
