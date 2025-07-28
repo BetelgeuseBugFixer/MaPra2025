@@ -874,4 +874,4 @@ def write_pdb():
 
 
 if __name__ == '__main__':
-    device = "cuda"
+    test_esm_fold()
