@@ -13,6 +13,7 @@ from biotite.structure.io.pdb import PDBFile
 from biotite.structure import lddt
 from biotite.structure.filter import _filter_atom_names
 from torch import nn
+from torch.nn.utils import clip_grad_norm_
 from torch.nn.utils.rnn import pad_sequence
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
@@ -562,13 +563,13 @@ def test_new_model():
     gt_vector = bio2token_batch["encoding"].detach()
     # prepare training
     lddt_loss_module = SmoothLDDTLoss().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
     model.train()
     # run through model:
     for epoch in range(1001):
         optimizer.zero_grad()
         predictions, final_mask, cnn_out = model(seqs)
-        vector_loss = masked_mse_loss(cnn_out, gt_vector, final_mask)
+        #vector_loss = masked_mse_loss(cnn_out, gt_vector, final_mask)
         # if epoch==0 or epoch==100:
         #     print_tensor(cnn_out,"predictions")
         #     print("***"*11)
@@ -581,14 +582,18 @@ def test_new_model():
         is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
         is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
         lddt_loss = lddt_loss_module(predictions.detach(), targets, is_dna, is_rna, final_mask)
-        # lddt_loss.backward()
-        total_loss = vector_loss + lddt_loss
-        total_loss.backward()
+        print(f"loss: {lddt_loss.item()}")
+        lddt_loss.backward()
+        #total_loss = vector_loss + lddt_loss
+        # total_loss.backward()
+        clip_grad_norm_(model.parameters(), max_norm=1.0)
+
         optimizer.step()
-        if epoch % 100 == 0:
-            print(
-                f"epoch {epoch}: vector: {vector_loss.item()} | lddt:{lddt_loss.item()} | total loss: {total_loss.item()}")
-        del lddt_loss, vector_loss, total_loss
+
+        #if epoch % 100 == 0:
+        #    print(
+        #        f"epoch {epoch}: vector: {vector_loss.item()} | lddt:{lddt_loss.item()} | total loss: {total_loss.item()}")
+        #del lddt_loss, vector_loss, total_loss
 
     print("done")
 
@@ -777,7 +782,7 @@ def test_esm_fold():
     esm_fold = EsmFold(device)
     esm_fold.eval()
     dataset = StructureSet("/mnt/data/large/subset2/val")
-    dataloader = DataLoader(dataset, batch_size=4, collate_fn=collate_seq_struc)
+    dataloader = DataLoader(dataset, batch_size=1, collate_fn=collate_seq_struc)
     with torch.no_grad():
         lddt_loss_module = SmoothLDDTLoss().to(device)
         for seqs, structure in dataloader:
@@ -877,3 +882,4 @@ def write_pdb():
 
 if __name__ == '__main__':
     test_esm_fold()
+    #test_new_model()
