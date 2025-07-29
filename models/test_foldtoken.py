@@ -906,7 +906,7 @@ def print_gradients(model):
 if __name__ == '__main__':
     # test_new_model()
     device = "cuda"
-    model = FinalModel([12_000, 8_192, 2_048], device=device, kernel_sizes=[3, 1, 1], dropout=0.0, decoder_lora=True)
+    model = FinalModel([12_000, 8_192, 2_048], device=device, kernel_sizes=[7,3, 3], dropout=0.0, decoder_lora=True)
     # input:
     # test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
     #              "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
@@ -929,9 +929,9 @@ if __name__ == '__main__':
     # try to overfit
     # prepare training
     lddt_loss_module = SmoothLDDTLoss().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.00001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
     model.train()
-    for i in range(350):
+    for epoch in range(10):
         predictions, final_mask, cnn_out = model.forward(seqs)
 
         # scores
@@ -949,15 +949,17 @@ if __name__ == '__main__':
         # vector_loss.backward()
 
         # gradient clipping
-        print_gradients(model)
-        print("="*30)
+        if epoch==0:
+            print_gradients(model)
+            print("="*30)
         clip_grad_norm_(model.parameters(), max_norm=1.0)
-        print_gradients(model)
+        if epoch == 0:
+            print_gradients(model)
         # backpropagate
         optimizer.step()
         print(f"lddt loss: {lddt_loss.detach().item()} | encoding loss : {vector_loss.detach().item()}")
         print("="*30)
-        break
+
         #sanity check. run bio2token encoding through our model
         # bio2token_out_through_our_model=model.decoder.decoder.decoder(bio2token_batch["encoding"], bio2token_batch["eos_pad_mask"])
 

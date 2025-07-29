@@ -34,7 +34,7 @@ def load_tokens(file_dir, token_type):
         case "encoding":
             return load_pt(os.path.join(file_dir, "encodings.pt"))
         case _:
-            raise RuntimeError(f"{token_type} is not supported, please use bio2token or foldtoken")
+            raise RuntimeError(f"{token_type} is not supported, please use bio2token,encoding or foldtoken")
 
 
 class StructureSet(Dataset):
