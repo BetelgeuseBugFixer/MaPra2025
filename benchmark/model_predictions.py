@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import time
 
-from biotite.structure import lddt, rmsd, tm_score
+from biotite.structure import lddt, rmsd, tm_score, superimpose_structural_homologs
 from biotite.structure.superimpose import superimpose
 from biotite.structure.filter import _filter_atom_names
 from biotite.structure.io.pdb import PDBFile
@@ -83,15 +83,15 @@ def get_scores(gt_pdb, pred):
     lddt_score = float(lddt(gt_protein, pred_protein))
 
     # Superimpose predicted onto ground-truth
-    superimpose(pred_protein, gt_protein)
+    superimposed, _, ref_indices, sub_indices = superimpose_structural_homologs(
+        gt_protein, pred_protein, max_iterations=1
+    )
 
     # rmsd
     rmsd_score = float(rmsd(gt_protein, pred_protein))
 
     # tm score
-    all_atoms = len(gt_protein)
-    indices = np.arange(all_atoms)
-    tm_score_score = tm_score(gt_protein, pred_protein, indices, indices, all_atoms)
+    tm_score_score = tm_score(gt_protein, superimposed, ref_indices, sub_indices)
 
     return lddt_score, rmsd_score, tm_score_score
 
