@@ -910,7 +910,8 @@ if __name__ == '__main__':
     # input:
     # test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
     #              "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
-    test_pdbs = ["tokenizer_benchmark/casps/casp15_backbone/T1129s2-D1.pdb"]
+    pdb_path="tokenizer_benchmark/casps/casp15_backbone/T1112-D1.pdb"
+    test_pdbs = [pdb_path]
 
     # prepare input
     pdb_dicts = [pdb_2_dict(pdb) for pdb in test_pdbs]
@@ -931,7 +932,7 @@ if __name__ == '__main__':
     tm_loss_module = TMLossModule().to(device)
     optimizer = torch.optim.AdamW(
         model.parameters(),
-        lr=0.00001,  # Uniform learning rate
+        lr=0.0001,  # Uniform learning rate
         weight_decay=0.01
     )
     model.train()
@@ -977,12 +978,15 @@ if __name__ == '__main__':
         print(f"lddt loss: {tm_loss.detach().item()} | encoding loss : {vector_loss.detach().item()}")
 
 
-
-
         #check results
         # diff = (bio2token_out_through_our_model - solution["decoding"]).abs()
         # print("Max diff:", diff.max().item())
         # print("Mean diff:", diff.mean().item())
         #
-
-
+    #write pdb
+    backbone_coords=model(seqs)
+    gt_protein = load_prot_from_pdb(pdb_path)
+    gt_protein.coord = backbone_coords.squeeze(0).detach().cpu().numpy().astype(np.float32)
+    file = PDBFile()
+    file.set_structure(gt_protein)
+    file.write(os.path.join(out_dir, f"tm_test.pdb"))
