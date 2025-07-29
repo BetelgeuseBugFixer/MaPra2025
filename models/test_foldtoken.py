@@ -582,7 +582,7 @@ def test_new_model():
     for epoch in range(1):
         optimizer.zero_grad()
         predictions, final_mask, cnn_out = model.forward(seqs)
-        #vector_loss = masked_mse_loss(cnn_out, gt_vector, final_mask)
+        # vector_loss = masked_mse_loss(cnn_out, gt_vector, final_mask)
         # if epoch==0 or epoch==100:
         #     print_tensor(cnn_out,"predictions")
         #     print("***"*11)
@@ -914,7 +914,7 @@ if __name__ == '__main__':
     bio2token_batch = batch_pdb_dicts(pdb_dicts, device)
     bio2token_model = load_bio2token_model().to(device)
     with torch.no_grad():
-        solution = bio2token_model(bio2token_batch)
+        bio2token_batch = bio2token_model(bio2token_batch)
 
     # get solulu
     targets = get_padded_ground_truths(test_pdbs).to(device)
@@ -924,33 +924,40 @@ if __name__ == '__main__':
     lddt_loss_module = SmoothLDDTLoss().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.00001)
     model.train()
-    optimizer.zero_grad()
-    predictions, final_mask, cnn_out = model.forward(seqs)
+    for i in range(100):
+        optimizer.zero_grad()
+        predictions, final_mask, cnn_out = model.forward(seqs)
 
-    # scores
-    B, L, _ = predictions.shape
-    # lddt
-    is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
-    is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
-    lddt_loss = lddt_loss_module(predictions, targets, is_dna, is_rna, final_mask)
-    lddt_loss.backward()
-    loss = F.mse_loss(predictions[final_mask], targets[final_mask])
+        # scores
+        B, L, _ = predictions.shape
+        # lddt
+        is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
+        is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
+        lddt_loss = lddt_loss_module(predictions, targets, is_dna, is_rna, final_mask)
+        # lddt_loss.backward()
+        # loss = F.mse_loss(predictions[final_mask], targets[final_mask])
 
-    # gradient clipping
-    clip_grad_norm_(model.parameters(), max_norm=1.0)
+        vector_loss = masked_mse_loss(cnn_out, bio2token_batch["encoding"], final_mask)
+        vector_loss.backward()
 
-    #sanity check. run bio2token encoding through our model
-    bio2token_out_through_our_model=model.decoder.decoder.decoder(bio2token_batch["encoding"], bio2token_batch["eos_pad_mask"])
+        # gradient clipping
+        clip_grad_norm_(model.parameters(), max_norm=1.0)
+        # backpropagate
+        optimizer.step()
+        print(f"lddt loss: {lddt_loss.detach().item()} | encoding loss : {vector_loss.detach().item()}")
 
-    # calc test lddts
-    bio2token_loss = lddt_loss_module(solution["decoding"], targets, is_dna, is_rna, ~solution["eos_pad_mask"]).item()
-    bio2token_our_model_loss = lddt_loss_module(bio2token_out_through_our_model, targets, is_dna, is_rna, ~solution["eos_pad_mask"]).item()
+        #sanity check. run bio2token encoding through our model
+        # bio2token_out_through_our_model=model.decoder.decoder.decoder(bio2token_batch["encoding"], bio2token_batch["eos_pad_mask"])
 
-    #check results
-    diff = (bio2token_out_through_our_model - solution["decoding"]).abs()
-    print("Max diff:", diff.max().item())
-    print("Mean diff:", diff.mean().item())
+        # calc test lddts
+        # bio2token_loss = lddt_loss_module(solution["decoding"], targets, is_dna, is_rna, ~solution["eos_pad_mask"]).item()
+        # bio2token_our_model_loss = lddt_loss_module(bio2token_out_through_our_model, targets, is_dna, is_rna, ~solution["eos_pad_mask"]).item()
 
-    print(bio2token_loss)
-    print(bio2token_our_model_loss)
+        #check results
+        # diff = (bio2token_out_through_our_model - solution["decoding"]).abs()
+        # print("Max diff:", diff.max().item())
+        # print("Mean diff:", diff.mean().item())
+        #
+        # print(bio2token_loss)
+        # print(bio2token_our_model_loss)
 
