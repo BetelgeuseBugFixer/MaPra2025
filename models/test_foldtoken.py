@@ -929,7 +929,10 @@ if __name__ == '__main__':
     # try to overfit
     # prepare training
     lddt_loss_module = SmoothLDDTLoss().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    optimizer = torch.optim.AdamW([
+        {'params': model.cnn.parameters(), 'lr': 2e-4},
+        {'params': model.decoder.parameters(), 'lr': 5e-4}
+    ], weight_decay=0.01)
     model.train()
     for epoch in range(100):
         predictions, final_mask, cnn_out = model.forward(seqs)
@@ -952,13 +955,13 @@ if __name__ == '__main__':
         if epoch==0:
             print_gradients(model)
             print("="*30)
-        clip_grad_norm_(model.parameters(), max_norm=1.0)
+        clip_grad_norm_(model.parameters(), max_norm=0.5)
         if epoch == 0:
             print_gradients(model)
         # backpropagate
         optimizer.step()
         print(f"lddt loss: {lddt_loss.detach().item()} | encoding loss : {vector_loss.detach().item()}")
-        print("="*30)
+
 
         #sanity check. run bio2token encoding through our model
         # bio2token_out_through_our_model=model.decoder.decoder.decoder(bio2token_batch["encoding"], bio2token_batch["eos_pad_mask"])

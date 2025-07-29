@@ -14,7 +14,9 @@ class FinalResidueTokenCNN(nn.Module):
         self.n_atoms_per_residue = 4 if bio2token else 1 # default = 1 for foldtoken. 4 for bio2token
         self.vocab_size = vocab_size
 
+        # define layers
         self.embed_norm = nn.LayerNorm(d_emb)
+        self.final_norm = nn.LayerNorm(hidden)
         self.conv_in = nn.Conv1d(
             in_channels=d_emb,
             out_channels=hidden,
@@ -63,6 +65,10 @@ class FinalResidueTokenCNN(nn.Module):
 
         for layer in self.hidden_layers:
             x = layer(x)
+
+        x = x.permute(0, 2, 1)  # [B, L, hidden]
+        x = self.final_norm(x)
+        x = x.permute(0, 2, 1)  # [B, hidden, L]
 
         x = self.conv_out(x)  # [B, vocab*n_atoms, L]
         # adapt for multiple atoms per res
