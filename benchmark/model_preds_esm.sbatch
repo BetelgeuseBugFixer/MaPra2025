@@ -13,6 +13,7 @@ cd ~/MaPra2025
 export PYTHONPATH=~/MaPra2025:$PYTHONPATH
 echo "Starting eval script..."
 python -u benchmark/model_predictions.py \
---prostt5 /mnt/models/final_final_k21_3_3_h16384_8192_2048_plm_lora_lr5e-05/final_final_k21_3_3_h16384_8192_2048_plm_lora_latest.pt
+          --prostt5 /mnt/models/final_final_k21_3_3_h16384_8192_2048_plm_lora_lr5e-05/final_final_k21_3_3_h16384_8192_2048_plm_lora_latest.pt \
+          --esm
 
 echo "Eval script finished."
