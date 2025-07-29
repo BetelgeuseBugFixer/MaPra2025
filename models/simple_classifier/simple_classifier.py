@@ -52,6 +52,7 @@ class FinalResidueTokenCNN(nn.Module):
 
     def forward(self, embeddings):
         x = self.embed_norm(embeddings)  # [B, L, d_emb]
+        x = self.drop(x)
         x = x.permute(0, 2, 1)  # [B, d_emb, L]
         x = self.conv_in(x)
 
@@ -83,15 +84,15 @@ class ResBlock(nn.Module):
 
     def forward(self, x):
         residual = x
+        x = self.relu(x)  # PRE-ACTIVATION
         x = self.conv1(x)
-        x = x.permute(0, 2, 1)  # [B, C, L] -> [B, L, C] for LayerNorm
+        x = x.permute(0, 2, 1)
         x = self.norm(x)
-        x = x.permute(0, 2, 1)  # Back to [B, C, L]
-        x = self.relu(x)
+        x = x.permute(0, 2, 1)
+        x = self.relu(x)  # ACTIVATION BEFORE CONV2
         x = self.dropout(x)
         x = self.conv2(x)
-        x += residual  # Residual connection
-        return self.relu(x)
+        return x + residual  # NO FINAL ACTIVATION
 
 
 class ResidueTokenCNN(nn.Module):

@@ -906,7 +906,7 @@ def print_gradients(model):
 if __name__ == '__main__':
     # test_new_model()
     device = "cuda"
-    model = FinalModel([12_000, 8_192, 2_048], device=device, kernel_sizes=[7,3, 3], dropout=0.0, decoder_lora=True)
+    model = FinalModel([1024, 8_192, 2_048], device=device, kernel_sizes=[7,3, 3], dropout=0.0, decoder_lora=True)
     # input:
     # test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
     #              "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
