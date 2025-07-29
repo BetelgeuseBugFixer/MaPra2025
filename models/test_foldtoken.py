@@ -984,9 +984,9 @@ if __name__ == '__main__':
         # print("Mean diff:", diff.mean().item())
         #
     #write pdb
-    backbone_coords=model(seqs)
+    backbone_coords,_*=model(seqs)
     gt_protein = load_prot_from_pdb(pdb_path)
     gt_protein.coord = backbone_coords.squeeze(0).detach().cpu().numpy().astype(np.float32)
     file = PDBFile()
     file.set_structure(gt_protein)
-    file.write(os.path.join(out_dir, f"tm_test.pdb"))
+    file.write(f"tm_test.pdb")
