@@ -207,6 +207,7 @@ if __name__ == '__main__':
     p.add_argument("--prostt5", nargs="+", default=[], help="Path(s) to prostt5 checkpoint(s)")
     p.add_argument("--bio2token", nargs="+", default=[], help="Path(s) to bio2token token checkpoint(s)")
     p.add_argument("--foldtoken", nargs="+", default=[], help="Path(s) to foldtoken token checkpoint(s)")
+    p.add_argument("--esm",action="store_true", help="run esm model")
     args = p.parse_args()
 
     # Zähler vorbereiten
@@ -293,11 +294,12 @@ if __name__ == '__main__':
         foldtoken_count += 1
 
     # ESMFold
-    model = EsmFold(device)
-    try:
-        compute_and_save_scores_for_model("", model, seqs_casp, pdb_casp, casp_dicts, batch_size=1,
-                                          dataset_name="casp",given_base="ESMFold")
-    except Exception as e:
-        print("casp fail")
-        traceback.print_exc()
-    # compute_and_save_scores_for_model("", model, seqs, pdb_paths, pdb_dicts, batch_size=1, dataset_name="test",given_base="ESMFold")
+    if args.esm:
+        model = EsmFold(device)
+        try:
+            compute_and_save_scores_for_model("", model, seqs_casp, pdb_casp, casp_dicts, batch_size=1,
+                                              dataset_name="casp",given_base="ESMFold")
+        except Exception as e:
+            print("casp fail")
+            traceback.print_exc()
+        # compute_and_save_scores_for_model("", model, seqs, pdb_paths, pdb_dicts, batch_size=1, dataset_name="test",given_base="ESMFold")
