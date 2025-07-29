@@ -4,6 +4,7 @@ from typing import List
 
 import torch
 from torch import nn
+from torch.nn.utils import clip_grad_norm_
 
 from models.bio2token.decoder import Bio2tokenDecoder
 from models.foldtoken_decoder.foldtoken import FoldToken
@@ -119,6 +120,8 @@ class FinalFinalModel(nn.Module):
             if is_train:
                 optimizer.zero_grad()
                 lddt_loss.backward()
+                # gradient clipping
+                clip_grad_norm_(self.parameters(), max_norm=1.0)
                 optimizer.step()
 
             total_lddt_loss += lddt_loss.detach().cpu().item() * B
@@ -282,6 +285,8 @@ class FinalModel(nn.Module):
             if is_train:
                 optimizer.zero_grad()
                 loss.backward()
+                # gradient clipping
+                clip_grad_norm_(self.parameters(), max_norm=1.0)
                 optimizer.step()
 
             total_loss += loss.detach().item() * B
