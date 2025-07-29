@@ -949,12 +949,14 @@ if __name__ == '__main__':
         # vector_loss.backward()
 
         # gradient clipping
+        print_gradients(model)
+        print("="*30)
         clip_grad_norm_(model.parameters(), max_norm=1.0)
+        print_gradients(model)
         # backpropagate
         optimizer.step()
         print(f"lddt loss: {lddt_loss.detach().item()} | encoding loss : {vector_loss.detach().item()}")
         print("="*30)
-        print_gradients(model)
         break
         #sanity check. run bio2token encoding through our model
         # bio2token_out_through_our_model=model.decoder.decoder.decoder(bio2token_batch["encoding"], bio2token_batch["eos_pad_mask"])
