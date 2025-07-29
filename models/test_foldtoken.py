@@ -951,6 +951,6 @@ if __name__ == '__main__':
     print("Max diff:", diff.max().item())
     print("Mean diff:", diff.mean().item())
 
-    print(bio2token_loss.item())
-    print(bio2token_our_model_loss.item())
+    print(bio2token_loss)
+    print(bio2token_our_model_loss)
 
