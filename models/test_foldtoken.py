@@ -947,7 +947,7 @@ if __name__ == '__main__':
     bio2token_our_model_loss = lddt_loss_module(bio2token_out_through_our_model, targets, is_dna, is_rna, ~solution["eos_pad_mask"]).item()
 
     #check results
-    diff = (bio2token_loss - bio2token_our_model_loss).abs()
+    diff = (bio2token_out_through_our_model - solution["decoding"]).abs()
     print("Max diff:", diff.max().item())
     print("Mean diff:", diff.mean().item())
 
