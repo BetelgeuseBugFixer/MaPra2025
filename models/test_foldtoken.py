@@ -557,11 +557,10 @@ def test_new_model():
     seqs = [get_seq_from_pdb(pdb) for pdb in test_pdbs]
 
     # get bio2token out
-    bio2token_batch = batch_pdb_dicts(pdb_dicts,device)
+    bio2token_batch = batch_pdb_dicts(pdb_dicts, device)
     bio2token_model = load_bio2token_model().to(device)
     with torch.no_grad():
-        solution=bio2token_model(bio2token_batch)
-
+        solution = bio2token_model(bio2token_batch)
 
     # structure_tensor = torch.as_tensor(np.array(structure)).unsqueeze(0).to(device)
 
@@ -595,19 +594,19 @@ def test_new_model():
         is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
         is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
 
-
         lddt_loss = lddt_loss_module(predictions, targets, is_dna, is_rna, final_mask)
         # print(f"loss: {lddt_loss.item()}")
         lddt_loss.backward()
         loss = F.mse_loss(predictions[final_mask], targets[final_mask])
-        #loss.backward()
+        # loss.backward()
         # print(loss.item())
-        #total_loss = vector_loss + lddt_loss
+        # total_loss = vector_loss + lddt_loss
         # total_loss.backward()
         clip_grad_norm_(model.parameters(), max_norm=1.0)
 
         optimizer.step()
-        bio2token_loss=lddt_loss_module(solution["decoding"],targets,is_dna, is_rna,~solution["eos_pad_mask"]).item()
+        bio2token_loss = lddt_loss_module(solution["decoding"], targets, is_dna, is_rna,
+                                          ~solution["eos_pad_mask"]).item()
         print(f"bio2token loss: {bio2token_loss}")
         print(f"lddt loss: {lddt_loss.item()} | mse: {loss.item()}")
         print(model.decoder.decoder.decoder(bio2token_batch["encoding"], bio2token_batch["eos_pad_mask"]))
@@ -804,7 +803,7 @@ def test_esm_fold():
         for seqs, structure in dataloader:
             structure = structure.to(device)
             print([len(seq) for seq in seqs])
-            print(torch.cuda.memory_allocated()/(1024 **3))
+            print(torch.cuda.memory_allocated() / (1024 ** 3))
             backbone_coords, _ = esm_fold(seqs)
             B, L, _ = backbone_coords.shape
             final_mask = torch.zeros(B, L, dtype=torch.bool, device=device)
@@ -825,6 +824,7 @@ def extract_filename_with_suffix(path, suffix='', keep_extension=False):
         return f"{name}{suffix}{ext}"
     else:
         return f"{name}{suffix}"
+
 
 def write_pdb():
     device = "cuda"
@@ -895,6 +895,7 @@ def write_pdb():
 
     plot_smooth_lddt(normal_lddts, smooth_lddts, os.path.join(out_dir, "new_smooth_lddt.png"))
 
+
 def print_gradients(model):
     for name, param in model.named_parameters():
         if param.grad is not None:
@@ -903,14 +904,15 @@ def print_gradients(model):
         else:
             print(f"[NO GRAD] {name}")
 
+
 if __name__ == '__main__':
     # test_new_model()
     device = "cuda"
-    model = FinalModel([1024, 8_192, 2_048], device=device, kernel_sizes=[7,3, 3], dropout=0.0, decoder_lora=True)
+    model = FinalModel([1024, 8_192, 2_048], device=device, kernel_sizes=[7, 3, 3], dropout=0.0, decoder_lora=True)
     # input:
     # test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
     #              "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
-    pdb_path="tokenizer_benchmark/casps/casp15_backbone/T1112-D1.pdb"
+    pdb_path = "tokenizer_benchmark/casps/casp15_backbone/T1112-D1.pdb"
     test_pdbs = [pdb_path]
 
     # prepare input
@@ -955,9 +957,9 @@ if __name__ == '__main__':
         # vector_loss.backward()
 
         # gradient clipping
-        if epoch==0:
+        if epoch == 0:
             print_gradients(model)
-            print("="*30)
+            print("=" * 30)
         clip_grad_norm_(model.parameters(), max_norm=0.5)
         if epoch == 0:
             print_gradients(model)
@@ -967,24 +969,25 @@ if __name__ == '__main__':
                                                                             bio2token_batch["eos_pad_mask"])
 
             # calc test lddts
-            bio2token_loss = tm_loss_module(bio2token_batch["decoding"], targets, ~bio2token_batch["eos_pad_mask"]).item()
-            bio2token_our_model_loss = tm_loss_module(bio2token_out_through_our_model, targets, ~bio2token_batch["eos_pad_mask"]).item()
+            bio2token_loss = tm_loss_module(bio2token_batch["decoding"], targets,
+                                            ~bio2token_batch["eos_pad_mask"]).item()
+            bio2token_our_model_loss = tm_loss_module(bio2token_out_through_our_model, targets,
+                                                      ~bio2token_batch["eos_pad_mask"]).item()
             print(bio2token_loss)
             print(bio2token_our_model_loss)
-            print("="*30)
+            print("=" * 30)
 
         # backpropagate
         optimizer.step()
         print(f"lddt loss: {tm_loss.detach().item()} | encoding loss : {vector_loss.detach().item()}")
 
-
-        #check results
+        # check results
         # diff = (bio2token_out_through_our_model - solution["decoding"]).abs()
         # print("Max diff:", diff.max().item())
         # print("Mean diff:", diff.mean().item())
         #
-    #write pdb
-    backbone_coords,_*=model(seqs)
+    # write pdb
+    backbone_coords, _, _ = model(seqs)
     gt_protein = load_prot_from_pdb(pdb_path)
     gt_protein.coord = backbone_coords.squeeze(0).detach().cpu().numpy().astype(np.float32)
     file = PDBFile()
