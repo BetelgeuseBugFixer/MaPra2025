@@ -21,9 +21,11 @@ import argparse
 
 from models.model_utils import SmoothLDDTLoss
 from utils.generate_new_data import BACKBONE_ATOMS, get_pid_from_file_name, filter_pdb_dict
+
 MAX_LENGTH = 780
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 # Dataset/Collate for raw sequences
 class SeqDataset(Dataset):
@@ -35,6 +37,7 @@ class SeqDataset(Dataset):
 
     def __getitem__(self, idx):
         return self.seqs[idx]
+
 
 def collate_seqs(batch):
     return list(batch)
@@ -105,7 +108,8 @@ def get_smooth_lddt(lddt_loss_module, prediction, pdb_dict):
     return lddt_score
 
 
-def compute_and_save_scores_for_model(checkpoint_path, model, seqs, pdb_paths, pdb_dicts, batch_size=64, dataset_name="",given_base=None):
+def compute_and_save_scores_for_model(checkpoint_path, model, seqs, pdb_paths, pdb_dicts, batch_size=64,
+                                      dataset_name="", given_base=None):
     if given_base is None:
         base = os.path.splitext(os.path.basename(checkpoint_path))[0]
     else:
@@ -122,7 +126,7 @@ def compute_and_save_scores_for_model(checkpoint_path, model, seqs, pdb_paths, p
 
     # predict
     final_structs = infer_structures(model, seqs, batch_size=batch_size)
-    final_structs = [struct[:len(seq)*4] for struct, seq in zip(final_structs, seqs)]
+    final_structs = [struct[:len(seq) * 4] for struct, seq in zip(final_structs, seqs)]
 
     # Scores berechnen – skippe problematische Einträge
     actual_lddts, rmsd_scores, tm_scores, smooth_lddts = [], [], [], []
@@ -164,7 +168,7 @@ def plot_smooth_lddt(lddts, smooth_lddts, out_path="smooth_lddt.png"):
     lddts = np.array(lddts)
     smooth_lddts = np.array(smooth_lddts)
     r, _ = pearsonr(lddts, smooth_lddts)
-    plt.figure(figsize=(6,6))
+    plt.figure(figsize=(6, 6))
     plt.scatter(lddts, smooth_lddts, alpha=0.7, edgecolors='k', color='steelblue')
     plt.xlabel("True lDDT")
     plt.ylabel("Smoothed lDDT (AlphaFold)")
@@ -174,7 +178,8 @@ def plot_smooth_lddt(lddts, smooth_lddts, out_path="smooth_lddt.png"):
     plt.savefig(out_path)
     plt.close()
 
-def prepare_data(in_dir,singleton_ids=None,casp=False):
+
+def prepare_data(in_dir, singleton_ids=None, casp=False):
     pdb_names = [p for p in os.listdir(in_dir) if p.endswith("pdb")]
     if singleton_ids:
         pdb_names = [p for p in pdb_names if get_pid_from_file_name(p) not in singleton_ids]
@@ -182,7 +187,8 @@ def prepare_data(in_dir,singleton_ids=None,casp=False):
     pdb_dicts = [pdb_2_dict(p) for p in pdb_paths]
 
     if casp:
-        allowed = [i for i, d in enumerate(pdb_dicts) if len(d["seq"]) * 4 == d["atom_length"] and len(d["seq"]) < MAX_LENGTH]
+        allowed = [i for i, d in enumerate(pdb_dicts) if
+                   len(d["seq"]) * 4 == d["atom_length"] and len(d["seq"]) < MAX_LENGTH]
     else:
         allowed = [i for i, d in enumerate(pdb_dicts) if len(d["seq"]) < MAX_LENGTH]
 
@@ -202,14 +208,13 @@ if __name__ == '__main__':
     # test data prep
     in_dir = "/mnt/data/large/zip_file/final_data_PDB/test/test_pdb"
 
-    pdb_paths, pdb_dicts, seqs = prepare_data(in_dir=in_dir, singleton_ids=singleton_ids,casp=False)
+    pdb_paths, pdb_dicts, seqs = prepare_data(in_dir=in_dir, singleton_ids=singleton_ids, casp=False)
 
     # casp15 data prep
     print(f"now in: {os.getcwd()}")
     casp_dir = "tokenizer_benchmark/casps/casp15_backbone"
 
-    pdb_casp, casp_dicts, seqs_casp=prepare_data(casp_dir,casp=True)
-
+    pdb_casp, casp_dicts, seqs_casp = prepare_data(casp_dir, casp=True)
 
     # parser
     p = argparse.ArgumentParser()
@@ -218,6 +223,7 @@ if __name__ == '__main__':
     p.add_argument("--prostt5", nargs="+", default=[], help="Path(s) to prostt5 checkpoint(s)")
     p.add_argument("--bio2token", nargs="+", default=[], help="Path(s) to bio2token token checkpoint(s)")
     p.add_argument("--foldtoken", nargs="+", default=[], help="Path(s) to foldtoken token checkpoint(s)")
+    p.add_argument("--esm", action="store_true", help="run esm model")
     args = p.parse_args()
 
     # Zähler vorbereiten
@@ -308,7 +314,7 @@ if __name__ == '__main__':
         model = EsmFold(device)
         try:
             compute_and_save_scores_for_model("", model, seqs_casp, pdb_casp, casp_dicts, batch_size=1,
-                                              dataset_name="casp",given_base="ESMFold")
+                                              dataset_name="casp", given_base="ESMFold")
         except Exception as e:
             print("casp fail")
             traceback.print_exc()
