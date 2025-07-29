@@ -897,7 +897,7 @@ def write_pdb():
 
 
 if __name__ == '__main__':
-    test_new_model()
+    # test_new_model()
     device = "cuda"
     model = FinalModel([12_000, 8_192, 2_048], device=device, kernel_sizes=[3, 1, 1], dropout=0.0, decoder_lora=True)
     # input:
