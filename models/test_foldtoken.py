@@ -929,9 +929,9 @@ if __name__ == '__main__':
     # try to overfit
     # prepare training
     lddt_loss_module = SmoothLDDTLoss().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     model.train()
-    for epoch in range(10):
+    for epoch in range(100):
         predictions, final_mask, cnn_out = model.forward(seqs)
 
         # scores
