@@ -27,7 +27,7 @@ from models.bio2token.models.autoencoder import AutoencoderConfig, Autoencoder
 from models.bio2token.utils.configs import utilsyaml_to_dict, pi_instantiate
 from models.collab_fold.esmfold import EsmFold
 from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores, SmoothLDDTLoss, \
-    batch_pdbs_for_bio2token, print_trainable_parameters, masked_mse_loss, batch_pdb_dicts
+    batch_pdbs_for_bio2token, print_trainable_parameters, masked_mse_loss, batch_pdb_dicts, TMLossModule
 from models.prot_t5.prot_t5 import ProtT5
 from models.datasets.datasets import PAD_LABEL, StructureAndTokenSet, StructureSet
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
@@ -928,7 +928,7 @@ if __name__ == '__main__':
 
     # try to overfit
     # prepare training
-    lddt_loss_module = SmoothLDDTLoss().to(device)
+    tm_loss_module = TMLossModule().to(device)
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=0.00001,  # Uniform learning rate
@@ -943,10 +943,11 @@ if __name__ == '__main__':
         # lddt
         is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
         is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
-        lddt_loss = lddt_loss_module(predictions, targets, is_dna, is_rna, final_mask)
+        tm_loss = tm_loss_module(predictions, targets, final_mask)
+        # tm_loss = tm_loss_module(predictions, targets, is_dna, is_rna, final_mask)
 
         optimizer.zero_grad()
-        lddt_loss.backward()
+        tm_loss.backward()
         # loss = F.mse_loss(predictions[final_mask], targets[final_mask])
 
         vector_loss = masked_mse_loss(cnn_out, bio2token_batch["encoding"], final_mask)
@@ -959,23 +960,29 @@ if __name__ == '__main__':
         clip_grad_norm_(model.parameters(), max_norm=0.5)
         if epoch == 0:
             print_gradients(model)
+            print("tm test")
+            # sanity check. run bio2token encoding through our model
+            bio2token_out_through_our_model = model.decoder.decoder.decoder(bio2token_batch["encoding"],
+                                                                            bio2token_batch["eos_pad_mask"])
+
+            # calc test lddts
+            bio2token_loss = tm_loss_module(bio2token_batch["decoding"], targets, ~bio2token_batch["eos_pad_mask"]).item()
+            bio2token_our_model_loss = tm_loss_module(bio2token_out_through_our_model, targets, ~bio2token_batch["eos_pad_mask"]).item()
+            print(bio2token_loss)
+            print(bio2token_our_model_loss)
+            print("="*30)
+
         # backpropagate
         optimizer.step()
-        print(f"lddt loss: {lddt_loss.detach().item()} | encoding loss : {vector_loss.detach().item()}")
+        print(f"lddt loss: {tm_loss.detach().item()} | encoding loss : {vector_loss.detach().item()}")
 
 
-        #sanity check. run bio2token encoding through our model
-        # bio2token_out_through_our_model=model.decoder.decoder.decoder(bio2token_batch["encoding"], bio2token_batch["eos_pad_mask"])
 
-        # calc test lddts
-        # bio2token_loss = lddt_loss_module(solution["decoding"], targets, is_dna, is_rna, ~solution["eos_pad_mask"]).item()
-        # bio2token_our_model_loss = lddt_loss_module(bio2token_out_through_our_model, targets, is_dna, is_rna, ~solution["eos_pad_mask"]).item()
 
         #check results
         # diff = (bio2token_out_through_our_model - solution["decoding"]).abs()
         # print("Max diff:", diff.max().item())
         # print("Mean diff:", diff.mean().item())
         #
-        # print(bio2token_loss)
-        # print(bio2token_our_model_loss)
+
 

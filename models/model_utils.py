@@ -207,3 +207,53 @@ def print_trainable_parameters(model):
     print(
         f"trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}"
     )
+
+
+import torch
+import torch.nn as nn
+
+
+class TMLossModule(nn.Module):
+    def __init__(self, seq_type="protein"):
+        super().__init__()
+
+    def forward(self, P: torch.Tensor, Q: torch.Tensor, mask: torch.Tensor = None) -> torch.Tensor:
+        # Calculate squared distances
+        d = torch.sum((P - Q) ** 2, dim=-1)  # [batch, length]
+
+        if mask is not None:
+            # Count valid residues per sample
+            N = mask.sum(dim=-1)  # [batch,]
+            # Apply mask to distance matrix
+            d0 = 0.6 * torch.pow(N - 0.5, 1 / 2) - 2.5
+            d0 = torch.clamp(d0, min=0.5) ** 2
+            # Compute TM score by evaluating scaled distances, focusing only on masked elements.
+            tm_score = torch.sum((1 / (1 + (d / d0.unsqueeze(-1)))) * mask, dim=-1) / N
+        else:
+            N = P.shape[1] * torch.ones(P.size(0), device=P.device)
+            d0 = 0.6 * torch.pow(N - 0.5, 1 / 2) - 2.5
+            d0 = torch.clamp(d0, min=0.5) ** 2
+            # Compute TM score considering all elements without masking.
+            tm_score = torch.sum((1 / (1 + (d / d0.unsqueeze(-1)))), dim=-1) / N
+
+
+        return 1- tm_score.mean()
+
+
+# Example usage
+if __name__ == "__main__":
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    # Create sample data
+    batch_size, seq_len = 4, 100
+    P = torch.randn(batch_size, seq_len, 3).to(device)
+    Q = torch.randn(batch_size, seq_len, 3).to(device)
+    mask = torch.ones(batch_size, seq_len, dtype=torch.bool).to(device)
+
+    # Initialize loss module
+    tm_loss = TMLoss(seq_type="protein").to(device)
+
+    # Compute loss
+    loss = tm_loss(P, Q, mask)
+    print("TM scores:", loss)
+    print("Loss:", 1 - loss.mean())  # Actual loss for minimization
