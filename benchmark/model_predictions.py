@@ -7,6 +7,7 @@ import torch
 import time
 
 from biotite.structure import lddt, rmsd, tm_score
+from biotite.structure.superimpose import superimpose
 from biotite.structure.filter import _filter_atom_names
 from biotite.structure.io.pdb import PDBFile
 from matplotlib import pyplot as plt
@@ -74,11 +75,21 @@ def get_scores(gt_pdb, pred):
     else:
         pred_protein = gt_protein.copy()
         pred_protein.coord = pred
+
+    # calculate lddt before aligning structures for rmsd and tm score
     lddt_score = float(lddt(gt_protein, pred_protein))
+
+    # Superimpose predicted onto ground-truth
+    superimpose(pred_protein, gt_protein)
+
+    # rmsd
     rmsd_score = float(rmsd(gt_protein, pred_protein))
+
+    # tm score
     all_atoms = len(gt_protein)
     indices = np.arange(all_atoms)
     tm_score_score = tm_score(gt_protein, pred_protein, indices, indices, all_atoms)
+
     return lddt_score, rmsd_score, tm_score_score
 
 
@@ -207,7 +218,6 @@ if __name__ == '__main__':
     p.add_argument("--prostt5", nargs="+", default=[], help="Path(s) to prostt5 checkpoint(s)")
     p.add_argument("--bio2token", nargs="+", default=[], help="Path(s) to bio2token token checkpoint(s)")
     p.add_argument("--foldtoken", nargs="+", default=[], help="Path(s) to foldtoken token checkpoint(s)")
-    p.add_argument("--esm",action="store_true", help="run esm model")
     args = p.parse_args()
 
     # Zähler vorbereiten
