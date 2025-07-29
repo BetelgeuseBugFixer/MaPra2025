@@ -922,7 +922,7 @@ if __name__ == '__main__':
     # try to overfit
     # prepare training
     lddt_loss_module = SmoothLDDTLoss().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
     model.train()
     for i in range(100):
         optimizer.zero_grad()
@@ -934,11 +934,11 @@ if __name__ == '__main__':
         is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
         is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
         lddt_loss = lddt_loss_module(predictions, targets, is_dna, is_rna, final_mask)
-        # lddt_loss.backward()
+        lddt_loss.backward()
         # loss = F.mse_loss(predictions[final_mask], targets[final_mask])
 
         vector_loss = masked_mse_loss(cnn_out, bio2token_batch["encoding"], final_mask)
-        vector_loss.backward()
+        # vector_loss.backward()
 
         # gradient clipping
         clip_grad_norm_(model.parameters(), max_norm=1.0)
