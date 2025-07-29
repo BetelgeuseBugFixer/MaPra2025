@@ -895,6 +895,13 @@ def write_pdb():
 
     plot_smooth_lddt(normal_lddts, smooth_lddts, os.path.join(out_dir, "new_smooth_lddt.png"))
 
+def print_gradients(model):
+    for name, param in model.named_parameters():
+        if param.grad is not None:
+            grad_norm = param.grad.data.norm(2).item()
+            print(f"[GRAD NORM] {name}: {grad_norm:.6f}")
+        else:
+            print(f"[NO GRAD] {name}")
 
 if __name__ == '__main__':
     # test_new_model()
@@ -925,7 +932,6 @@ if __name__ == '__main__':
     optimizer = torch.optim.Adam(model.parameters(), lr=0.00001)
     model.train()
     for i in range(350):
-        optimizer.zero_grad()
         predictions, final_mask, cnn_out = model.forward(seqs)
 
         # scores
@@ -934,6 +940,8 @@ if __name__ == '__main__':
         is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
         is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
         lddt_loss = lddt_loss_module(predictions, targets, is_dna, is_rna, final_mask)
+
+        optimizer.zero_grad()
         lddt_loss.backward()
         # loss = F.mse_loss(predictions[final_mask], targets[final_mask])
 
@@ -945,7 +953,9 @@ if __name__ == '__main__':
         # backpropagate
         optimizer.step()
         print(f"lddt loss: {lddt_loss.detach().item()} | encoding loss : {vector_loss.detach().item()}")
-
+        print("="*30)
+        print_gradients(model)
+        break
         #sanity check. run bio2token encoding through our model
         # bio2token_out_through_our_model=model.decoder.decoder.decoder(bio2token_batch["encoding"], bio2token_batch["eos_pad_mask"])
 
