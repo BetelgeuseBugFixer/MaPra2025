@@ -23,7 +23,7 @@ python -u models/train.py --model final \
                           --data_dir /mnt/data/large/subset2/ \
                           --epochs 60 \
                           --out_folder /mnt/models \
-                          --batch 64 \
+                          --batch 8 \
                           --patience 20 \
                           --beta 0 \
                           --lr 0.00001
