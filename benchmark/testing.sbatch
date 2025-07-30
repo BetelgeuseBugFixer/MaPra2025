@@ -19,6 +19,6 @@ cd /mnt/dir/MaPra2025
 export PYTHONPATH=/mnt/dir/MaPra2025:$PYTHONPATH
 
 echo "Starting prediction testing script..."
-python -u benchmark/testing.py --model_ckpt mnt/models/final_final_k7_3_3_3_h1024_lr5e-05 --pdb_dir mnt/dir/MaPra2025/tokenizer_benchmark/casps/casp15_backbone
+python -u benchmark/testing.py --model_ckpt mnt/models/final_final_k7_3_3_3_h1024_lr5e-05/final_final_k7_3_3_3_h1024_latest.pt --pdb_dir mnt/dir/MaPra2025/tokenizer_benchmark/casps/casp15_backbone
 echo "Prediction testing script finished."
 
