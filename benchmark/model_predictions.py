@@ -88,7 +88,7 @@ def get_scores(gt_pdb, pred):
     )
 
     # rmsd
-    rmsd_score = float(rmsd(gt_protein, pred_protein))
+    rmsd_score = float(rmsd(gt_protein, superimposed))
 
     # tm score
     tm_score_score = tm_score(gt_protein, superimposed, ref_indices, sub_indices)
