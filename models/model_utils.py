@@ -209,12 +209,9 @@ def print_trainable_parameters(model):
     )
 
 
-import torch
-import torch.nn as nn
 
-
-class TMLossModule(nn.Module):
-    def __init__(self, seq_type="protein"):
+class TMLossModule(Module):
+    def __init__(self):
         super().__init__()
 
     def forward(self, P: torch.Tensor, Q: torch.Tensor, mask: torch.Tensor = None) -> torch.Tensor:
@@ -239,21 +236,56 @@ class TMLossModule(nn.Module):
 
         return 1- tm_score.mean()
 
+class InterAtomDistance(Module):
+    def __init__(self, c):
+        super(InterAtomDistance, self).__init__()
 
-# Example usage
-if __name__ == "__main__":
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    def forward(self,P,Q,mask_remove,idx):
+        """
+        Compute the Inter-Atom Distance loss for a batch, updating the batch dictionary.
 
-    # Create sample data
-    batch_size, seq_len = 4, 100
-    P = torch.randn(batch_size, seq_len, 3).to(device)
-    Q = torch.randn(batch_size, seq_len, 3).to(device)
-    mask = torch.ones(batch_size, seq_len, dtype=torch.bool).to(device)
+        Args:
+            batch (Dict): Dictionary containing input data, including predicted and target coordinates, and optional masks.
 
-    # Initialize loss module
-    tm_loss = TMLoss(seq_type="protein").to(device)
+        Returns:
+            Dict: Updated batch dictionary with the calculated inter-atom distance loss.
+        """
+        # Retrieve batch size (B), sequence length (L), and channel size (C) from the predictions
+        B, L, C = P.shape
 
-    # Compute loss
-    loss = tm_loss(P, Q, mask)
-    print("TM scores:", loss)
-    print("Loss:", 1 - loss.mean())  # Actual loss for minimization
+
+        # Determine residue indices if provided
+
+        idx = P.new_zeros(B, L, dtype=torch.long)  # Default to zero indices
+
+        # Initialize variables for loss computation
+        loss = P.new_zeros(B)
+        n = P.new_zeros(B)  # Counter for valid interactions per batch
+
+        # Calculate the inter-atom distance differences and store in loss
+        for b in range(B):
+            # Apply the mask to include only specified interactions
+            idx_b = idx[b][mask_remove[b]]
+            mask_b = torch.tril((idx_b[:, None] - idx_b[None, :]) == 0, diagonal=-1)  # Mask for unique interactions
+
+            # Compute target and predicted inter-atomic distances for masked atoms
+            q_b = Q[b][mask_remove[b]]
+            p_b = P[b][mask_remove[b]]
+
+            # Compute norm differences for distances
+            q_b = torch.linalg.vector_norm((q_b[:, None] - q_b[None, :])[mask_b], dim=-1)
+            q_b = q_b - torch.linalg.vector_norm((p_b[:, None] - p_b[None, :])[mask_b], dim=-1)
+
+            # Compute loss per batch entry
+            loss[b] = torch.sum((q_b**2))
+            n[b] = mask_b.sum()  # Number of valid interactions
+
+        # Normalize the loss by the number of interactions and handle numerical stability
+        loss = loss / (n + 1e-6)
+
+        # Optionally take the square root of the computed loss
+        if self.config.root:
+            loss = torch.sqrt(loss + 1e-6)  # Adding small constant for numerical stability
+
+        # Store the computed loss in the batch under the given name
+        return loss

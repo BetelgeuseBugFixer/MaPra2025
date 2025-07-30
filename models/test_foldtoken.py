@@ -932,13 +932,14 @@ if __name__ == '__main__':
     # try to overfit
     # prepare training
     lddt_loss_module = SmoothLDDTLoss().to(device)
+    tm_loss_module = TMLossModule().to(device)
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=0.00001,  # Uniform learning rate
         weight_decay=0.01
     )
     model.train()
-    for epoch in range(1000):
+    for epoch in range(100):
         predictions, final_mask, cnn_out = model.forward(seqs)
 
         # scores
@@ -946,14 +947,14 @@ if __name__ == '__main__':
         # lddt
         is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
         is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
-        # tm_loss = lddt_loss_module(predictions, targets, final_mask)
+        tm_loss = tm_loss_module(predictions, targets, final_mask)
         lddt_loss = lddt_loss_module(predictions, targets, is_dna, is_rna, final_mask)
+        total_loss=lddt_loss+tm_loss
 
         optimizer.zero_grad()
-        lddt_loss.backward()
+        total_loss.backward()
         # loss = F.mse_loss(predictions[final_mask], targets[final_mask])
 
-        vector_loss = masked_mse_loss(cnn_out, bio2token_batch["encoding"], final_mask)
         # vector_loss.backward()
 
         # gradient clipping
@@ -979,7 +980,7 @@ if __name__ == '__main__':
 
         # backpropagate
         optimizer.step()
-        print(f"lddt loss: {lddt_loss.detach().item()} | encoding loss : {vector_loss.detach().item()}")
+        print(f"lddt loss: {lddt_loss.detach().item()} | tm loss : {tm_loss.detach().item()}")
 
         # check results
         # diff = (bio2token_out_through_our_model - solution["decoding"]).abs()
@@ -992,4 +993,4 @@ if __name__ == '__main__':
     gt_protein.coord = backbone_coords.squeeze(0).detach().cpu().numpy().astype(np.float32)
     file = PDBFile()
     file.set_structure(gt_protein)
-    file.write(f"lddt_test.pdb")
+    file.write(f"lddt_tm_test.pdb")
