@@ -40,6 +40,7 @@ def masked_mse_loss(prediction: torch.Tensor,
 
     return masked_loss
 
+
 def calc_token_loss(criterion, tokens_predictions, tokens_reference):
     return criterion(tokens_predictions.transpose(1, 2), tokens_reference)
 
@@ -49,7 +50,8 @@ def batch_pdbs_for_bio2token(pdbs, device):
     dicts = [pdb_2_dict(pdb) for pdb in pdbs]
     return batch_pdb_dicts(dicts, device)
 
-def batch_pdb_dicts(dicts,device):
+
+def batch_pdb_dicts(dicts, device):
     batch = []
     for pdb_dict in dicts:
         structure, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered = uniform_dataframe(
@@ -209,7 +211,6 @@ def print_trainable_parameters(model):
     )
 
 
-
 class TMLossModule(Module):
     def __init__(self):
         super().__init__()
@@ -233,14 +234,14 @@ class TMLossModule(Module):
             # Compute TM score considering all elements without masking.
             tm_score = torch.sum((1 / (1 + (d / d0.unsqueeze(-1)))), dim=-1) / N
 
+        return 1 - tm_score.mean()
 
-        return 1- tm_score.mean()
 
 class InterAtomDistance(Module):
     def __init__(self, c):
         super(InterAtomDistance, self).__init__()
 
-    def forward(self,P,Q,mask_remove,idx):
+    def forward(self, P, Q, mask_remove, idx):
         """
         Compute the Inter-Atom Distance loss for a batch, updating the batch dictionary.
 
@@ -252,7 +253,6 @@ class InterAtomDistance(Module):
         """
         # Retrieve batch size (B), sequence length (L), and channel size (C) from the predictions
         B, L, C = P.shape
-
 
         # Determine residue indices if provided
 
@@ -277,7 +277,7 @@ class InterAtomDistance(Module):
             q_b = q_b - torch.linalg.vector_norm((p_b[:, None] - p_b[None, :])[mask_b], dim=-1)
 
             # Compute loss per batch entry
-            loss[b] = torch.sum((q_b**2))
+            loss[b] = torch.sum((q_b ** 2))
             n[b] = mask_b.sum()  # Number of valid interactions
 
         # Normalize the loss by the number of interactions and handle numerical stability

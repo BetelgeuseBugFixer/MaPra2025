@@ -153,7 +153,11 @@ def build_final_final_model(lora_plm, lora_decoder, hidden, kernel_size, dropout
         model = FinalFinalModel(hidden, kernel_sizes=kernel_size, plm_lora=lora_plm, decoder_lora=lora_decoder,
                            device=device,
                            dropout=dropout)
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    optimizer = torch.optim.AdamW(
+        model.parameters(),
+        lr=lr,  # Uniform learning rate
+        weight_decay=0.01
+    )
     return model, optimizer
 
 
