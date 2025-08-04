@@ -832,7 +832,7 @@ def write_pdb():
     os.makedirs(out_dir, exist_ok=True)
     # prepare model
     model = FinalModel.load_final(
-        "/mnt/models/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora_lr5e-05/final_k21_3_3_h16384_8192_2048_a_1_b_0_plm_lora.pt",
+        "/mnt/models/final_final_k7_3_3_3_h1024_lr5e-05/final_final_k7_3_3_3_h1024.pt",
         device).to(device)
 
     # prepare data
@@ -904,8 +904,7 @@ def print_gradients(model):
         else:
             print(f"[NO GRAD] {name}")
 
-
-if __name__ == '__main__':
+def test_new_model():
     # test_new_model()
     device = "cuda"
     model = FinalModel([1024, 8_192, 2_048], device=device, kernel_sizes=[7, 3, 3], dropout=0.0, decoder_lora=True)
@@ -949,7 +948,7 @@ if __name__ == '__main__':
         is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
         tm_loss = tm_loss_module(predictions, targets, final_mask)
         lddt_loss = lddt_loss_module(predictions, targets, is_dna, is_rna, final_mask)
-        total_loss=lddt_loss+tm_loss
+        total_loss = lddt_loss + tm_loss
 
         optimizer.zero_grad()
         total_loss.backward()
@@ -994,3 +993,7 @@ if __name__ == '__main__':
     file = PDBFile()
     file.set_structure(gt_protein)
     file.write(f"lddt_tm_test.pdb")
+
+
+if __name__ == '__main__':
+    write_pdb()
