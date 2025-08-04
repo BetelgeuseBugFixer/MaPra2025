@@ -845,7 +845,6 @@ def write_pdb():
 
     pdb_paths, pdb_dicts, seqs = prepare_data(in_dir=in_dir, singleton_ids=singleton_ids, casp=False)
 
-    i=0
     # run model
     with torch.inference_mode():
         smooth_lddts, normal_lddts = [], []
@@ -893,9 +892,7 @@ def write_pdb():
             shutil.copy2(pdb_path, out_dir)
 
             del lddt_loss, structure_tensor, backbone_coords
-            if i>=10:
-                break
-            i+=1
+
 
 
     plot_smooth_lddt(normal_lddts, smooth_lddts, os.path.join(out_dir, "new_smooth_lddt.png"))
