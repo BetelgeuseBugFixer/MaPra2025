@@ -8,12 +8,12 @@ from torch.nn.utils import clip_grad_norm_
 
 from models.bio2token.decoder import Bio2tokenDecoder
 from models.foldtoken_decoder.foldtoken import FoldToken
-from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores, SmoothLDDTLoss, masked_mse_loss
+from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores, SmoothLDDTLoss, masked_mse_loss, \
+    TMLossModule
 from models.prot_t5.prot_t5 import ProtT5, ProstT5
 from models.datasets.datasets import PAD_LABEL
-from models.simple_classifier.simple_classifier import ResidueTokenCNN
+from models.simple_classifier.simple_classifier import ResidueTokenCNN, FinalResidueTokenCNN
 from peft import get_peft_model, LoraConfig, TaskType
-
 
 
 class FinalFinalModel(nn.Module):
@@ -23,14 +23,17 @@ class FinalFinalModel(nn.Module):
             assert kernel_size % 2 == 1, f"Kernel size {kernel_size} is invalid. Must be odd for symmetric context."
         super().__init__()
         self.device = device
-        self.plm = ProstT5(use_lora=plm_lora, device=device).to(self.device)
+        self.plm = ProtT5(use_lora=plm_lora, device=device).to(self.device)
         embeddings_size = 1024
         self.decoder = Bio2tokenDecoder(device=device, use_lora=decoder_lora).to(device)
         codebook_size = 128
-        self.cnn = ResidueTokenCNN(embeddings_size, hidden, codebook_size, kernel_sizes, dropout,
-                                   bio2token=True).to(device)
+        self.cnn = FinalResidueTokenCNN(embeddings_size, hidden[0], codebook_size, kernel_sizes, dropout,
+                                        bio2token=True).to(device)
 
         self.plm_lora = plm_lora
+
+        self.lddt_weight=0.3
+        self.tm_weight=0.7
 
         self.args = {
             "hidden": hidden,
@@ -46,7 +49,7 @@ class FinalFinalModel(nn.Module):
         self.model_name = f"final_final_k{kernel_sizes_string}_h{hidden_layers_string}{lora_string}"
 
         # define most important metric and whether it needs to be minimized or maximized
-        self.key_metric = "val_lddt_loss"
+        self.key_metric = "val_tm_loss"
         self.maximize = False
 
     def save(self, output_dir: str, suffix=""):
@@ -98,10 +101,11 @@ class FinalFinalModel(nn.Module):
         is_train = optimizer is not None
         self.train() if is_train else self.eval()
         # init statistics
-        total_lddt_loss = total_samples = 0
+        total_lddt_loss = total_tm_loss = total_combined_loss = total_samples = 0
 
         torch.set_grad_enabled(is_train)
         lddt_loss_module = SmoothLDDTLoss().to(device)
+        tm_loss_module = TMLossModule().to(device)
         # if we finetune we expect embeddings, otherwise sequences so we have to adapt the forward Method
         if self.plm_lora:
             forward = self.forward
@@ -117,22 +121,28 @@ class FinalFinalModel(nn.Module):
             is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
             is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
             lddt_loss = lddt_loss_module(predictions, structure, is_dna, is_rna, final_mask)
+            tm_loss = tm_loss_module(structure, predictions, final_mask)
+            combined_loss = (self.lddt_weight * lddt_loss) + (self.tm_weight * tm_loss)
             if is_train:
                 optimizer.zero_grad()
-                lddt_loss.backward()
+                combined_loss.backward()
                 # gradient clipping
-                clip_grad_norm_(self.parameters(), max_norm=1.0)
+                clip_grad_norm_(self.parameters(), max_norm=0.6)
                 optimizer.step()
 
             total_lddt_loss += lddt_loss.detach().cpu().item() * B
+            total_tm_loss += tm_loss.detach().cpu().item() * B
+            total_combined_loss += tm_loss.detach().cpu().item() * B
             total_samples += B
-            del predictions, final_mask, lddt_loss
+            del predictions, final_mask, lddt_loss, tm_loss, combined_loss
 
         set_prefix = ""
         if not is_train:
             set_prefix = "val_"
         score_dict = {
             f"{set_prefix}lddt_loss": total_lddt_loss / total_samples,
+            f"{set_prefix}tm_loss": total_tm_loss / total_samples,
+            f"{set_prefix}combined_loss": total_combined_loss / total_samples,
         }
         return score_dict
 
@@ -148,8 +158,8 @@ class FinalModel(nn.Module):
         embeddings_size = 1024
         self.decoder = Bio2tokenDecoder(device=device, use_lora=decoder_lora).to(device)
         codebook_size = 128
-        self.cnn = ResidueTokenCNN(embeddings_size, hidden, codebook_size, kernel_sizes, dropout,
-                                   bio2token=True).to(device)
+        self.cnn = FinalResidueTokenCNN(embeddings_size, hidden[0], codebook_size, kernel_sizes, dropout,
+                                        bio2token=True).to(device)
 
         self.plm_lora = plm_lora
         # weight of lddt loss

@@ -40,6 +40,7 @@ def masked_mse_loss(prediction: torch.Tensor,
 
     return masked_loss
 
+
 def calc_token_loss(criterion, tokens_predictions, tokens_reference):
     return criterion(tokens_predictions.transpose(1, 2), tokens_reference)
 
@@ -49,7 +50,8 @@ def batch_pdbs_for_bio2token(pdbs, device):
     dicts = [pdb_2_dict(pdb) for pdb in pdbs]
     return batch_pdb_dicts(dicts, device)
 
-def batch_pdb_dicts(dicts,device):
+
+def batch_pdb_dicts(dicts, device):
     batch = []
     for pdb_dict in dicts:
         structure, unknown_structure, residue_name, residue_ids, token_class, atom_names_reordered = uniform_dataframe(
@@ -207,3 +209,83 @@ def print_trainable_parameters(model):
     print(
         f"trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}"
     )
+
+
+class TMLossModule(Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, P: torch.Tensor, Q: torch.Tensor, mask: torch.Tensor = None) -> torch.Tensor:
+        # Calculate squared distances
+        d = torch.sum((P - Q) ** 2, dim=-1)  # [batch, length]
+
+        if mask is not None:
+            # Count valid residues per sample
+            N = mask.sum(dim=-1)  # [batch,]
+            # Apply mask to distance matrix
+            d0 = 0.6 * torch.pow(N - 0.5, 1 / 2) - 2.5
+            d0 = torch.clamp(d0, min=0.5) ** 2
+            # Compute TM score by evaluating scaled distances, focusing only on masked elements.
+            tm_score = torch.sum((1 / (1 + (d / d0.unsqueeze(-1)))) * mask, dim=-1) / N
+        else:
+            N = P.shape[1] * torch.ones(P.size(0), device=P.device)
+            d0 = 0.6 * torch.pow(N - 0.5, 1 / 2) - 2.5
+            d0 = torch.clamp(d0, min=0.5) ** 2
+            # Compute TM score considering all elements without masking.
+            tm_score = torch.sum((1 / (1 + (d / d0.unsqueeze(-1)))), dim=-1) / N
+
+        return 1 - tm_score.mean()
+
+
+class InterAtomDistance(Module):
+    def __init__(self, c):
+        super(InterAtomDistance, self).__init__()
+
+    def forward(self, P, Q, mask_remove, idx):
+        """
+        Compute the Inter-Atom Distance loss for a batch, updating the batch dictionary.
+
+        Args:
+            batch (Dict): Dictionary containing input data, including predicted and target coordinates, and optional masks.
+
+        Returns:
+            Dict: Updated batch dictionary with the calculated inter-atom distance loss.
+        """
+        # Retrieve batch size (B), sequence length (L), and channel size (C) from the predictions
+        B, L, C = P.shape
+
+        # Determine residue indices if provided
+
+        idx = P.new_zeros(B, L, dtype=torch.long)  # Default to zero indices
+
+        # Initialize variables for loss computation
+        loss = P.new_zeros(B)
+        n = P.new_zeros(B)  # Counter for valid interactions per batch
+
+        # Calculate the inter-atom distance differences and store in loss
+        for b in range(B):
+            # Apply the mask to include only specified interactions
+            idx_b = idx[b][mask_remove[b]]
+            mask_b = torch.tril((idx_b[:, None] - idx_b[None, :]) == 0, diagonal=-1)  # Mask for unique interactions
+
+            # Compute target and predicted inter-atomic distances for masked atoms
+            q_b = Q[b][mask_remove[b]]
+            p_b = P[b][mask_remove[b]]
+
+            # Compute norm differences for distances
+            q_b = torch.linalg.vector_norm((q_b[:, None] - q_b[None, :])[mask_b], dim=-1)
+            q_b = q_b - torch.linalg.vector_norm((p_b[:, None] - p_b[None, :])[mask_b], dim=-1)
+
+            # Compute loss per batch entry
+            loss[b] = torch.sum((q_b ** 2))
+            n[b] = mask_b.sum()  # Number of valid interactions
+
+        # Normalize the loss by the number of interactions and handle numerical stability
+        loss = loss / (n + 1e-6)
+
+        # Optionally take the square root of the computed loss
+        if self.config.root:
+            loss = torch.sqrt(loss + 1e-6)  # Adding small constant for numerical stability
+
+        # Store the computed loss in the batch under the given name
+        return loss

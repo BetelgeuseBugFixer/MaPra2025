@@ -163,6 +163,8 @@ def compute_and_save_scores_for_model(checkpoint_path, model, seqs, pdb_paths, p
     else:
         print("[WARN] No valid entries to plot.")
 
+    return final_structs
+
 
 def plot_smooth_lddt(lddts, smooth_lddts, out_path="smooth_lddt.png"):
     lddts = np.array(lddts)

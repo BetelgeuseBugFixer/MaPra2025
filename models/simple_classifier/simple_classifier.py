@@ -5,6 +5,101 @@ import torch.nn as nn
 from models.datasets.datasets import PAD_LABEL
 from models.model_utils import _masked_accuracy
 
+class FinalResidueTokenCNN(nn.Module):
+    def __init__(self, d_emb: int, hidden: int, vocab_size: int, kernel_sizes=[5], dropout: float = 0.1,
+                 bio2token: bool = False):
+        super().__init__()
+
+        #define important variables
+        self.n_atoms_per_residue = 4 if bio2token else 1 # default = 1 for foldtoken. 4 for bio2token
+        self.vocab_size = vocab_size
+
+        # define layers
+        self.embed_norm = nn.LayerNorm(d_emb)
+        self.final_norm = nn.LayerNorm(hidden)
+        self.conv_in = nn.Conv1d(
+            in_channels=d_emb,
+            out_channels=hidden,
+            kernel_size=kernel_sizes[0],
+            padding=(kernel_sizes[0] - 1) // 2
+        )
+
+        self.conv_in_norm = nn.LayerNorm(hidden)
+
+        self.relu = nn.ReLU()
+        self.drop = nn.Dropout(dropout)
+
+
+        self.hidden_layers = nn.ModuleList()
+        for i in range(len(kernel_sizes) - 1):
+            self.hidden_layers.append(
+                ResBlock(hidden, kernel_sizes[i + 1], dropout)
+            )
+
+
+        self.conv_out = nn.Conv1d(
+            in_channels=hidden,
+            out_channels=vocab_size * self.n_atoms_per_residue,
+            kernel_size=1
+        )
+
+
+        # 4. PROPER WEIGHT INITIALIZATION - Prevents explosion at startup
+        for layer in self.modules():
+            if isinstance(layer, nn.Conv1d):
+                nn.init.kaiming_normal_(layer.weight, mode='fan_out', nonlinearity='relu')
+                if layer.bias is not None:
+                    nn.init.constant_(layer.bias, 0)
+
+
+    def forward(self, embeddings):
+        x = self.embed_norm(embeddings)  # [B, L, d_emb]
+        x = self.drop(x)
+        x = x.permute(0, 2, 1)  # [B, d_emb, L]
+        x = self.conv_in(x)
+
+        x = x.permute(0, 2, 1)  # [B, L, hidden[0]]
+        x = self.conv_in_norm(x)
+        x = x.permute(0, 2, 1)  # [B, hidden[0], L]
+        x = self.relu(x)
+
+        for layer in self.hidden_layers:
+            x = layer(x)
+
+        x = x.permute(0, 2, 1)  # [B, L, hidden]
+        x = self.final_norm(x)
+        x = x.permute(0, 2, 1)  # [B, hidden, L]
+
+        x = self.conv_out(x)  # [B, vocab*n_atoms, L]
+        # adapt for multiple atoms per res
+        B, _, L = x.shape
+        x = x.view(B, self.vocab_size, self.n_atoms_per_residue * L)
+        x = x.permute(0, 2, 1)  # → (B, L, vocab_size)
+        return x
+
+
+class ResBlock(nn.Module):
+    def __init__(self, channels, kernel_size, dropout):
+        super().__init__()
+        padding = (kernel_size - 1) // 2
+        self.conv1 = nn.Conv1d(channels, channels, kernel_size, padding=padding)
+        self.norm = nn.LayerNorm(channels)  # Channel-wise norm
+        self.conv2 = nn.Conv1d(channels, channels, kernel_size, padding=padding)
+        self.dropout = nn.Dropout(dropout)
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        residual = x
+        x = self.relu(x)  # PRE-ACTIVATION
+        x = self.conv1(x)
+        x = x.permute(0, 2, 1)
+        x = self.norm(x)
+        x = x.permute(0, 2, 1)
+        x = self.relu(x)  # ACTIVATION BEFORE CONV2
+        x = self.dropout(x)
+        x = self.conv2(x)
+        return x + residual  # NO FINAL ACTIVATION
+
 
 class ResidueTokenCNN(nn.Module):
     """1D‐CNN head."""

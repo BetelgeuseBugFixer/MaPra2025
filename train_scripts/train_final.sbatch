@@ -18,12 +18,12 @@ export PYTHONPATH=~/MaPra2025:$PYTHONPATH
 echo "Starting training script..."
 python -u models/train.py --model final \
                           --lora_decoder \
-                          --hidden 1400 8000 2048 \
+                          --hidden 1024 \
                           --kernel 3 1 1 \
                           --data_dir /mnt/data/large/subset2/ \
                           --epochs 60 \
                           --out_folder /mnt/models \
-                          --batch 64 \
+                          --batch 8 \
                           --patience 20 \
                           --beta 0 \
                           --lr 0.00001
