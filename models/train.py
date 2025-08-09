@@ -3,8 +3,11 @@ import json
 import os
 import time
 
+import numpy as np
 import wandb
 import torch
+from biotite.structure import AtomArray
+from biotite.structure.io.pdb import PDBFile
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
 
