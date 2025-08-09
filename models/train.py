@@ -11,19 +11,20 @@ from torch.nn.utils.rnn import pad_sequence
 import matplotlib.pyplot as plt
 
 from models.bio2token.data.utils.utils import pad_and_stack_tensors
+from models.model_utils import SmoothLDDTLoss, TmLossModule
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
 from models.datasets.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir, PAD_LABEL, StructureAndTokenSet, \
     TokenSet, StructureSet
-from biotite.structure import AtomArray
-from biotite.structure.io.pdb import PDBFile
-import numpy as np
-
 from models.end_to_end.whole_model import TFold, FinalModel, FinalFinalModel
-
 
 # ------------------------------------------------------------
 #  Utility functions
 # ------------------------------------------------------------
+LOSS_REGISTRY = {
+    "lddt": SmoothLDDTLoss(),
+    "tm": TmLossModule(),
+}
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -44,8 +45,10 @@ def parse_args():
     # model
     parser.add_argument("--model", type=str, default="cnn",
                         help="type of model to use, options: cnn, tfold, final, final_final")
-    parser.add_argument("--resume", type=str, help="path to an existing model to resume training")
+    parser.add_argument("--resume", type=str, help="path to existing trainings folder with the latest model")
     parser.add_argument("--wandb_resume_id", type=str, help="W&B id of an existing wandb run")
+    parser.add_argument("--load_optimizer", action="store_true",
+                        help="Load optimizer state when resuming training")
     # end to end exclusive setting
     parser.add_argument("--lora_plm", action="store_true", help=" use lora to finetune the plm")
     parser.add_argument("--lora_decoder", action="store_true", help=" use lora to finetune the plm")
@@ -77,10 +80,16 @@ def parse_args():
     parser.add_argument("--plot", action="store_true", help="plot training progress")
     parser.add_argument("--out_folder", type=str, help="directory where the plots and model files will be stored",
                         required=True)
+    parser.add_argument("--losses", nargs="+", default=["lddt"],
+                        choices=list(LOSS_REGISTRY.keys()),
+                        help="Loss functions to use")
+    parser.add_argument("--loss_weights", nargs="+", type=float, default=[1.0],
+                        help="Weights for each loss function")
     return parser.parse_args()
 
 
 def create_tfold_data_loaders(data_dir, batch_size, val_batch_size, fine_tune_plm, bio2token=False, model_type="final"):
+    # train_dir = os.path.join(data_dir, "train")
     train_dir = os.path.join(data_dir, "val")
     val_dir = os.path.join(data_dir, "val")
 
@@ -91,7 +100,7 @@ def create_tfold_data_loaders(data_dir, batch_size, val_batch_size, fine_tune_pl
         # adapt padding function to whether the model will receive embeddings or seqs as input
         collate_function = collate_seq_struc_tok_batch if fine_tune_plm else collate_emb_struc_tok_batch
         return (
-            DataLoader(train_set, batch_size=batch_size, collate_fn=collate_function,shuffle=True),
+            DataLoader(train_set, batch_size=batch_size, collate_fn=collate_function, shuffle=True),
             DataLoader(val_set, batch_size=batch_size, collate_fn=collate_function)
         )
     elif model_type == "tfold":
@@ -102,7 +111,7 @@ def create_tfold_data_loaders(data_dir, batch_size, val_batch_size, fine_tune_pl
         val_collate_function = collate_seq_struc_tok_batch if fine_tune_plm else collate_emb_struc_tok_batch
         train_collate_function = collate_seq_tok_batch if fine_tune_plm else collate_emb_tok_batch
         return (
-            DataLoader(train_set, batch_size=batch_size, collate_fn=train_collate_function,shuffle=True),
+            DataLoader(train_set, batch_size=batch_size, collate_fn=train_collate_function, shuffle=True),
             DataLoader(val_set, batch_size=val_batch_size, collate_fn=val_collate_function)
         )
     elif model_type == "final_final":
@@ -110,7 +119,7 @@ def create_tfold_data_loaders(data_dir, batch_size, val_batch_size, fine_tune_pl
         val_set = StructureSet(val_dir, precomputed_embeddings=not fine_tune_plm)
         collate_function = collate_seq_struc if fine_tune_plm else collate_emb_struc
         return (
-            DataLoader(train_set, batch_size=batch_size, collate_fn=collate_function,shuffle=True),
+            DataLoader(train_set, batch_size=batch_size, collate_fn=collate_function, shuffle=True),
             DataLoader(val_set, batch_size=batch_size, collate_fn=collate_function)
         )
 
@@ -125,17 +134,23 @@ def create_cnn_data_loaders(emb_source, tok_jsonl, train_ids, val_ids, test_ids,
     )
 
 
-def build_t_fold(lora_plm, hidden, kernel_size, dropout, lr, device, resume):
+def find_latest_file(directory):
+    for filename in os.listdir(directory):
+        if "_latest" in filename:
+            return os.path.join(directory, filename)
+    return None
+
+
+def build_t_fold(lora_plm, hidden, kernel_size, dropout, device, resume):
     if resume:
         model = TFold.load_tfold(resume, device=device).to(device)
     else:
         model = TFold(hidden=hidden, kernel_sizes=kernel_size, dropout=dropout, device=device, use_lora=lora_plm).to(
             device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    return model, optimizer
+    return model
 
 
-def build_final_model(lora_plm, lora_decoder, hidden, kernel_size, dropout, lr, device, alpha, beta, resume):
+def build_final_model(lora_plm, lora_decoder, hidden, kernel_size, dropout, device, alpha, beta, resume):
     if resume:
         model = FinalModel.load_final(resume, device=device).to(device)
         # this part overrides the alpha and beta value saved with the model
@@ -146,23 +161,18 @@ def build_final_model(lora_plm, lora_decoder, hidden, kernel_size, dropout, lr, 
         model = FinalModel(hidden, kernel_sizes=kernel_size, plm_lora=lora_plm, decoder_lora=lora_decoder,
                            device=device,
                            dropout=dropout, alpha=alpha, beta=beta)
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    return model, optimizer
+    return model
 
 
-def build_final_final_model(lora_plm, lora_decoder, hidden, kernel_size, dropout, lr, device, resume):
+def build_final_final_model(lora_plm, lora_decoder, hidden, kernel_size, dropout, device, resume):
     if resume:
-        model = FinalFinalModel.load_final_final(resume, device=device).to(device)
+        model_file_path = find_latest_file(resume)
+        model = FinalFinalModel.load_final_final(model_file_path, device=device).to(device)
     else:
         model = FinalFinalModel(hidden, kernel_sizes=kernel_size, plm_lora=lora_plm, decoder_lora=lora_decoder,
-                           device=device,
-                           dropout=dropout)
-    optimizer = torch.optim.AdamW(
-        model.parameters(),
-        lr=lr,  # Uniform learning rate
-        weight_decay=0.01
-    )
-    return model, optimizer
+                                device=device,
+                                dropout=dropout)
+    return model
 
 
 def build_cnn(d_emb, hidden, vocab_size, kernel_size, dropout, lr, device, resume):
@@ -170,8 +180,7 @@ def build_cnn(d_emb, hidden, vocab_size, kernel_size, dropout, lr, device, resum
         model = ResidueTokenCNN.load_cnn(resume)
     else:
         model = ResidueTokenCNN(d_emb, hidden, vocab_size, kernel_size, dropout).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    return model, optimizer
+    return model
 
 
 def collate_seq_struc(batch):
@@ -352,7 +361,8 @@ def _save_snapshot(sample, model, out_dir, tag, device, atoms_per_res=4):
 # ------------------------------------------------------------
 
 
-def get_model(args):
+def get_model():
+    global args
     match args.model:
         case "cnn":
             return build_cnn(
@@ -360,35 +370,22 @@ def get_model(args):
                 args.resume
             )
         case "t_fold":
-            return build_t_fold(args.lora_plm, args.hidden, args.kernel_size, args.dropout, args.lr,
+            return build_t_fold(args.lora_plm, args.hidden, args.kernel_size, args.dropout,
                                 args.device, args.resume)
         case "final":
             return build_final_model(args.lora_plm, args.lora_decoder, args.hidden, args.kernel_size, args.dropout,
-                                     args.lr,
                                      args.device, args.alpha, args.beta, args.resume)
         case "final_final":
             return build_final_final_model(args.lora_plm, args.lora_decoder, args.hidden, args.kernel_size,
-                                           args.dropout,
-                                           args.lr, args.device, args.resume)
+                                           args.dropout, args.device, args.resume)
         case _:
             raise NotImplementedError
 
 
-def init_wand_db(args):
+def init_wand_db():
+    global args
     config = {
-        "learning_rate": args.lr,
-        "kernel_size": args.kernel_size,
-        "device": args.device,
-        "patience": args.patience,
-        "architecture": args.model,
-        "epochs": args.epochs,
-        "hidden": args.hidden,
-        "dropout": args.dropout,
-        "batch_size": args.batch,
-        "lora_plm": args.lora_plm,
-        "lora_decoder": args.lora_decoder,
-        "alpha": args.alpha,
-        "beta": args.beta,
+        **vars(args)
     }
     if args.wandb_resume_id:
         return wandb.init(
@@ -405,7 +402,8 @@ def init_wand_db(args):
     )
 
 
-def get_dataset(args):
+def get_dataset():
+    global args
     if args.model == "cnn":
         use_file = args.emb_file is not None
         emb_source = args.emb_file if use_file else args.emb_dir
@@ -448,24 +446,39 @@ def get_unique_folder(base_path):
     return new_path
 
 
-def main(args):
+def save_training_state(model, optimizer, scheduler, out_folder):
+    optimizer_path = os.path.join(out_folder, f"optimizer.pt")
+    scheduler_path = os.path.join(out_folder, f"scheduler.pt")
+
+    torch.save(optimizer.state_dict(), optimizer_path)
+    torch.save(scheduler.state_dict(), scheduler_path)
+    model.save(out_folder, suffix="_latest")
+
+
+def main():
+    global args
     # init wand db
     run = None
     if not args.no_wandb:
         # wandb.login(key=open("wandb_key").read().strip())
-        run = init_wand_db(args)
+        run = init_wand_db()
     start = time.time()
     print("preparing data...")
     # load dataset
-    train_loader, val_loader = get_dataset(args)
+    train_loader, val_loader = get_dataset()
     print(f"done: {time.time() - start:.2f}s")
 
     snapshot_cache = _select_first_n(val_loader.dataset, n=3)
     print(f"[snapshots] fixed samples from validation: {[k for k, _ in snapshot_cache]}")
 
     print("preparing model...")
-    model, optimizer = get_model(args)
-    #create scheduler:
+    model = get_model()
+    # create scheduler and optimizer
+    optimizer = torch.optim.AdamW(
+        model.parameters(),
+        lr=args.lr,
+        weight_decay=0.01
+    )
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer,
         mode='min',
@@ -473,7 +486,17 @@ def main(args):
         patience=4,
         min_lr=0.000005,
     )
+    if args.resume and args.load_optimizer:
+        optimizer_path = os.path.join(args.resume, "optimizer.pt")
+        scheduler_path = os.path.join(args.resume, "scheduler.pt")
+        if os.path.exists(optimizer_path) and os.path.exists(scheduler_path):
+            optimizer.load_state_dict(torch.load(optimizer_path, map_location=args.device))
+            scheduler.load_state_dict(torch.load(scheduler_path, map_location=args.device))
+        else:
+            print("Warning: Optimizer/scheduler states not found. Starting fresh.")
 
+    # init losses
+    loss_modules = [LOSS_REGISTRY[loss_name].to(args.device) for loss_name in args.losses]
 
     # init output
     folder_name = f"{model.model_name}_lr{args.lr}"
@@ -494,11 +517,12 @@ def main(args):
     print("starting training...")
     for epoch in range(1, args.epochs + 1):
         start = time.time()
-        train_score_dict = model.run_epoch(train_loader, optimizer=optimizer, device=args.device)
-        val_score_dict = model.run_epoch(val_loader, device=args.device)
+        train_score_dict = model.run_epoch(train_loader, loss_modules, args.loss_weights, optimizer=optimizer,
+                                           device=args.device)
+        val_score_dict = model.run_epoch(val_loader, loss_modules, args.loss_weights, device=args.device)
         score_dict = train_score_dict | val_score_dict
 
-        #update scheduler
+        # update scheduler
         scheduler.step(score_dict[model.key_metric])
 
         if not args.no_wandb:
@@ -507,6 +531,8 @@ def main(args):
         # here we just print some basic statistic
         print_epoch_end(score_dict, epoch, start)
 
+        # save state of training so we can always continue
+        save_training_state(model, optimizer, scheduler, out_folder)
         model.eval() # fine because it automatically starts train mode again in next epoch
         with torch.no_grad():
             for key, sample in snapshot_cache:
@@ -560,5 +586,6 @@ def plot_training(out_folder, epochs_range, train_accs, train_losses, val_accs, 
 
 
 if __name__ == "__main__":
+    global args
     args = parse_args()
-    main(args)
+    main()

@@ -15,7 +15,6 @@ class FinalResidueTokenCNN(nn.Module):
         self.vocab_size = vocab_size
 
         # define layers
-        self.embed_norm = nn.LayerNorm(d_emb)
         self.final_norm = nn.LayerNorm(hidden)
         self.conv_in = nn.Conv1d(
             in_channels=d_emb,
@@ -53,8 +52,7 @@ class FinalResidueTokenCNN(nn.Module):
 
 
     def forward(self, embeddings):
-        x = self.embed_norm(embeddings)  # [B, L, d_emb]
-        x = self.drop(x)
+        x = self.drop(embeddings)
         x = x.permute(0, 2, 1)  # [B, d_emb, L]
         x = self.conv_in(x)
 

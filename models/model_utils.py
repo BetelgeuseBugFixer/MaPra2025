@@ -141,6 +141,7 @@ class SmoothLDDTLoss(Module):
         super().__init__()
         self.nucleic_acid_cutoff = nucleic_acid_cutoff
         self.other_cutoff = other_cutoff
+        self.name = "SmoothLDDTLoss"
 
         self.register_buffer('lddt_thresholds', torch.tensor([0.5, 1.0, 2.0, 4.0]))
 
@@ -148,8 +149,6 @@ class SmoothLDDTLoss(Module):
             self,
             pred_coords,
             true_coords,
-            is_dna,
-            is_rna,
             coords_mask,
     ):
         """
@@ -158,6 +157,10 @@ class SmoothLDDTLoss(Module):
         is_dna: boolean tensor indicating DNA atoms
         is_rna: boolean tensor indicating RNA atoms
         """
+        # make dna and rna masks
+        B, L, _ = pred_coords.shape
+        is_dna = torch.zeros((B, L), dtype=torch.bool, device=pred_coords.device)
+        is_rna = torch.zeros((B, L), dtype=torch.bool, device=pred_coords.device)
         # Compute distances between all pairs of atoms
 
         pred_dists = torch.cdist(pred_coords, pred_coords)
@@ -211,9 +214,10 @@ def print_trainable_parameters(model):
     )
 
 
-class TMLossModule(Module):
+class TmLossModule(Module):
     def __init__(self):
         super().__init__()
+        self.name = "TmLossModule"
 
     def forward(self, P: torch.Tensor, Q: torch.Tensor, mask: torch.Tensor = None) -> torch.Tensor:
         # Calculate squared distances
@@ -289,3 +293,19 @@ class InterAtomDistance(Module):
 
         # Store the computed loss in the batch under the given name
         return loss
+
+
+def compute_total_loss(outputs, targets, mask, losses, loss_weights):
+    total_loss = 0.0
+    loss_components = {}
+
+    for loss_module, weight in zip(losses, loss_weights):
+
+        loss_val=loss_module(outputs,targets,mask)
+
+        total_loss += weight * loss_val
+        loss_components[loss_module.name] = loss_val.item()
+
+    loss_components["total_loss"] = total_loss.item()
+
+    return total_loss, loss_components
