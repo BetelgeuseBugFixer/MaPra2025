@@ -51,7 +51,7 @@ class FinalFinalModel(nn.Module):
                                             bio2token=True).to(device)
         self.decoder = Bio2tokenDecoder(device=device, use_lora=decoder_lora).to(device)
         # add layer norm for after embeddings
-        self.embed_norm = nn.LayerNorm(embeddings_size)
+        self.embed_norm = nn.LayerNorm(embeddings_size).to(device)
 
         #save args
         self.plm_lora = plm_lora
