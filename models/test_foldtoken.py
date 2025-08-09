@@ -27,7 +27,7 @@ from models.bio2token.models.autoencoder import AutoencoderConfig, Autoencoder
 from models.bio2token.utils.configs import utilsyaml_to_dict, pi_instantiate
 from models.collab_fold.esmfold import EsmFold
 from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores, SmoothLDDTLoss, \
-    batch_pdbs_for_bio2token, print_trainable_parameters, masked_mse_loss, batch_pdb_dicts, TMLossModule
+    batch_pdbs_for_bio2token, print_trainable_parameters, masked_mse_loss, batch_pdb_dicts, TmLossModule
 from models.prot_t5.prot_t5 import ProtT5
 from models.datasets.datasets import PAD_LABEL, StructureAndTokenSet, StructureSet
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
@@ -933,7 +933,7 @@ def test_new_model():
     # try to overfit
     # prepare training
     lddt_loss_module = SmoothLDDTLoss().to(device)
-    tm_loss_module = TMLossModule().to(device)
+    tm_loss_module = TmLossModule().to(device)
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=0.00001,  # Uniform learning rate

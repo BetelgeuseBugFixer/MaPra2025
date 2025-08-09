@@ -1,5 +1,6 @@
 import os
 import sys
+from collections import defaultdict
 from typing import List
 
 import torch
@@ -9,32 +10,53 @@ from torch.nn.utils import clip_grad_norm_
 from models.bio2token.decoder import Bio2tokenDecoder
 from models.foldtoken_decoder.foldtoken import FoldToken
 from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores, SmoothLDDTLoss, masked_mse_loss, \
-    TMLossModule
+    TmLossModule, compute_total_loss, print_trainable_parameters
 from models.prot_t5.prot_t5 import ProtT5, ProstT5
 from models.datasets.datasets import PAD_LABEL
 from models.simple_classifier.simple_classifier import ResidueTokenCNN, FinalResidueTokenCNN
 from peft import get_peft_model, LoraConfig, TaskType
 
 
+def update_losses_value(current_sum_dict, new_values, batch_size):
+    for key in new_values.keys():
+        current_sum_dict[key] += new_values[key] * batch_size
+    return current_sum_dict
+
+
+def get_epoch_losses_dict(sum_dict, total_samples, prefix=""):
+    epoch_losses_dict = {}
+    for key in sum_dict.keys():
+        epoch_losses_dict[key] = sum_dict[key] / total_samples
+    return epoch_losses_dict
+
+
 class FinalFinalModel(nn.Module):
     def __init__(self, hidden: list, device="cpu", kernel_sizes=[5], dropout: float = 0.1, plm_lora=False,
-                 decoder_lora=False):
+                 decoder_lora=False, use_prostT5=False, use_standard_cnn=False):
         for kernel_size in kernel_sizes:
             assert kernel_size % 2 == 1, f"Kernel size {kernel_size} is invalid. Must be odd for symmetric context."
         super().__init__()
         self.device = device
-        self.plm = ProtT5(use_lora=plm_lora, device=device).to(self.device)
-        embeddings_size = 1024
-        self.decoder = Bio2tokenDecoder(device=device, use_lora=decoder_lora).to(device)
+        # define model
         codebook_size = 128
-        self.cnn = FinalResidueTokenCNN(embeddings_size, hidden[0], codebook_size, kernel_sizes, dropout,
-                                        bio2token=True).to(device)
+        embeddings_size = 1024
+        if use_prostT5:
+            self.plm = ProstT5(codebook_size, embeddings_size).to(device)
+        else:
+            self.plm = ProtT5(use_lora=plm_lora, device=device).to(device)
+        if use_standard_cnn:
+            self.cnn = ResidueTokenCNN(codebook_size, embeddings_size).to(device)
+        else:
+            self.cnn = FinalResidueTokenCNN(embeddings_size, hidden[0], codebook_size, kernel_sizes, dropout,
+                                            bio2token=True).to(device)
+        self.decoder = Bio2tokenDecoder(device=device, use_lora=decoder_lora).to(device)
+        # add layer norm for after embeddings
+        self.embed_norm = nn.LayerNorm(embeddings_size)
 
+        #save args
         self.plm_lora = plm_lora
 
-        self.lddt_weight=0.3
-        self.tm_weight=0.7
-
+        # save the args so it easier to init our model later
         self.args = {
             "hidden": hidden,
             "kernel_sizes": kernel_sizes,
@@ -42,15 +64,28 @@ class FinalFinalModel(nn.Module):
             "device": device,
             "plm_lora": plm_lora,
             "decoder_lora": decoder_lora,
+            "use_prostT5": use_prostT5,
+            "use_standard_cnn": use_standard_cnn
         }
-        hidden_layers_string = "_".join(str(i) for i in hidden)
+        hidden_layers_string=hidden[0]
+        if use_standard_cnn:
+            hidden_layers_string = "_".join(str(i) for i in hidden)
         kernel_sizes_string = "_".join(str(i) for i in kernel_sizes)
         lora_string = "_plm_lora" if plm_lora else ""
-        self.model_name = f"final_final_k{kernel_sizes_string}_h{hidden_layers_string}{lora_string}"
+        self.model_name = f"final_final_{'prost5' if use_prostT5 else 'prott5'}_cnn_type_{'0' if use_standard_cnn else '1'}_k{kernel_sizes_string}_h{hidden_layers_string}{lora_string}"
 
         # define most important metric and whether it needs to be minimized or maximized
-        self.key_metric = "val_tm_loss"
+        self.key_metric = "total_loss"
         self.maximize = False
+
+        # print trainable parameters of model
+        print("trainable parameters of model:")
+        print("plm:")
+        print_trainable_parameters(self.plm)
+        print("cnn:")
+        print_trainable_parameters(self.cnn)
+        print("decoder:")
+        print_trainable_parameters(self.decoder)
 
     def save(self, output_dir: str, suffix=""):
         os.makedirs(output_dir, exist_ok=True)
@@ -87,6 +122,7 @@ class FinalFinalModel(nn.Module):
         if true_lengths is None:
             # if we do not have lengths derive them from embeddings
             true_lengths = (x.abs().sum(-1) > 0).sum(dim=1)
+        x = self.embed_norm(x)
         cnn_out = self.cnn(x)
         B, L, _ = cnn_out.shape
         eos_mask = torch.ones(B, L, dtype=torch.bool, device=x.device)
@@ -97,15 +133,14 @@ class FinalFinalModel(nn.Module):
         final_mask = ~eos_mask
         return x, final_mask, cnn_out
 
-    def run_epoch(self, loader, optimizer=None, device="cpu"):
+    def run_epoch(self, loader, loses, loses_weights, optimizer=None, device="cpu"):
         is_train = optimizer is not None
         self.train() if is_train else self.eval()
-        # init statistics
-        total_lddt_loss = total_tm_loss = total_combined_loss = total_samples = 0
+        # in this dict sum up all the losses so we can log them each
+        total_loss_dict = defaultdict(float)
+        total_samples = 0
 
         torch.set_grad_enabled(is_train)
-        lddt_loss_module = SmoothLDDTLoss().to(device)
-        tm_loss_module = TMLossModule().to(device)
         # if we finetune we expect embeddings, otherwise sequences so we have to adapt the forward Method
         if self.plm_lora:
             forward = self.forward
@@ -116,13 +151,8 @@ class FinalFinalModel(nn.Module):
             structure = structure.to(device)
             predictions, final_mask, cnn_out = forward(model_in)
             # get loss:
-            # standard loss
             B, L, _ = predictions.shape
-            is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
-            is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
-            lddt_loss = lddt_loss_module(predictions, structure, is_dna, is_rna, final_mask)
-            tm_loss = tm_loss_module(structure, predictions, final_mask)
-            combined_loss = (self.lddt_weight * lddt_loss) + (self.tm_weight * tm_loss)
+            combined_loss, loss_values = compute_total_loss(predictions, structure, final_mask, loses, loses_weights)
             if is_train:
                 optimizer.zero_grad()
                 combined_loss.backward()
@@ -130,20 +160,15 @@ class FinalFinalModel(nn.Module):
                 clip_grad_norm_(self.parameters(), max_norm=0.6)
                 optimizer.step()
 
-            total_lddt_loss += lddt_loss.detach().cpu().item() * B
-            total_tm_loss += tm_loss.detach().cpu().item() * B
-            total_combined_loss += tm_loss.detach().cpu().item() * B
+            update_losses_value(total_loss_dict, loss_values, B)
             total_samples += B
-            del predictions, final_mask, lddt_loss, tm_loss, combined_loss
+            del predictions, final_mask, combined_loss
 
         set_prefix = ""
         if not is_train:
             set_prefix = "val_"
-        score_dict = {
-            f"{set_prefix}lddt_loss": total_lddt_loss / total_samples,
-            f"{set_prefix}tm_loss": total_tm_loss / total_samples,
-            f"{set_prefix}combined_loss": total_combined_loss / total_samples,
-        }
+
+        score_dict = get_epoch_losses_dict(total_loss_dict, total_samples, set_prefix)
         return score_dict
 
 
