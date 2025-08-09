@@ -414,7 +414,7 @@ def main():
         start = time.time()
         train_score_dict = model.run_epoch(train_loader, loss_modules, args.loss_weights, optimizer=optimizer,
                                            device=args.device)
-        val_score_dict = model.run_epoch(val_loader, device=args.device)
+        val_score_dict = model.run_epoch(val_loader, loss_modules, args.loss_weights, device=args.device)
         score_dict = train_score_dict | val_score_dict
 
         # update scheduler
