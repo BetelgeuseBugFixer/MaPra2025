@@ -14,6 +14,10 @@ from models.bio2token.data.utils.utils import pad_and_stack_tensors
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
 from models.datasets.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir, PAD_LABEL, StructureAndTokenSet, \
     TokenSet, StructureSet
+from biotite.structure import AtomArray
+from biotite.structure.io.pdb import PDBFile
+import numpy as np
+
 from models.end_to_end.whole_model import TFold, FinalModel, FinalFinalModel
 
 
@@ -77,7 +81,7 @@ def parse_args():
 
 
 def create_tfold_data_loaders(data_dir, batch_size, val_batch_size, fine_tune_plm, bio2token=False, model_type="final"):
-    train_dir = os.path.join(data_dir, "train")
+    train_dir = os.path.join(data_dir, "val")
     val_dir = os.path.join(data_dir, "val")
 
     if model_type == "final":
@@ -243,6 +247,107 @@ def load_split_file(split_file):
 
 
 # ------------------------------------------------------------
+# Save pdb snapshots during training (after every epoch 3 different proteins)
+# ------------------------------------------------------------
+
+def _select_first_n(dataset, n=3):
+    """
+    Returns list[(key, sample)] where sample is whatever the dataset returns.
+    key is an ID if dataset has .ids, else the integer index.
+    """
+    out = []
+    for idx in range(min(n, len(dataset))):
+        key = getattr(dataset, "ids", [idx]*len(dataset))[idx] if hasattr(dataset, "ids") else idx
+        out.append((key, dataset[idx]))
+    return out
+
+def _atomarray_from_coords(coords_np, atoms_per_res=4):
+    """
+    Build a simple AtomArray template (N, CA, C, O per residue) from coords.
+    coords_np: (L*atoms_per_res, 3) numpy float array
+    """
+    coords_np = np.asarray(coords_np, dtype=np.float32)
+    L = coords_np.shape[0] // atoms_per_res
+    arr = AtomArray(L * atoms_per_res)
+    arr.coord = coords_np
+
+    # annotations
+    atom_names = np.array(["N", "CA", "C", "O"])
+    arr.atom_name = np.tile(atom_names, L)
+    arr.res_id    = np.repeat(np.arange(1, L+1), atoms_per_res)
+    arr.res_name  = np.repeat(np.array(["ALA"]), L * atoms_per_res)   # placeholder
+    arr.chain_id  = np.repeat(np.array(["A"]), L * atoms_per_res)
+    arr.element   = np.tile(np.array(["N","C","C","O"]), L)
+    return arr
+
+def _save_snapshot(sample, model, out_dir, tag, device, atoms_per_res=4):
+    """
+    sample: one item from val dataset. Accepts (model_in, structure) or (model_in, tokens, structure)
+    Writes: <out_dir>/snapshots/epoch_XXX_<tag>.pdb
+    """
+    # unpack sample shapes
+    if isinstance(sample, tuple) and len(sample) == 3:
+        model_in, _, gt_struct = sample
+    elif isinstance(sample, tuple) and len(sample) == 2:
+        model_in, gt_struct = sample
+    else:
+        # If there’s no structure in the sample, we cannot build a template; fall back to zeros
+        model_in, gt_struct = sample, None
+
+    # pick forward function based on your models
+    if hasattr(model, "plm_lora") and model.plm_lora:
+        # model expects list[str] if finetuning PLM; else embeddings tensor
+        if isinstance(model_in, torch.Tensor):
+            forward_fn = getattr(model, "forward_from_embedding", None)
+            assert forward_fn is not None, "Model needs forward_from_embedding() for embedding inputs"
+            preds, final_mask, *_ = forward_fn(model_in.unsqueeze(0).to(device))
+        else:
+            preds, final_mask, *_ = model([model_in])  # list of one seq
+    else:
+        # not finetuning PLM → prefer forward_from_embedding (embeddings) if available
+        forward_fn = getattr(model, "forward_from_embedding", None) or getattr(model, "forward", None)
+        inp = model_in.unsqueeze(0).to(device) if isinstance(model_in, torch.Tensor) else [model_in]
+        preds, final_mask, *_ = forward_fn(inp)
+
+    # preds: (1, L*4, 3) or (L*4, 3)
+    if preds.dim() == 3:
+        preds_np = preds.squeeze(0).detach().cpu().numpy()
+    else:
+        preds_np = preds.detach().cpu().numpy()
+
+    # Build a template AtomArray:
+    # If we have GT structure tensor in sample, use its length to define L*4;
+    # otherwise just build from predicted coords.
+    if gt_struct is not None:
+        if gt_struct.dim() == 3:    # (B, L*4, 3)
+            gt_np = gt_struct[0].detach().cpu().numpy().astype(np.float32)
+        else:                       # (L*4, 3)
+            gt_np = gt_struct.detach().cpu().numpy().astype(np.float32)
+        template = _atomarray_from_coords(gt_np, atoms_per_res=atoms_per_res)
+    else:
+        template = _atomarray_from_coords(preds_np, atoms_per_res=atoms_per_res)
+
+    # Apply mask if provided (to drop padded atoms)
+    if final_mask is not None:
+        mask = final_mask
+        if mask.dim() == 2:  # (1, L*4)
+            mask = mask[0]
+        mask_np = mask.detach().cpu().numpy().astype(bool)
+        preds_np = preds_np[mask_np]
+        template = template[mask_np]
+
+    # Replace coordinates with predictions
+    template.coord = preds_np.astype(np.float32)
+
+    # Write PDB
+    snap_dir = os.path.join(out_dir, "snapshots")
+    os.makedirs(snap_dir, exist_ok=True)
+    pdb = PDBFile()
+    pdb.set_structure(template)
+    pdb.write(os.path.join(snap_dir, f"{tag}.pdb"))
+
+
+# ------------------------------------------------------------
 # Main workflow with early stopping & plots
 # ------------------------------------------------------------
 
@@ -354,6 +459,10 @@ def main(args):
     # load dataset
     train_loader, val_loader = get_dataset(args)
     print(f"done: {time.time() - start:.2f}s")
+
+    snapshot_cache = _select_first_n(val_loader.dataset, n=3)
+    print(f"[snapshots] fixed samples from validation: {[k for k, _ in snapshot_cache]}")
+
     print("preparing model...")
     model, optimizer = get_model(args)
     #create scheduler:
@@ -397,6 +506,12 @@ def main(args):
 
         # here we just print some basic statistic
         print_epoch_end(score_dict, epoch, start)
+
+        model.eval() # fine because it automatically starts train mode again in next epoch
+        with torch.no_grad():
+            for key, sample in snapshot_cache:
+                tag = f"epoch_{epoch:03d}_{str(key)}"
+                _save_snapshot(sample, model, out_folder, tag, device=args.device)
 
         # save model
         model.save(out_folder, suffix="_latest")
