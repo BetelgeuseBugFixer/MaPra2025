@@ -26,7 +26,7 @@ def update_losses_value(current_sum_dict, new_values, batch_size):
 def get_epoch_losses_dict(sum_dict, total_samples, prefix=""):
     epoch_losses_dict = {}
     for key in sum_dict.keys():
-        epoch_losses_dict[key] = sum_dict[key] / total_samples
+        epoch_losses_dict[f"{prefix}{key}"] = sum_dict[key] / total_samples
     return epoch_losses_dict
 
 
@@ -75,7 +75,7 @@ class FinalFinalModel(nn.Module):
         self.model_name = f"final_final_{'prost5' if use_prostT5 else 'prott5'}_cnn_type_{'0' if use_standard_cnn else '1'}_k{kernel_sizes_string}_h{hidden_layers_string}{lora_string}"
 
         # define most important metric and whether it needs to be minimized or maximized
-        self.key_metric = "total_loss"
+        self.key_metric = "val_total_loss"
         self.maximize = False
 
         # print trainable parameters of model
