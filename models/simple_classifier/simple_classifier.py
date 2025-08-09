@@ -52,7 +52,7 @@ class FinalResidueTokenCNN(nn.Module):
 
 
     def forward(self, embeddings):
-        x = self.drop()
+        x = self.drop(embeddings)
         x = x.permute(0, 2, 1)  # [B, d_emb, L]
         x = self.conv_in(x)
 
