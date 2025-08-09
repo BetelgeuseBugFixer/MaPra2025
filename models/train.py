@@ -391,7 +391,7 @@ def main():
             print("Warning: Optimizer/scheduler states not found. Starting fresh.")
 
     # init losses
-    loss_modules = [LOSS_REGISTRY[loss_name] for loss_name in args.losses]
+    loss_modules = [LOSS_REGISTRY[loss_name].to(args.device) for loss_name in args.losses]
 
     # init output
     folder_name = f"{model.model_name}_lr{args.lr}"
