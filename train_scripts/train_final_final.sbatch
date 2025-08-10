@@ -14,6 +14,13 @@ source ~/.bashrc
 source /opt/miniconda/etc/profile.d/conda.sh
 conda activate /opt/envs/f_token
 cd ~/MaPra2025
+
+# WandB API Key holen
+export WANDB_API_KEY=$(
+  grep -E '^\s*api_key\s*=' /mnt/dir/MaPra2025/wandb_key \
+    | sed 's/.*=\s*//'
+)
+
 export PYTHONPATH=~/MaPra2025:$PYTHONPATH
 echo "Starting training script..."
 python -u models/train.py --model final_final \
