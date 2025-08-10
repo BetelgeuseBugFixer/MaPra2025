@@ -27,5 +27,5 @@ python -u models/train.py --model final_final \
                           --patience 10 \
                           --lr 0.00005 \
                           --losses tm lddt \
-                          --losses_weights 0.5 0.5
+                          --loss_weights 0.4 0.6
 echo "Training script finished."
