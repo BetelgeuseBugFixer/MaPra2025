@@ -6,7 +6,7 @@
 #SBATCH --container-image="/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/container/final_final.sqsh"
 #SBATCH --container-mounts=/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/data:/mnt/data,/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/models:/mnt/models
 #SBATCH --time=48:00:00
-#SBATCH --mem=150G
+#SBATCH --mem=70G
 
 # command to execute and track it
 # sbatch train_scripts/train_final_final_resume.sbatch &  tail -f slurm_out/train_final_final_resume_std_output.out slurm_out/train_final_final_resume_std_err.err
