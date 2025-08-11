@@ -506,7 +506,7 @@ def main():
     # here we check if the folder already exists and if so add number at the end of it
     out_folder = get_unique_folder(out_folder)
     os.makedirs(out_folder, exist_ok=True)
-    print(f"saving model to{out_folder}")
+    print(f"saving model to {out_folder}")
 
     # init important metric based on if the models need to optimize or minimize
     if model.maximize:
