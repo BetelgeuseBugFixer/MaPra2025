@@ -98,14 +98,14 @@ def get_scores(gt_pdb, pred):
 
 def get_smooth_lddt(lddt_loss_module, prediction, pdb_dict):
     filtered = filter_pdb_dict(pdb_dict)
-    gt = torch.tensor(filtered["coords_groundtruth"]).unsqueeze(0).to(device)
-    pd = prediction.unsqueeze(0).to(device)
+    gt = torch.tensor(filtered["coords_groundtruth"]).unsqueeze(0).to(device)  # [B,L,3]
+    pd = prediction.unsqueeze(0).to(device)                                    # [B,L,3]
     B, L, _ = gt.shape
-    is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
-    is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
-    mask = torch.ones((B, L), dtype=torch.bool, device=device)
-    lddt_score = 1 - lddt_loss_module(gt, pd, is_dna, is_rna, mask).item()
-    return lddt_score
+    mask = torch.ones((B, L), dtype=torch.bool, device=device)                 # all positions valid
+    # IMPORTANT: order = (pred, true, mask)
+    loss = lddt_loss_module(pd, gt, mask)
+    return 1 - loss.item()
+
 
 
 def compute_and_save_scores_for_model(checkpoint_path, model, seqs, pdb_paths, pdb_dicts, batch_size=64,
