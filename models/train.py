@@ -456,6 +456,42 @@ def save_training_state(model, optimizer, scheduler, out_folder):
     torch.save(scheduler.state_dict(), scheduler_path)
     model.save(out_folder, suffix="_latest")
 
+def _save_reference_pdb(sample, out_dir, tag, atoms_per_res=4):
+    """
+    Save the ground-truth structure from a dataset sample as a PDB.
+
+    sample: one item from val dataset. Accepts (model_in, structure) or (model_in, tokens, structure)
+    Writes: <out_dir>/references/<tag>.pdb
+    """
+    # unpack like _save_snapshot()
+    if isinstance(sample, tuple) and len(sample) == 3:
+        _, _, gt_struct = sample
+    elif isinstance(sample, tuple) and len(sample) == 2:
+        _, gt_struct = sample
+    else:
+        gt_struct = None
+
+    if gt_struct is None:
+        print(f"[ref] {tag}: no GT structure in sample — skipped")
+        return
+
+    # If your dataset already returns an AtomArray, keep it; else build one from coords
+    if isinstance(gt_struct, AtomArray):
+        arr = gt_struct
+    else:
+        if gt_struct.dim() == 3:      # (B, L*4, 3)
+            gt_np = gt_struct[0].detach().cpu().numpy().astype(np.float32)
+        else:                         # (L*4, 3)
+            gt_np = gt_struct.detach().cpu().numpy().astype(np.float32)
+        arr = _atomarray_from_coords(gt_np, atoms_per_res=atoms_per_res)
+
+    ref_dir = os.path.join(out_dir, "references")
+    os.makedirs(ref_dir, exist_ok=True)
+    pdb = PDBFile()
+    pdb.set_structure(arr)
+    pdb.write(os.path.join(ref_dir, f"{tag}.pdb"))
+
+
 
 def main():
     global args
@@ -507,6 +543,12 @@ def main():
     out_folder = get_unique_folder(out_folder)
     os.makedirs(out_folder, exist_ok=True)
     print(f"saving model to {out_folder}")
+
+    # save the three fixed reference PDBs once
+    for key, sample in snapshot_cache:
+        ref_tag = f"ref_{str(key)}"
+        _save_reference_pdb(sample, out_folder, ref_tag)
+    print(f"[references] saved GT PDBs to {os.path.join(out_folder, 'references')}")
 
     # init important metric based on if the models need to optimize or minimize
     if model.maximize:
