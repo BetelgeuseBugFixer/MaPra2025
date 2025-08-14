@@ -472,7 +472,7 @@ def _save_reference_pdb(sample, out_dir, tag, atoms_per_res=4):
         gt_struct=gt_struct.unsqueeze(0)
         B, L,_ = gt_struct.shape
         final_mask = torch.ones(B, L * atoms_per_res, dtype=torch.bool)
-        print_tensor(model_in,"gt_struct")
+        print(model_in)
         print_tensor(gt_struct,"gt_struct")
         print_tensor(final_mask,"final_mask")
         arr = model_prediction_to_atom_array(model_in, gt_struct, final_mask)[0]
