@@ -39,7 +39,8 @@ from models.end_to_end.whole_model import TFold, FinalModel, FinalFinalModel
 from transformers import T5EncoderModel, T5Tokenizer
 from hydra_zen import load_from_yaml, builds, instantiate
 
-from models.train import collate_emb_struc_tok_batch, collate_seq_struc_tok_batch, collate_seq_struc
+from models.train import collate_emb_struc_tok_batch, collate_seq_struc_tok_batch, collate_seq_struc, _select_first_n, \
+    _save_snapshot
 from transformers import AutoTokenizer, EsmForProteinFolding
 
 from utils.generate_new_data import filter_pdb_dict
@@ -832,7 +833,7 @@ def write_pdb():
     os.makedirs(out_dir, exist_ok=True)
     # prepare model
     model = FinalFinalModel.load_final_final(
-        "final_final_prott5_cnn_type_1_k7_3_3_3_h1024_plm_lora_lr5e-05/final_final_prott5_cnn_type_1_k7_3_3_3_h1024_plm_lora.pt",
+        "/mnt/models/final_final_prott5_cnn_type_1_k7_3_3_3_h1024_plm_lora_lr5e-05/final_final_prott5_cnn_type_1_k7_3_3_3_h1024_plm_lora.pt",
         device).to(device)
 
     # prepare data
@@ -849,7 +850,8 @@ def write_pdb():
     with torch.inference_mode():
         smooth_lddts, normal_lddts = [], []
         lddt_loss_module = SmoothLDDTLoss().to(device)
-        for i in range(len(seqs)):
+        # for i in range(len(seqs)):
+        for i in range(10):
             # get data
             pdb_path = pdb_paths[i]
             seq = [seqs[i]]
@@ -865,7 +867,7 @@ def write_pdb():
             # calc lddt
             B, L, _ = backbone_coords.shape
             final_mask = torch.zeros(B, L, dtype=torch.bool, device=device)
-            final_mask[0, :len(seq) * 4] = True
+            final_mask[0, :len(seq[0]) * 4] = True
             lddt_loss = lddt_loss_module(backbone_coords, structure_tensor, final_mask)
             orig_value = lddt_loss.detach().cpu().item()
             smoooth_lddt = 1 - orig_value
@@ -894,6 +896,25 @@ def write_pdb():
 
 
     plot_smooth_lddt(normal_lddts, smooth_lddts, os.path.join(out_dir, "new_smooth_lddt.png"))
+
+
+def write_pdb_v2():
+    device="cuda"
+
+    #prepare data
+    out_folder = "test_v2"
+    data_dir="mnt/data/large/subset2/"
+    val_dir = os.path.join(data_dir, "val")
+    val_set = StructureSet(val_dir, precomputed_embeddings=False)
+    snapshot_cache = _select_first_n(val_set, n=100)
+
+    #prepare model
+    model = FinalFinalModel.load_final_final(
+        "/mnt/models/final_final_prott5_cnn_type_1_k7_3_3_3_h1024_plm_lora_lr5e-05/final_final_prott5_cnn_type_1_k7_3_3_3_h1024_plm_lora.pt",
+        device).to(device)
+    for key, sample in snapshot_cache:
+        tag = f"epoch_{0}_{str(key)}"
+        _save_snapshot(sample, model, out_folder, tag, device=device)
 
 
 def print_gradients(model):
@@ -996,4 +1017,5 @@ def test_new_model():
 
 
 if __name__ == '__main__':
+    write_pdb_v2()
     write_pdb()
