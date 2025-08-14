@@ -872,8 +872,7 @@ def write_pdb():
             smoooth_lddt = 1 - orig_value
             # calc other scores
             gt_protein = load_prot_from_pdb(pdb_path)
-            pred_protein = gt_protein.copy()
-            pred_protein.coord = backbone_coords.squeeze(0).detach().cpu().numpy().astype(np.float32)
+            pred_protein = model_prediction_to_atom_array(seqs,pred_protein,final_mask)
             normal_lddt = float(lddt(gt_protein, pred_protein))
 
             # append score to list
@@ -1023,5 +1022,4 @@ def test_new_model():
 
 
 if __name__ == '__main__':
-    write_pdb_v2()
     write_pdb()
