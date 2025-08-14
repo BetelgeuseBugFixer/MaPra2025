@@ -133,7 +133,7 @@ class FinalFinalModel(nn.Module):
         final_mask = ~eos_mask
         return x, final_mask, cnn_out
 
-    def run_epoch(self, loader, loses, loses_weights, optimizer=None, device="cpu"):
+    def run_epoch(self, loader, loses, loses_weights, optimizer=None,scheduler=None, device="cpu"):
         is_train = optimizer is not None
         self.train() if is_train else self.eval()
         # in this dict sum up all the losses so we can log them each
@@ -157,8 +157,9 @@ class FinalFinalModel(nn.Module):
                 optimizer.zero_grad()
                 combined_loss.backward()
                 # gradient clipping
-                clip_grad_norm_(self.parameters(), max_norm=0.6)
+                clip_grad_norm_(self.parameters(), max_norm=0.1)
                 optimizer.step()
+                scheduler.step()
 
             update_losses_value(total_loss_dict, loss_values, B)
             total_samples += B
@@ -292,7 +293,7 @@ class FinalModel(nn.Module):
         final_mask = ~eos_mask
         return x, final_mask, cnn_out
 
-    def run_epoch(self, loader, optimizer=None, device="cpu"):
+    def run_epoch(self, loader, optimizer=None,scheduler=None, device="cpu"):
         is_train = optimizer is not None
         self.train() if is_train else self.eval()
         # init statistics
@@ -323,6 +324,7 @@ class FinalModel(nn.Module):
                 # gradient clipping
                 clip_grad_norm_(self.parameters(), max_norm=1.0)
                 optimizer.step()
+                scheduler.step()
 
             total_loss += loss.detach().item() * B
             total_lddt_loss += lddt_loss.detach().item() * B

@@ -1,12 +1,13 @@
 import argparse
 import json
 import os
+import random
 import time
 
 import numpy as np
 import wandb
 import torch
-from biotite.structure import AtomArray
+from biotite.structure import AtomArray, lddt
 from biotite.structure.io.pdb import PDBFile
 from torch.optim.lr_scheduler import LinearLR, CosineAnnealingLR, SequentialLR
 from torch.utils.data import DataLoader
@@ -15,7 +16,7 @@ from torch.nn.utils.rnn import pad_sequence
 import matplotlib.pyplot as plt
 
 from models.bio2token.data.utils.utils import pad_and_stack_tensors
-from models.model_utils import SmoothLDDTLoss, TmLossModule
+from models.model_utils import SmoothLDDTLoss, TmLossModule, model_prediction_to_atom_array
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
 from models.datasets.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir, PAD_LABEL, StructureAndTokenSet, \
     TokenSet, StructureSet
@@ -93,7 +94,8 @@ def parse_args():
 
 
 def create_tfold_data_loaders(data_dir, batch_size, val_batch_size, fine_tune_plm, bio2token=False, model_type="final"):
-    train_dir = os.path.join(data_dir, "train")
+    # train_dir = os.path.join(data_dir, "train")
+    train_dir = os.path.join(data_dir, "val")
     val_dir = os.path.join(data_dir, "val")
 
     if model_type == "final":
@@ -269,9 +271,10 @@ def _select_first_n(dataset, n=3):
     """
     out = []
     for idx in range(min(n, len(dataset))):
-        key = getattr(dataset, "ids", [idx]*len(dataset))[idx] if hasattr(dataset, "ids") else idx
+        key = getattr(dataset, "ids", [idx] * len(dataset))[idx] if hasattr(dataset, "ids") else idx
         out.append((key, dataset[idx]))
     return out
+
 
 def _atomarray_from_coords(coords_np, atoms_per_res=4):
     """
@@ -286,11 +289,12 @@ def _atomarray_from_coords(coords_np, atoms_per_res=4):
     # annotations
     atom_names = np.array(["N", "CA", "C", "O"])
     arr.atom_name = np.tile(atom_names, L)
-    arr.res_id    = np.repeat(np.arange(1, L+1), atoms_per_res)
-    arr.res_name  = np.repeat(np.array(["ALA"]), L * atoms_per_res)   # placeholder
-    arr.chain_id  = np.repeat(np.array(["A"]), L * atoms_per_res)
-    arr.element   = np.tile(np.array(["N","C","C","O"]), L)
+    arr.res_id = np.repeat(np.arange(1, L + 1), atoms_per_res)
+    arr.res_name = np.repeat(np.array(["ALA"]), L * atoms_per_res)  # placeholder
+    arr.chain_id = np.repeat(np.array(["A"]), L * atoms_per_res)
+    arr.element = np.tile(np.array(["N", "C", "C", "O"]), L)
     return arr
+
 
 def _save_snapshot(sample, model, out_dir, tag, device, atoms_per_res=4):
     """
@@ -313,50 +317,33 @@ def _save_snapshot(sample, model, out_dir, tag, device, atoms_per_res=4):
             forward_fn = getattr(model, "forward_from_embedding", None)
             assert forward_fn is not None, "Model needs forward_from_embedding() for embedding inputs"
             preds, final_mask, *_ = forward_fn(model_in.unsqueeze(0).to(device))
+            # if we do not have the seqs derive their length from embeddings and then make placeholder seq
+            true_length = (preds.abs().sum(-1) > 0).sum(dim=1)[0]
+            # generate placeholder seq
+            sequences = ["A" * true_length]
+
         else:
             preds, final_mask, *_ = model([model_in])  # list of one seq
+            sequences = [model_in]
     else:
         # not finetuning PLM → prefer forward_from_embedding (embeddings) if available
         forward_fn = getattr(model, "forward_from_embedding", None) or getattr(model, "forward", None)
         inp = model_in.unsqueeze(0).to(device) if isinstance(model_in, torch.Tensor) else [model_in]
         preds, final_mask, *_ = forward_fn(inp)
 
-    # preds: (1, L*4, 3) or (L*4, 3)
-    if preds.dim() == 3:
-        preds_np = preds.squeeze(0).detach().cpu().numpy()
-    else:
-        preds_np = preds.detach().cpu().numpy()
-
-    # Build a template AtomArray:
-    # If we have GT structure tensor in sample, use its length to define L*4;
-    # otherwise just build from predicted coords.
-    if gt_struct is not None:
-        if gt_struct.dim() == 3:    # (B, L*4, 3)
-            gt_np = gt_struct[0].detach().cpu().numpy().astype(np.float32)
-        else:                       # (L*4, 3)
-            gt_np = gt_struct.detach().cpu().numpy().astype(np.float32)
-        template = _atomarray_from_coords(gt_np, atoms_per_res=atoms_per_res)
-    else:
-        template = _atomarray_from_coords(preds_np, atoms_per_res=atoms_per_res)
-
-    # Apply mask if provided (to drop padded atoms)
-    if final_mask is not None:
-        mask = final_mask
-        if mask.dim() == 2:  # (1, L*4)
-            mask = mask[0]
-        mask_np = mask.detach().cpu().numpy().astype(bool)
-        preds_np = preds_np[mask_np]
-        template = template[mask_np]
-
-    # Replace coordinates with predictions
-    template.coord = preds_np.astype(np.float32)
+    atom_array = model_prediction_to_atom_array(sequences, preds, final_mask)[0]
 
     # Write PDB
     snap_dir = os.path.join(out_dir, "snapshots")
     os.makedirs(snap_dir, exist_ok=True)
     pdb = PDBFile()
-    pdb.set_structure(template)
+    pdb.set_structure(atom_array)
     pdb.write(os.path.join(snap_dir, f"{tag}.pdb"))
+
+    # calculate and return score
+    ref_atom_array = model_prediction_to_atom_array(sequences, gt_struct, final_mask)[0]
+    lddt_score = lddt(ref_atom_array, atom_array)
+    return lddt_score
 
 
 # ------------------------------------------------------------
@@ -457,6 +444,7 @@ def save_training_state(model, optimizer, scheduler, out_folder):
     torch.save(scheduler.state_dict(), scheduler_path)
     model.save(out_folder, suffix="_latest")
 
+
 def _save_reference_pdb(sample, out_dir, tag, atoms_per_res=4):
     """
     Save the ground-truth structure from a dataset sample as a PDB.
@@ -466,9 +454,9 @@ def _save_reference_pdb(sample, out_dir, tag, atoms_per_res=4):
     """
     # unpack like _save_snapshot()
     if isinstance(sample, tuple) and len(sample) == 3:
-        _, _, gt_struct = sample
+        model_in, _, gt_struct = sample
     elif isinstance(sample, tuple) and len(sample) == 2:
-        _, gt_struct = sample
+        model_in, gt_struct = sample
     else:
         gt_struct = None
 
@@ -480,18 +468,17 @@ def _save_reference_pdb(sample, out_dir, tag, atoms_per_res=4):
     if isinstance(gt_struct, AtomArray):
         arr = gt_struct
     else:
-        if gt_struct.dim() == 3:      # (B, L*4, 3)
-            gt_np = gt_struct[0].detach().cpu().numpy().astype(np.float32)
-        else:                         # (L*4, 3)
-            gt_np = gt_struct.detach().cpu().numpy().astype(np.float32)
-        arr = _atomarray_from_coords(gt_np, atoms_per_res=atoms_per_res)
+        B, L = gt_struct.shape
+        final_mask = torch.zeros(B, L * atoms_per_res, dtype=torch.bool)
+        for i in range(len(model_in)):
+            final_mask[i, :len(model_in[i]) * atoms_per_res] = True
+        arr = model_prediction_to_atom_array(model_in, gt_struct, final_mask)[0]
 
     ref_dir = os.path.join(out_dir, "references")
     os.makedirs(ref_dir, exist_ok=True)
     pdb = PDBFile()
     pdb.set_structure(arr)
     pdb.write(os.path.join(ref_dir, f"{tag}.pdb"))
-
 
 
 def main():
@@ -507,7 +494,7 @@ def main():
     train_loader, val_loader = get_dataset()
     print(f"done: {time.time() - start:.2f}s")
 
-    snapshot_cache = _select_first_n(val_loader.dataset, n=3)
+    snapshot_cache = _select_first_n(val_loader.dataset, n=10)
     print(f"[snapshots] fixed samples from validation: {[k for k, _ in snapshot_cache]}")
 
     print("preparing model...")
@@ -522,25 +509,23 @@ def main():
         optimizer_path = os.path.join(args.resume, "optimizer.pt")
         if os.path.exists(optimizer_path):
             optimizer.load_state_dict(torch.load(optimizer_path, map_location=args.device))
+            # overwrite lr because it might have gotten to low
+            optimizer.param_groups[0]["lr"] = args.lr
         else:
             print("Warning: optimizer states not found. Starting fresh.")
 
     # init scheduler
     warmup_steps = 1000
     total_steps = args.epochs * len(train_loader)
-    if args.resume:
-        scheduler = CosineAnnealingLR(optimizer, T_max=total_steps)
-    else:
-        # Warm-up: start_lr=0 → base_lr over `warmup_steps`
-        scheduler1 = LinearLR(optimizer, start_factor=0.01, total_iters=warmup_steps)
-        # Decay: cosine annealing after warm-up
-        scheduler2 = CosineAnnealingLR(optimizer, T_max=total_steps - warmup_steps)
-        scheduler = SequentialLR(
-            optimizer,
-            schedulers=[scheduler1, scheduler2],
-            milestones=[warmup_steps]
-        )
-
+    # Warm-up: start_lr=0 → base_lr over `warmup_steps`
+    scheduler1 = LinearLR(optimizer, start_factor=0.01, total_iters=warmup_steps)
+    # Decay: cosine annealing after warm-up
+    scheduler2 = CosineAnnealingLR(optimizer, T_max=total_steps - warmup_steps)
+    scheduler = SequentialLR(
+        optimizer,
+        schedulers=[scheduler1, scheduler2],
+        milestones=[warmup_steps]
+    )
 
     # init losses
     loss_modules = [LOSS_REGISTRY[loss_name].to(args.device) for loss_name in args.losses]
@@ -571,13 +556,21 @@ def main():
     for epoch in range(1, args.epochs + 1):
         start = time.time()
         train_score_dict = model.run_epoch(train_loader, loss_modules, args.loss_weights, optimizer=optimizer,
+                                           scheduler=scheduler,
                                            device=args.device)
         val_score_dict = model.run_epoch(val_loader, loss_modules, args.loss_weights, device=args.device)
         score_dict = train_score_dict | val_score_dict
 
-        # update scheduler
-        scheduler.step(score_dict[model.key_metric])
+        model.eval()  # fine because it automatically starts train mode again in next epoch
+        with torch.no_grad():
+            lddt_sum = 0
+            for key, sample in snapshot_cache:
+                tag = f"epoch_{epoch:03d}_{str(key)}"
+                lddt_sum += _save_snapshot(sample, model, out_folder, tag, device=args.device)
+        score_dict["biotite_lddt"] = lddt_sum / len(snapshot_cache)
 
+        # log lr
+        score_dict["lr"] = optimizer.param_groups[0]["lr"]
         if not args.no_wandb:
             run.log(score_dict)
 
@@ -586,11 +579,6 @@ def main():
 
         # save state of training so we can always continue
         save_training_state(model, optimizer, scheduler, out_folder)
-        model.eval() # fine because it automatically starts train mode again in next epoch
-        with torch.no_grad():
-            for key, sample in snapshot_cache:
-                tag = f"epoch_{epoch:03d}_{str(key)}"
-                _save_snapshot(sample, model, out_folder, tag, device=args.device)
 
         # save model
         model.save(out_folder, suffix="_latest")
