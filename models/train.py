@@ -531,12 +531,16 @@ def main():
     loss_modules = [LOSS_REGISTRY[loss_name].to(args.device) for loss_name in args.losses]
 
     # init output
-    folder_name = f"{model.model_name}_lr{args.lr}"
+    folder_name = f"{model.model_name}_lr{args.lr}_{'_'.join(args.losses)}"
     out_folder = (os.path.join(args.out_folder, folder_name))
     # here we check if the folder already exists and if so add number at the end of it
     out_folder = get_unique_folder(out_folder)
     os.makedirs(out_folder, exist_ok=True)
     print(f"saving model to {out_folder}")
+    #change wandb run name
+    if not args.no_wandb:
+        run.name = folder_name
+
 
     # save the three fixed reference PDBs once
     for key, sample in snapshot_cache:
