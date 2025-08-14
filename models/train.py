@@ -341,7 +341,7 @@ def _save_snapshot(sample, model, out_dir, tag, device, atoms_per_res=4):
     pdb.write(os.path.join(snap_dir, f"{tag}.pdb"))
 
     # calculate and return score
-    gt_struct=gt_struct.unsqueeze(0)
+    gt_struct=gt_struct.unsqueeze(0).to(device)
     ref_atom_array = model_prediction_to_atom_array(sequences, gt_struct, final_mask)[0]
     lddt_score = lddt(ref_atom_array, atom_array)
     return lddt_score
