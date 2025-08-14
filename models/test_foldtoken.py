@@ -832,7 +832,7 @@ def write_pdb():
     os.makedirs(out_dir, exist_ok=True)
     # prepare model
     model = FinalFinalModel.load_final_final(
-        "/mnt/models/final_final_prott5_cnn_type_1_k7_3_3_3_h1024_plm_lora_lr5e-05_2/final_final_prott5_cnn_type_1_k7_3_3_3_h1024_plm_lora.pt",
+        "final_final_prott5_cnn_type_1_k7_3_3_3_h1024_plm_lora_lr5e-05/final_final_prott5_cnn_type_1_k7_3_3_3_h1024_plm_lora.pt",
         device).to(device)
 
     # prepare data
