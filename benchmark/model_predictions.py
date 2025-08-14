@@ -79,19 +79,31 @@ def get_scores(gt_pdb, pred):
         pred_protein = gt_protein.copy()
         pred_protein.coord = pred
 
-    # calculate lddt before aligning structures for rmsd and tm score
-    lddt_score = float(lddt(gt_protein, pred_protein))
+    try:
+        # calculate lddt before aligning structures for rmsd and tm score
+        lddt_score = float(lddt(gt_protein, pred_protein))
+    except Exception as e:
+        print(f"lddt caused error: {e}")
 
-    # Superimpose predicted onto ground-truth
-    superimposed, _, ref_indices, sub_indices = superimpose_structural_homologs(
-        gt_protein, pred_protein, max_iterations=1
-    )
+    try:
+        # Superimpose predicted onto ground-truth
+        superimposed, _, ref_indices, sub_indices = superimpose_structural_homologs(
+            gt_protein, pred_protein, max_iterations=1
+        )
+    except Exception as e:
+        print(f"superimposed caused error: {e}")
 
-    # rmsd
-    rmsd_score = float(rmsd(gt_protein, superimposed))
+    try:
+        # rmsd
+        rmsd_score = float(rmsd(gt_protein, pred_protein)) #rm superimpose for testing
+    except Exception as e:
+        print(f"rmsd caused error: {e}")
 
-    # tm score
-    tm_score_score = tm_score(gt_protein, superimposed, ref_indices, sub_indices)
+    try:
+        # tm score
+        tm_score_score = tm_score(gt_protein, superimposed, ref_indices, sub_indices)
+    except Exception as e:
+        print(f"tm caused error: {e}")
 
     return lddt_score, rmsd_score, tm_score_score
 
