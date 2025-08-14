@@ -8,6 +8,10 @@ from models.bio2token.data.utils.utils import filter_batch, pad_and_stack_batch,
     uniform_dataframe
 
 
+def print_tensor(tensor, name):
+    print(f"{name}-{tensor.shape}:\n{tensor}")
+
+
 def _masked_accuracy(logits, tgt, mask):
     pred = logits.argmax(dim=-1)
     correct = ((pred == tgt) & mask).sum().item()
