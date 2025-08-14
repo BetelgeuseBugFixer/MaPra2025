@@ -40,7 +40,7 @@ from transformers import T5EncoderModel, T5Tokenizer
 from hydra_zen import load_from_yaml, builds, instantiate
 
 from models.train import collate_emb_struc_tok_batch, collate_seq_struc_tok_batch, collate_seq_struc, _select_first_n, \
-    _save_snapshot
+    _save_snapshot, _save_reference_pdb
 from transformers import AutoTokenizer, EsmForProteinFolding
 
 from utils.generate_new_data import filter_pdb_dict
@@ -909,6 +909,11 @@ def write_pdb_v2():
     val_dir = os.path.join(data_dir, "val")
     val_set = StructureSet(val_dir, precomputed_embeddings=False)
     snapshot_cache = _select_first_n(val_set, n=100)
+
+    # create red pdbs
+    for key, sample in snapshot_cache:
+        ref_tag = f"ref_{str(key)}"
+        _save_reference_pdb(sample, out_folder, ref_tag)
 
     #prepare model
     model = FinalFinalModel.load_final_final(
