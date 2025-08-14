@@ -6,8 +6,7 @@ import numpy as np
 import torch
 import time
 
-from biotite.structure import lddt, rmsd, tm_score, filter_amino_acids
-from biotite.structure.superimpose import superimpose
+from biotite.structure import lddt, rmsd, tm_score, filter_amino_acids, AtomArray, superimpose_structural_homologs
 from biotite.structure.filter import _filter_atom_names
 from biotite.structure.io.pdb import PDBFile
 from matplotlib import pyplot as plt
@@ -70,6 +69,7 @@ def load_prot_from_pdb(pdb_file):
     return array_stack[_filter_atom_names(array_stack, BACKBONE_ATOMS)]
 
 
+# ---  Kabsch + helpers ----------------------------------------------------
 def _kabsch(P, Q):
     Pc, Qc = P.mean(axis=0), Q.mean(axis=0)
     P0, Q0 = P - Pc, Q - Qc
@@ -82,13 +82,20 @@ def _kabsch(P, Q):
     t = Pc - Qc @ R.T
     return R, t
 
-def _ca_index_map(a):
+def _ca_index_map(a: AtomArray):
     mask = filter_amino_acids(a) & (a.atom_name == "CA")
     keys = list(zip(a.chain_id[mask], a.res_id[mask]))
     idxs = np.nonzero(mask)[0]
     return {k: i for k, i in zip(keys, idxs)}
 
-def get_scores(gt_pdb, pred):
+def _apply_rt(coords: np.ndarray, R: np.ndarray, t: np.ndarray):
+    return (coords @ R.T + t).astype(np.float32)
+
+# --- get_scores ----------------------------------------------------
+def get_scores(gt_pdb, pred, method: str = "biotite"):
+    """
+    method: "biotite" (default) or "kabsch"
+    """
     gt_protein = load_prot_from_pdb(gt_pdb)
 
     # build predicted structure
@@ -102,57 +109,62 @@ def get_scores(gt_pdb, pred):
     rmsd_score = np.nan
     tm_score_score = np.nan
 
-    # 1) LDDT before alignment
+    # 1) LDDT BEFORE any alignment
     try:
         lddt_score = float(lddt(gt_protein, pred_protein))
     except Exception as e:
         print(f"lddt caused error: {e}")
 
-    # 2) Correspondence (Cα by chain/res id if available)
-    gt_map = _ca_index_map(gt_protein)
-    pr_map = _ca_index_map(pred_protein)
-    common = [k for k in gt_map if k in pr_map]
+    # 2) Alignment + metrics
+    match method:
+        case "biotite":
+            try:
+                superimposed, _, ref_idx, sub_idx = superimpose_structural_homologs(gt_protein, pred_protein, max_iterations=1)
+                # compute on matched atoms
+                rmsd_score = float(rmsd(gt_protein[ref_idx], superimposed[sub_idx]))
+                tm_score_score = float(tm_score(gt_protein, superimposed, ref_idx, sub_idx))
+            except Exception as e:
+                print(f"biotite superimpose/metrics caused error: {e}")
 
-    use_global = False
-    if len(common) >= 3:
-        gt_idx = np.array([gt_map[k] for k in common], dtype=int)
-        pr_idx = np.array([pr_map[k] for k in common], dtype=int)
-        P = np.asarray(gt_protein.coord[gt_idx], dtype=np.float64)
-        Q = np.asarray(pred_protein.coord[pr_idx], dtype=np.float64)
-    else:
-        same_layout = (
-            len(gt_protein) == len(pred_protein) and
-            np.array_equal(gt_protein.atom_name, pred_protein.atom_name) and
-            np.array_equal(gt_protein.chain_id, pred_protein.chain_id) and
-            np.array_equal(gt_protein.res_id,   pred_protein.res_id)
-        )
-        if not same_layout:
-            print("align: not enough common Cα anchors and no global matchable layout")
-            return lddt_score, rmsd_score, tm_score_score
-        use_global = True
-        P = np.asarray(gt_protein.coord, dtype=np.float64)
-        Q = np.asarray(pred_protein.coord, dtype=np.float64)
-        all_idx = np.arange(len(gt_protein), dtype=int)
+        case "kabsch":
+            try:
+                gt_map = _ca_index_map(gt_protein)
+                pr_map = _ca_index_map(pred_protein)
+                common = [k for k in gt_map if k in pr_map]
 
-    # 3) Kabsch fit and apply to ALL atoms
-    try:
-        R, t = _kabsch(P, Q)
-        pred_aligned = pred_protein.copy()
-        pred_aligned.coord = (pred_protein.coord @ R.T + t).astype(np.float32)
-    except Exception as e:
-        print(f"align (kabsch) caused error: {e}")
-        return lddt_score, rmsd_score, tm_score_score
+                use_global = False
+                if len(common) >= 3:
+                    gt_idx = np.array([gt_map[k] for k in common], dtype=int)
+                    pr_idx = np.array([pr_map[k] for k in common], dtype=int)
+                    P = np.asarray(gt_protein.coord[gt_idx], dtype=np.float64)
+                    Q = np.asarray(pred_protein.coord[pr_idx], dtype=np.float64)
+                else:
+                    same_layout = (
+                        len(gt_protein) == len(pred_protein) and
+                        np.array_equal(gt_protein.atom_name, pred_protein.atom_name) and
+                        np.array_equal(gt_protein.chain_id,  pred_protein.chain_id)  and
+                        np.array_equal(gt_protein.res_id,    pred_protein.res_id)
+                    )
+                    if not same_layout:
+                        print("align: not enough common Cα anchors and no global matchable layout")
+                        return lddt_score, rmsd_score, tm_score_score
+                    use_global = True
+                    P = np.asarray(gt_protein.coord, dtype=np.float64)
+                    Q = np.asarray(pred_protein.coord, dtype=np.float64)
+                    all_idx = np.arange(len(gt_protein), dtype=int)
 
-    # 4) Metrics (pass indices explicitly for your tm_score signature)
-    try:
-        if use_global:
-            rmsd_score = float(rmsd(gt_protein, pred_aligned))
-            tm_score_score = float(tm_score(gt_protein, pred_aligned, all_idx, all_idx))
-        else:
-            rmsd_score = float(rmsd(gt_protein[gt_idx],        pred_aligned[pr_idx]))
-            tm_score_score = float(tm_score(gt_protein, pred_aligned, gt_idx, pr_idx))
-    except Exception as e:
-        print(f"metrics caused error: {e}")
+                R, t = _kabsch(P, Q)
+                pred_aligned = pred_protein.copy()
+                pred_aligned.coord = _apply_rt(pred_protein.coord, R, t)
+
+                if use_global:
+                    rmsd_score = float(rmsd(gt_protein, pred_aligned))
+                    tm_score_score = float(tm_score(gt_protein, pred_aligned, all_idx, all_idx))
+                else:
+                    rmsd_score = float(rmsd(gt_protein[gt_idx], pred_aligned[pr_idx]))
+                    tm_score_score = float(tm_score(gt_protein, pred_aligned, gt_idx, pr_idx))
+            except Exception as e:
+                print(f"kabsch align/metrics caused error: {e}")
 
     return lddt_score, rmsd_score, tm_score_score
 
