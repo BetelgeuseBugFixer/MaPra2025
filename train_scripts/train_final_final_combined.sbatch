@@ -19,13 +19,12 @@ echo "Starting training script..."
 python -u models/train.py --model final_final \
                           --lora_decoder \
                           --hidden 1024 \
-                          --kernel 7 3 3 3 \
+                          --kernel 5 3 3 \
                           --data_dir /mnt/data/large/subset2/ \
                           --epochs 30 \
                           --out_folder /mnt/models \
                           --batch 8 \
                           --patience 10 \
                           --lr 0.00005 \
-                          --losses tm lddt \
-                          --loss_weights 0.4 0.6
+                          --lora_r 16
 echo "Training script finished."

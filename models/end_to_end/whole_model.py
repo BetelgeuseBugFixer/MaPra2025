@@ -32,7 +32,7 @@ def get_epoch_losses_dict(sum_dict, total_samples, prefix=""):
 
 class FinalFinalModel(nn.Module):
     def __init__(self, hidden: list, device="cpu", kernel_sizes=[5], dropout: float = 0.1, plm_lora=False,
-                 decoder_lora=False, use_prostT5=False, use_standard_cnn=False):
+                 decoder_lora=False, use_prostT5=False, use_standard_cnn=False,lora_r=8):
         for kernel_size in kernel_sizes:
             assert kernel_size % 2 == 1, f"Kernel size {kernel_size} is invalid. Must be odd for symmetric context."
         super().__init__()
@@ -41,9 +41,9 @@ class FinalFinalModel(nn.Module):
         codebook_size = 128
         embeddings_size = 1024
         if use_prostT5:
-            self.plm = ProstT5(codebook_size, embeddings_size).to(device)
+            self.plm = ProstT5(codebook_size, embeddings_size,use_lora=plm_lora,lora_r=8).to(device)
         else:
-            self.plm = ProtT5(use_lora=plm_lora, device=device).to(device)
+            self.plm = ProtT5(use_lora=plm_lora, device=device,lora_r=8).to(device)
         if use_standard_cnn:
             self.cnn = ResidueTokenCNN(codebook_size, embeddings_size).to(device)
         else:
@@ -65,13 +65,14 @@ class FinalFinalModel(nn.Module):
             "plm_lora": plm_lora,
             "decoder_lora": decoder_lora,
             "use_prostT5": use_prostT5,
-            "use_standard_cnn": use_standard_cnn
+            "use_standard_cnn": use_standard_cnn,
+            "lora_r": lora_r
         }
         hidden_layers_string=hidden[0]
         if use_standard_cnn:
             hidden_layers_string = "_".join(str(i) for i in hidden)
         kernel_sizes_string = "_".join(str(i) for i in kernel_sizes)
-        lora_string = "_plm_lora" if plm_lora else ""
+        lora_string = f"_plm_lora_{lora_r}" if plm_lora else ""
         self.model_name = f"final_final_{'prost5' if use_prostT5 else 'prott5'}_cnn_type_{'0' if use_standard_cnn else '1'}_k{kernel_sizes_string}_h{hidden_layers_string}{lora_string}"
 
         # define most important metric and whether it needs to be minimized or maximized

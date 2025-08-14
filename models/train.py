@@ -58,6 +58,7 @@ def parse_args():
     parser.add_argument("--lora_plm", action="store_true", help=" use lora to finetune the plm")
     parser.add_argument("--lora_decoder", action="store_true", help=" use lora to finetune the plm")
     parser.add_argument("--bio2token", action="store_true", help="use bio2token instead of foldtoken in tfold")
+    parser.add_argument("--lora_r", type=int, help="lora rank", default=8)
     parser.add_argument("--alpha", type=int, help="weight of the lddt loss", default=1)
     parser.add_argument("--beta", type=int, help="weight of the encoding loss", default=1)
 
@@ -168,14 +169,14 @@ def build_final_model(lora_plm, lora_decoder, hidden, kernel_size, dropout, devi
     return model
 
 
-def build_final_final_model(lora_plm, lora_decoder, hidden, kernel_size, dropout, device, resume):
+def build_final_final_model(lora_plm, lora_decoder, lora_r, hidden, kernel_size, dropout, device, resume):
     if resume:
         model_file_path = find_latest_file(resume)
         model = FinalFinalModel.load_final_final(model_file_path, device=device).to(device)
     else:
         model = FinalFinalModel(hidden, kernel_sizes=kernel_size, plm_lora=lora_plm, decoder_lora=lora_decoder,
                                 device=device,
-                                dropout=dropout)
+                                dropout=dropout, lora_r=lora_r)
     return model
 
 
@@ -340,7 +341,7 @@ def _save_snapshot(sample, model, out_dir, tag, device, atoms_per_res=4):
     pdb.write(os.path.join(snap_dir, f"{tag}.pdb"))
 
     # calculate and return score
-    gt_struct=gt_struct.unsqueeze(0).to(device)
+    gt_struct = gt_struct.unsqueeze(0).to(device)
     ref_atom_array = model_prediction_to_atom_array(sequences, gt_struct, final_mask)[0]
     lddt_score = lddt(ref_atom_array, atom_array)
     return lddt_score
@@ -366,7 +367,7 @@ def get_model():
             return build_final_model(args.lora_plm, args.lora_decoder, args.hidden, args.kernel_size, args.dropout,
                                      args.device, args.alpha, args.beta, args.resume)
         case "final_final":
-            return build_final_final_model(args.lora_plm, args.lora_decoder, args.hidden, args.kernel_size,
+            return build_final_final_model(args.lora_plm, args.lora_decoder, args.lora_r, args.hidden, args.kernel_size,
                                            args.dropout, args.device, args.resume)
         case _:
             raise NotImplementedError
@@ -463,13 +464,13 @@ def _save_reference_pdb(sample, out_dir, tag, atoms_per_res=4):
     if gt_struct is None:
         print(f"[ref] {tag}: no GT structure in sample — skipped")
         return
-    model_in=[model_in]
+    model_in = [model_in]
     # If your dataset already returns an AtomArray, keep it; else build one from coords
     if isinstance(gt_struct, AtomArray):
         arr = gt_struct
     else:
-        gt_struct=gt_struct.unsqueeze(0)
-        B, L,_ = gt_struct.shape
+        gt_struct = gt_struct.unsqueeze(0)
+        B, L, _ = gt_struct.shape
         final_mask = torch.ones(B, L, dtype=torch.bool)
         arr = model_prediction_to_atom_array(model_in, gt_struct, final_mask)[0]
 
@@ -536,10 +537,9 @@ def main():
     out_folder = get_unique_folder(out_folder)
     os.makedirs(out_folder, exist_ok=True)
     print(f"saving model to {out_folder}")
-    #change wandb run name
+    # change wandb run name
     if not args.no_wandb:
         run.name = folder_name
-
 
     # save the three fixed reference PDBs once
     for key, sample in snapshot_cache:
