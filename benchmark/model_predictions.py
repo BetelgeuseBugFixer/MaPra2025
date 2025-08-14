@@ -71,19 +71,11 @@ def load_prot_from_pdb(pdb_file):
 
 
 def _kabsch(P, Q):
-    """
-    Compute optimal rotation R and translation t aligning Q -> P.
-    P, Q: (N,3) float arrays with N>=3
-    Returns R (3x3), t (3,)
-    """
-    Pc = P.mean(axis=0)
-    Qc = Q.mean(axis=0)
-    P0 = P - Pc
-    Q0 = Q - Qc
+    Pc, Qc = P.mean(axis=0), Q.mean(axis=0)
+    P0, Q0 = P - Pc, Q - Qc
     H = Q0.T @ P0
     U, S, Vt = np.linalg.svd(H)
     R = Vt.T @ U.T
-    # handle improper rotation
     if np.linalg.det(R) < 0:
         Vt[-1, :] *= -1
         R = Vt.T @ U.T
@@ -116,7 +108,7 @@ def get_scores(gt_pdb, pred):
     except Exception as e:
         print(f"lddt caused error: {e}")
 
-    # 2) Match Cα by (chain_id, res_id)
+    # 2) Correspondence (Cα by chain/res id if available)
     gt_map = _ca_index_map(gt_protein)
     pr_map = _ca_index_map(pred_protein)
     common = [k for k in gt_map if k in pr_map]
@@ -140,8 +132,9 @@ def get_scores(gt_pdb, pred):
         use_global = True
         P = np.asarray(gt_protein.coord, dtype=np.float64)
         Q = np.asarray(pred_protein.coord, dtype=np.float64)
+        all_idx = np.arange(len(gt_protein), dtype=int)
 
-    # 3) Kabsch fit Q->P and apply to ALL predicted atoms
+    # 3) Kabsch fit and apply to ALL atoms
     try:
         R, t = _kabsch(P, Q)
         pred_aligned = pred_protein.copy()
@@ -150,18 +143,19 @@ def get_scores(gt_pdb, pred):
         print(f"align (kabsch) caused error: {e}")
         return lddt_score, rmsd_score, tm_score_score
 
-    # 4) Metrics on the same correspondence
+    # 4) Metrics (pass indices explicitly for your tm_score signature)
     try:
         if use_global:
             rmsd_score = float(rmsd(gt_protein, pred_aligned))
-            tm_score_score = float(tm_score(gt_protein, pred_aligned))
+            tm_score_score = float(tm_score(gt_protein, pred_aligned, all_idx, all_idx))
         else:
             rmsd_score = float(rmsd(gt_protein[gt_idx],        pred_aligned[pr_idx]))
-            tm_score_score = float(tm_score(gt_protein[gt_idx], pred_aligned[pr_idx]))
+            tm_score_score = float(tm_score(gt_protein, pred_aligned, gt_idx, pr_idx))
     except Exception as e:
         print(f"metrics caused error: {e}")
 
     return lddt_score, rmsd_score, tm_score_score
+
 
 
 def get_smooth_lddt(lddt_loss_module, prediction, pdb_dict):
