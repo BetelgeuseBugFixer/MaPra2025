@@ -341,6 +341,7 @@ def _save_snapshot(sample, model, out_dir, tag, device, atoms_per_res=4):
     pdb.write(os.path.join(snap_dir, f"{tag}.pdb"))
 
     # calculate and return score
+    gt_struct=gt_struct.unsqueeze(0)
     ref_atom_array = model_prediction_to_atom_array(sequences, gt_struct, final_mask)[0]
     lddt_score = lddt(ref_atom_array, atom_array)
     return lddt_score
@@ -468,6 +469,7 @@ def _save_reference_pdb(sample, out_dir, tag, atoms_per_res=4):
     if isinstance(gt_struct, AtomArray):
         arr = gt_struct
     else:
+        gt_struct=gt_struct.unsqueeze(0)
         B, L = gt_struct.shape
         final_mask = torch.zeros(B, L * atoms_per_res, dtype=torch.bool)
         for i in range(len(model_in)):
