@@ -866,9 +866,7 @@ def write_pdb():
             B, L, _ = backbone_coords.shape
             final_mask = torch.zeros(B, L, dtype=torch.bool, device=device)
             final_mask[0, :len(seq) * 4] = True
-            is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
-            is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
-            lddt_loss = lddt_loss_module(structure_tensor, backbone_coords, is_dna, is_rna, final_mask)
+            lddt_loss = lddt_loss_module(backbone_coords, structure_tensor, final_mask)
             orig_value = lddt_loss.detach().cpu().item()
             smoooth_lddt = 1 - orig_value
             # calc other scores
