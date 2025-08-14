@@ -16,7 +16,7 @@ from torch.nn.utils.rnn import pad_sequence
 import matplotlib.pyplot as plt
 
 from models.bio2token.data.utils.utils import pad_and_stack_tensors
-from models.model_utils import SmoothLDDTLoss, TmLossModule, model_prediction_to_atom_array
+from models.model_utils import SmoothLDDTLoss, TmLossModule, model_prediction_to_atom_array, print_tensor
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
 from models.datasets.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir, PAD_LABEL, StructureAndTokenSet, \
     TokenSet, StructureSet
@@ -472,6 +472,9 @@ def _save_reference_pdb(sample, out_dir, tag, atoms_per_res=4):
         gt_struct=gt_struct.unsqueeze(0)
         B, L,_ = gt_struct.shape
         final_mask = torch.ones(B, L * atoms_per_res, dtype=torch.bool)
+        print_tensor(model_in,"gt_struct")
+        print_tensor(gt_struct,"gt_struct")
+        print_tensor(final_mask,"final_mask")
         arr = model_prediction_to_atom_array(model_in, gt_struct, final_mask)[0]
 
     ref_dir = os.path.join(out_dir, "references")
