@@ -851,23 +851,23 @@ def write_pdb():
         smooth_lddts, normal_lddts = [], []
         lddt_loss_module = SmoothLDDTLoss().to(device)
         # for i in range(len(seqs)):
-        for i in range(10):
+        for i in range(2):
             # get data
             pdb_path = pdb_paths[i]
             seq = [seqs[i]]
+            print(len(seq))
+            print(len(seq[0]))
 
             structure = filter_pdb_dict(pdb_dicts[i])["coords_groundtruth"]
             structure_tensor = torch.as_tensor(np.array(structure)).unsqueeze(0).to(device)
-            # print_tensor(structure_tensor, "structure_tensor")
+            print_tensor(structure_tensor, "structure_tensor")
 
             # predict structure
-            backbone_coords, _, _ = model(seq)
-            # print_tensor(backbone_coords, "pred")
+            backbone_coords, final_mask, _ = model(seq)
+            print_tensor(backbone_coords, "pred")
+            print_tensor(final_mask, "final_mask")
 
             # calc lddt
-            B, L, _ = backbone_coords.shape
-            final_mask = torch.zeros(B, L, dtype=torch.bool, device=device)
-            final_mask[0, :len(seq[0]) * 4] = True
             lddt_loss = lddt_loss_module(backbone_coords, structure_tensor, final_mask)
             orig_value = lddt_loss.detach().cpu().item()
             smoooth_lddt = 1 - orig_value
@@ -889,7 +889,9 @@ def write_pdb():
             file_name = extract_filename_with_suffix(pdb_path)
             file.write(os.path.join(out_dir, f"{file_name}_pred.pdb"))
             # gt
-            shutil.copy2(pdb_path, out_dir)
+            gt_file = PDBFile()
+            gt_file.set_structure(gt_protein)
+            gt_file.write(os.path.join(out_dir, f"{file_name}_gt.pdb"))
 
             del lddt_loss, structure_tensor, backbone_coords
 
