@@ -5,8 +5,7 @@
 #SBATCH -e slurm_out/model_preds.out
 #SBATCH --container-image="/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/container/final_final.sqsh"
 #SBATCH --container-mounts=/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/data:/mnt/data,/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/models:/mnt/models,/dss/dsshome1/01/ge43teg2/:/mnt/dir
-#SBATCH --time=2:00:00
-#SBATCH --mem=150G
+#SBATCH --time=1:00:00
 
 # command to execute and track it
 # sbatch benchmark/model_preds.sbatch & tail -f slurm_out/model_preds.out
