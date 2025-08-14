@@ -1,11 +1,40 @@
+import numpy as np
 import torch
-from biotite.structure import lddt
+from biotite.structure import lddt, AtomArray
+from biotite.structure.io.pdb import PDBFile
 from torch.nn import Module
 import einx
 
 from models.bio2token.data.utils.tokens import PAD_CLASS
 from models.bio2token.data.utils.utils import filter_batch, pad_and_stack_batch, compute_masks, pdb_2_dict, \
     uniform_dataframe
+
+def model_prediction_to_atom_array(sequences, model_prediction, final_mask):
+    for i in range(len(sequences)):
+        seq = sequences[i]
+        protein_length = len(seq)
+
+        # init atom array
+        atom_arrray = AtomArray(protein_length * 4)
+
+        # set structure with predictions
+        atom_arrray.coord = model_prediction[i][final_mask[i]].detach().cpu().numpy().astype(np.float32)
+
+        # set atom names, residues and sequences
+        atom_names = np.array(["N", "CA", "C", "O"])
+        atom_arrray.atom_name = np.tile(atom_names, protein_length)
+        atom_arrray.res_id = np.repeat(np.arange(1, protein_length + 1), 4)
+        seq_array = np.array(list(seq))
+        rep_seq_array = np.repeat(seq_array, 4)
+        atom_arrray.res_name = rep_seq_array
+        atom_arrray.chain_id = np.repeat(np.array(["A"]), protein_length * 4)
+        atom_arrray.element = np.tile(np.array(["N", "C", "C", "O"]), protein_length)
+
+        return atom_arrray
+
+
+def print_tensor(tensor, name):
+    print(f"{name}-{tensor.shape}:\n{tensor}")
 
 
 def _masked_accuracy(logits, tgt, mask):

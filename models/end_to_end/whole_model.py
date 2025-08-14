@@ -10,7 +10,7 @@ from torch.nn.utils import clip_grad_norm_
 from models.bio2token.decoder import Bio2tokenDecoder
 from models.foldtoken_decoder.foldtoken import FoldToken
 from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores, SmoothLDDTLoss, masked_mse_loss, \
-    TmLossModule, compute_total_loss, print_trainable_parameters
+    TmLossModule, compute_total_loss, print_trainable_parameters, print_tensor
 from models.prot_t5.prot_t5 import ProtT5, ProstT5
 from models.datasets.datasets import PAD_LABEL
 from models.simple_classifier.simple_classifier import ResidueTokenCNN, FinalResidueTokenCNN
@@ -127,7 +127,7 @@ class FinalFinalModel(nn.Module):
         B, L, _ = cnn_out.shape
         eos_mask = torch.ones(B, L, dtype=torch.bool, device=x.device)
         for i, length in enumerate(true_lengths):
-            eos_mask[i, :length] = False
+            eos_mask[i, :length * 4] = False
         x = self.decoder.decoder.decoder(cnn_out, eos_mask)
         # create mask for all relevant positions
         final_mask = ~eos_mask

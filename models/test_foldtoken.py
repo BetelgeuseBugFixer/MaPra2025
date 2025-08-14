@@ -27,7 +27,8 @@ from models.bio2token.models.autoencoder import AutoencoderConfig, Autoencoder
 from models.bio2token.utils.configs import utilsyaml_to_dict, pi_instantiate
 from models.collab_fold.esmfold import EsmFold
 from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores, SmoothLDDTLoss, \
-    batch_pdbs_for_bio2token, print_trainable_parameters, masked_mse_loss, batch_pdb_dicts, TmLossModule
+    batch_pdbs_for_bio2token, print_trainable_parameters, masked_mse_loss, batch_pdb_dicts, TmLossModule, print_tensor, \
+    model_prediction_to_atom_array
 from models.prot_t5.prot_t5 import ProtT5
 from models.datasets.datasets import PAD_LABEL, StructureAndTokenSet, StructureSet
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
@@ -39,7 +40,8 @@ from models.end_to_end.whole_model import TFold, FinalModel, FinalFinalModel
 from transformers import T5EncoderModel, T5Tokenizer
 from hydra_zen import load_from_yaml, builds, instantiate
 
-from models.train import collate_emb_struc_tok_batch, collate_seq_struc_tok_batch, collate_seq_struc
+from models.train import collate_emb_struc_tok_batch, collate_seq_struc_tok_batch, collate_seq_struc, _select_first_n, \
+    _save_snapshot, _save_reference_pdb
 from transformers import AutoTokenizer, EsmForProteinFolding
 
 from utils.generate_new_data import filter_pdb_dict
@@ -528,8 +530,7 @@ def get_protein_sizes_in_dataset(data_file="/mnt/data/large/subset/train/protein
     print(f"found {number_of_to_large_proteins} proteins larger then {max_size} in {all_proteins} proteins.")
 
 
-def print_tensor(tensor, name):
-    print(f"{name}-{tensor.shape}:\n{tensor}")
+
 
 
 # def test_dataset_generation():
@@ -828,11 +829,11 @@ def extract_filename_with_suffix(path, suffix='', keep_extension=False):
 
 def write_pdb():
     device = "cuda"
-    out_dir = "test"
+    out_dir = "test/v1"
     os.makedirs(out_dir, exist_ok=True)
     # prepare model
     model = FinalFinalModel.load_final_final(
-        "/mnt/models/final_final_prott5_cnn_type_1_k7_3_3_3_h1024_plm_lora_lr5e-05_2/final_final_prott5_cnn_type_1_k7_3_3_3_h1024_plm_lora.pt",
+        "/mnt/models/final_final_prott5_cnn_type_1_k7_3_3_3_h1024_plm_lora_lr5e-05/final_final_prott5_cnn_type_1_k7_3_3_3_h1024_plm_lora.pt",
         device).to(device)
 
     # prepare data
@@ -849,32 +850,30 @@ def write_pdb():
     with torch.inference_mode():
         smooth_lddts, normal_lddts = [], []
         lddt_loss_module = SmoothLDDTLoss().to(device)
-        for i in range(len(seqs)):
+        # for i in range(len(seqs)):
+        for i in range(2):
             # get data
             pdb_path = pdb_paths[i]
             seq = [seqs[i]]
+            print(len(seq))
+            print(len(seq[0]))
 
             structure = filter_pdb_dict(pdb_dicts[i])["coords_groundtruth"]
             structure_tensor = torch.as_tensor(np.array(structure)).unsqueeze(0).to(device)
-            # print_tensor(structure_tensor, "structure_tensor")
+            print_tensor(structure_tensor, "structure_tensor")
 
             # predict structure
-            backbone_coords, _, _ = model(seq)
-            # print_tensor(backbone_coords, "pred")
+            backbone_coords, final_mask, _ = model(seq)
+            print_tensor(backbone_coords, "pred")
+            print_tensor(final_mask, "final_mask")
 
             # calc lddt
-            B, L, _ = backbone_coords.shape
-            final_mask = torch.zeros(B, L, dtype=torch.bool, device=device)
-            final_mask[0, :len(seq) * 4] = True
-            is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
-            is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
-            lddt_loss = lddt_loss_module(structure_tensor, backbone_coords, is_dna, is_rna, final_mask)
+            lddt_loss = lddt_loss_module(backbone_coords, structure_tensor, final_mask)
             orig_value = lddt_loss.detach().cpu().item()
             smoooth_lddt = 1 - orig_value
             # calc other scores
             gt_protein = load_prot_from_pdb(pdb_path)
-            pred_protein = gt_protein.copy()
-            pred_protein.coord = backbone_coords.squeeze(0).detach().cpu().numpy().astype(np.float32)
+            pred_protein = model_prediction_to_atom_array(seqs,pred_protein,final_mask)
             normal_lddt = float(lddt(gt_protein, pred_protein))
 
             # append score to list
@@ -889,13 +888,39 @@ def write_pdb():
             file_name = extract_filename_with_suffix(pdb_path)
             file.write(os.path.join(out_dir, f"{file_name}_pred.pdb"))
             # gt
-            shutil.copy2(pdb_path, out_dir)
+            gt_file = PDBFile()
+            gt_file.set_structure(gt_protein)
+            gt_file.write(os.path.join(out_dir, f"{file_name}_gt.pdb"))
 
             del lddt_loss, structure_tensor, backbone_coords
 
 
 
     plot_smooth_lddt(normal_lddts, smooth_lddts, os.path.join(out_dir, "new_smooth_lddt.png"))
+
+
+def write_pdb_v2():
+    device="cuda"
+
+    #prepare data
+    out_folder = "test/v2"
+    data_dir="/mnt/data/large/subset2/"
+    val_dir = os.path.join(data_dir, "val")
+    val_set = StructureSet(val_dir, precomputed_embeddings=False)
+    snapshot_cache = _select_first_n(val_set, n=100)
+
+    # create red pdbs
+    for key, sample in snapshot_cache:
+        ref_tag = f"ref_{str(key)}"
+        _save_reference_pdb(sample, out_folder, ref_tag)
+
+    #prepare model
+    model = FinalFinalModel.load_final_final(
+        "/mnt/models/final_final_prott5_cnn_type_1_k7_3_3_3_h1024_plm_lora_lr5e-05/final_final_prott5_cnn_type_1_k7_3_3_3_h1024_plm_lora.pt",
+        device).to(device)
+    for key, sample in snapshot_cache:
+        tag = f"epoch_{0}_{str(key)}"
+        _save_snapshot(sample, model, out_folder, tag, device=device)
 
 
 def print_gradients(model):
