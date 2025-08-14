@@ -27,7 +27,8 @@ from models.bio2token.models.autoencoder import AutoencoderConfig, Autoencoder
 from models.bio2token.utils.configs import utilsyaml_to_dict, pi_instantiate
 from models.collab_fold.esmfold import EsmFold
 from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores, SmoothLDDTLoss, \
-    batch_pdbs_for_bio2token, print_trainable_parameters, masked_mse_loss, batch_pdb_dicts, TmLossModule, print_tensor
+    batch_pdbs_for_bio2token, print_trainable_parameters, masked_mse_loss, batch_pdb_dicts, TmLossModule, print_tensor, \
+    model_prediction_to_atom_array
 from models.prot_t5.prot_t5 import ProtT5
 from models.datasets.datasets import PAD_LABEL, StructureAndTokenSet, StructureSet
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
