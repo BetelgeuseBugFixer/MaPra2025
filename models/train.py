@@ -8,6 +8,7 @@ import wandb
 import torch
 from biotite.structure import AtomArray
 from biotite.structure.io.pdb import PDBFile
+from torch.optim.lr_scheduler import LinearLR, CosineAnnealingLR, SequentialLR
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
 
@@ -517,21 +518,29 @@ def main():
         lr=args.lr,
         weight_decay=0.01
     )
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer,
-        mode='min',
-        factor=0.5,
-        patience=4,
-        min_lr=0.000005,
-    )
     if args.resume and args.load_optimizer:
         optimizer_path = os.path.join(args.resume, "optimizer.pt")
-        scheduler_path = os.path.join(args.resume, "scheduler.pt")
-        if os.path.exists(optimizer_path) and os.path.exists(scheduler_path):
+        if os.path.exists(optimizer_path):
             optimizer.load_state_dict(torch.load(optimizer_path, map_location=args.device))
-            scheduler.load_state_dict(torch.load(scheduler_path, map_location=args.device))
         else:
-            print("Warning: Optimizer/scheduler states not found. Starting fresh.")
+            print("Warning: optimizer states not found. Starting fresh.")
+
+    # init scheduler
+    warmup_steps = 1000
+    total_steps = args.epochs * len(train_loader)
+    if args.resume:
+        scheduler = CosineAnnealingLR(optimizer, T_max=total_steps)
+    else:
+        # Warm-up: start_lr=0 → base_lr over `warmup_steps`
+        scheduler1 = LinearLR(optimizer, start_factor=0.01, total_iters=warmup_steps)
+        # Decay: cosine annealing after warm-up
+        scheduler2 = CosineAnnealingLR(optimizer, T_max=total_steps - warmup_steps)
+        scheduler = SequentialLR(
+            optimizer,
+            schedulers=[scheduler1, scheduler2],
+            milestones=[warmup_steps]
+        )
+
 
     # init losses
     loss_modules = [LOSS_REGISTRY[loss_name].to(args.device) for loss_name in args.losses]

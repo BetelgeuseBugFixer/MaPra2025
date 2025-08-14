@@ -829,7 +829,7 @@ def extract_filename_with_suffix(path, suffix='', keep_extension=False):
 
 def write_pdb():
     device = "cuda"
-    out_dir = "test"
+    out_dir = "test/v1"
     os.makedirs(out_dir, exist_ok=True)
     # prepare model
     model = FinalFinalModel.load_final_final(
@@ -902,8 +902,8 @@ def write_pdb_v2():
     device="cuda"
 
     #prepare data
-    out_folder = "test_v2"
-    data_dir="mnt/data/large/subset2/"
+    out_folder = "test/v2"
+    data_dir="/mnt/data/large/subset2/"
     val_dir = os.path.join(data_dir, "val")
     val_set = StructureSet(val_dir, precomputed_embeddings=False)
     snapshot_cache = _select_first_n(val_set, n=100)
