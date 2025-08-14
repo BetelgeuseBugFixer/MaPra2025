@@ -70,6 +70,32 @@ def load_prot_from_pdb(pdb_file):
     return array_stack[_filter_atom_names(array_stack, BACKBONE_ATOMS)]
 
 
+def _kabsch(P, Q):
+    """
+    Compute optimal rotation R and translation t aligning Q -> P.
+    P, Q: (N,3) float arrays with N>=3
+    Returns R (3x3), t (3,)
+    """
+    Pc = P.mean(axis=0)
+    Qc = Q.mean(axis=0)
+    P0 = P - Pc
+    Q0 = Q - Qc
+    H = Q0.T @ P0
+    U, S, Vt = np.linalg.svd(H)
+    R = Vt.T @ U.T
+    # handle improper rotation
+    if np.linalg.det(R) < 0:
+        Vt[-1, :] *= -1
+        R = Vt.T @ U.T
+    t = Pc - Qc @ R.T
+    return R, t
+
+def _ca_index_map(a):
+    mask = filter_amino_acids(a) & (a.atom_name == "CA")
+    keys = list(zip(a.chain_id[mask], a.res_id[mask]))
+    idxs = np.nonzero(mask)[0]
+    return {k: i for k, i in zip(keys, idxs)}
+
 def get_scores(gt_pdb, pred):
     gt_protein = load_prot_from_pdb(gt_pdb)
 
@@ -80,34 +106,27 @@ def get_scores(gt_pdb, pred):
         pred_protein = gt_protein.copy()
         pred_protein.coord = np.asarray(pred, dtype=np.float32)
 
-    # helper: map CA by (chain_id, res_id)
-    def ca_index_map(a):
-        mask = filter_amino_acids(a) & (a.atom_name == "CA")
-        keys = list(zip(a.chain_id[mask], a.res_id[mask]))
-        idxs = np.nonzero(mask)[0]
-        return {k: i for k, i in zip(keys, idxs)}
-
     lddt_score = np.nan
     rmsd_score = np.nan
     tm_score_score = np.nan
 
-    # LDDT before alignment
+    # 1) LDDT before alignment
     try:
         lddt_score = float(lddt(gt_protein, pred_protein))
     except Exception as e:
         print(f"lddt caused error: {e}")
 
-    # match CA pairs
-    gt_map = ca_index_map(gt_protein)
-    pr_map = ca_index_map(pred_protein)
+    # 2) Match Cα by (chain_id, res_id)
+    gt_map = _ca_index_map(gt_protein)
+    pr_map = _ca_index_map(pred_protein)
     common = [k for k in gt_map if k in pr_map]
 
     use_global = False
     if len(common) >= 3:
         gt_idx = np.array([gt_map[k] for k in common], dtype=int)
         pr_idx = np.array([pr_map[k] for k in common], dtype=int)
-        ref_for_fit = gt_protein[gt_idx]
-        mob_for_fit = pred_protein[pr_idx]
+        P = np.asarray(gt_protein.coord[gt_idx], dtype=np.float64)
+        Q = np.asarray(pred_protein.coord[pr_idx], dtype=np.float64)
     else:
         same_layout = (
             len(gt_protein) == len(pred_protein) and
@@ -116,25 +135,22 @@ def get_scores(gt_pdb, pred):
             np.array_equal(gt_protein.res_id,   pred_protein.res_id)
         )
         if not same_layout:
-            print("superimpose: not enough common Cα anchors and no global matchable layout")
+            print("align: not enough common Cα anchors and no global matchable layout")
             return lddt_score, rmsd_score, tm_score_score
         use_global = True
-        ref_for_fit = gt_protein
-        mob_for_fit = pred_protein
+        P = np.asarray(gt_protein.coord, dtype=np.float64)
+        Q = np.asarray(pred_protein.coord, dtype=np.float64)
 
-    # >>> FIX: call superimpose() with coordinate arrays, not AtomArray <<<
+    # 3) Kabsch fit Q->P and apply to ALL predicted atoms
     try:
-        R, t = superimpose(
-            np.asarray(ref_for_fit.coord, dtype=np.float64),
-            np.asarray(mob_for_fit.coord, dtype=np.float64)
-        )
+        R, t = _kabsch(P, Q)
         pred_aligned = pred_protein.copy()
-        pred_aligned.coord = pred_protein.coord @ R.T + t
+        pred_aligned.coord = (pred_protein.coord @ R.T + t).astype(np.float32)
     except Exception as e:
-        print(f"superimpose caused error: {e}")
+        print(f"align (kabsch) caused error: {e}")
         return lddt_score, rmsd_score, tm_score_score
 
-    # metrics on the same correspondence
+    # 4) Metrics on the same correspondence
     try:
         if use_global:
             rmsd_score = float(rmsd(gt_protein, pred_aligned))
