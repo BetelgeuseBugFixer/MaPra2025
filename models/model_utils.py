@@ -1,3 +1,5 @@
+from turtledemo.clock import current_day
+
 import numpy as np
 import torch
 from biotite.structure import lddt, AtomArray
@@ -10,27 +12,29 @@ from models.bio2token.data.utils.utils import filter_batch, pad_and_stack_batch,
     uniform_dataframe
 
 def model_prediction_to_atom_array(sequences, model_prediction, final_mask):
+    atom_arrays = []
     for i in range(len(sequences)):
         seq = sequences[i]
         protein_length = len(seq)
 
         # init atom array
-        atom_arrray = AtomArray(protein_length * 4)
+        current_atom_arrray = AtomArray(protein_length * 4)
 
         # set structure with predictions
-        atom_arrray.coord = model_prediction[i][final_mask[i]].detach().cpu().numpy().astype(np.float32)
+        current_atom_arrray.coord = model_prediction[i][final_mask[i]].detach().cpu().numpy().astype(np.float32)
 
         # set atom names, residues and sequences
         atom_names = np.array(["N", "CA", "C", "O"])
-        atom_arrray.atom_name = np.tile(atom_names, protein_length)
-        atom_arrray.res_id = np.repeat(np.arange(1, protein_length + 1), 4)
+        current_atom_arrray.atom_name = np.tile(atom_names, protein_length)
+        current_atom_arrray.res_id = np.repeat(np.arange(1, protein_length + 1), 4)
         seq_array = np.array(list(seq))
         rep_seq_array = np.repeat(seq_array, 4)
-        atom_arrray.res_name = rep_seq_array
-        atom_arrray.chain_id = np.repeat(np.array(["A"]), protein_length * 4)
-        atom_arrray.element = np.tile(np.array(["N", "C", "C", "O"]), protein_length)
+        current_atom_arrray.res_name = rep_seq_array
+        current_atom_arrray.chain_id = np.repeat(np.array(["A"]), protein_length * 4)
+        current_atom_arrray.element = np.tile(np.array(["N", "C", "C", "O"]), protein_length)
+        atom_arrays.append(current_atom_arrray)
 
-        return atom_arrray
+    return atom_arrays
 
 
 def print_tensor(tensor, name):
