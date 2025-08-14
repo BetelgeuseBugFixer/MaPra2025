@@ -80,24 +80,24 @@ def get_scores(gt_pdb, pred):
         pred_protein = gt_protein.copy()
         pred_protein.coord = np.asarray(pred, dtype=np.float32)
 
-    # helpers
+    # init outputs
+    lddt_score = np.nan
+    rmsd_score = np.nan
+    tm_score_score = np.nan
+
+    # LDDT BEFORE alignment
+    try:
+        lddt_score = float(lddt(gt_protein, pred_protein))
+    except Exception as e:
+        print(f"lddt caused error: {e}")
+
+    # --- alignment helpers: match Cα by (chain_id, res_id) ---
     def ca_index_map(a):
         mask = filter_amino_acids(a) & (a.atom_name == "CA")
         keys = list(zip(a.chain_id[mask], a.res_id[mask]))
         idxs = np.nonzero(mask)[0]
         return {k: i for k, i in zip(keys, idxs)}
 
-    lddt_score = np.nan
-    rmsd_score = np.nan
-    tm_score_score = np.nan
-
-    # 1) LDDT before alignment
-    try:
-        lddt_score = float(lddt(gt_protein, pred_protein))
-    except Exception as e:
-        print(f"lddt caused error: {e}")
-
-    # 2) Find corresponding Cα pairs
     gt_map = ca_index_map(gt_protein)
     pr_map = ca_index_map(pred_protein)
     common = [k for k in gt_map if k in pr_map]
@@ -109,7 +109,7 @@ def get_scores(gt_pdb, pred):
         ref_for_fit = gt_protein[gt_idx]
         mob_for_fit = pred_protein[pr_idx]
     else:
-        # fallback if atom layouts match exactly
+        # fallback only if atom layouts match 1:1
         same_layout = (
             len(gt_protein) == len(pred_protein) and
             np.array_equal(gt_protein.atom_name, pred_protein.atom_name) and
@@ -123,16 +123,16 @@ def get_scores(gt_pdb, pred):
         ref_for_fit = gt_protein
         mob_for_fit = pred_protein
 
-    # 3) Superimpose (Kabsch): get R, t and apply to full predicted structure
+    # Fit: superimpose() returns (R, t) — apply to ALL coords
     try:
-        R, t = superimpose(ref_for_fit, mob_for_fit)  # returns (3x3, 3,)
+        R, t = superimpose(ref_for_fit, mob_for_fit)  # (3x3, 3,)
         pred_aligned = pred_protein.copy()
         pred_aligned.coord = pred_protein.coord @ R.T + t
     except Exception as e:
         print(f"superimpose caused error: {e}")
         return lddt_score, rmsd_score, tm_score_score
 
-    # 4) RMSD & TM-score on the same correspondence
+    # Metrics on the same correspondence
     try:
         if use_global:
             rmsd_score = float(rmsd(gt_protein, pred_aligned))
@@ -142,43 +142,6 @@ def get_scores(gt_pdb, pred):
             tm_score_score = float(tm_score(gt_protein[gt_idx], pred_aligned[pr_idx]))
     except Exception as e:
         print(f"metrics caused error: {e}")
-
-    return lddt_score, rmsd_score, tm_score_score
-
-
-def get_scores(gt_pdb, pred):
-    gt_protein = load_prot_from_pdb(gt_pdb)
-
-    if isinstance(pred, str):
-        pred_protein = load_prot_from_pdb(pred)
-    else:
-        pred_protein = gt_protein.copy()
-        pred_protein.coord = pred
-
-    try:
-        # calculate lddt before aligning structures for rmsd and tm score
-        lddt_score = float(lddt(gt_protein, pred_protein))
-    except Exception as e:
-        print(f"lddt caused error: {e}")
-
-    try:
-        # Superimpose predicted onto ground-truth
-        superimposed, _, ref_indices, sub_indices = superimpose(
-            gt_protein, pred_protein)
-    except Exception as e:
-        print(f"superimposed caused error: {e}")
-
-    try:
-        # rmsd
-        rmsd_score = float(rmsd(gt_protein, superimposed))
-    except Exception as e:
-        print(f"rmsd caused error: {e}")
-
-    try:
-        # tm score
-        tm_score_score = tm_score(gt_protein, superimposed, ref_indices, sub_indices)
-    except Exception as e:
-        print(f"tm caused error: {e}")
 
     return lddt_score, rmsd_score, tm_score_score
 
