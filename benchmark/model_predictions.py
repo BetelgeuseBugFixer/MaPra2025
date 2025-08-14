@@ -101,10 +101,8 @@ def get_smooth_lddt(lddt_loss_module, prediction, pdb_dict):
     gt = torch.tensor(filtered["coords_groundtruth"]).unsqueeze(0).to(device)
     pd = prediction.unsqueeze(0).to(device)
     B, L, _ = gt.shape
-    is_dna = torch.zeros((B, L), dtype=torch.bool, device=device)
-    is_rna = torch.zeros((B, L), dtype=torch.bool, device=device)
     mask = torch.ones((B, L), dtype=torch.bool, device=device)
-    lddt_score = 1 - lddt_loss_module(gt, pd, is_dna, is_rna, mask).item()
+    lddt_score = 1 - lddt_loss_module(gt, pd, mask).item()
     return lddt_score
 
 
