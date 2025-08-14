@@ -471,13 +471,10 @@ def _save_reference_pdb(sample, out_dir, tag, atoms_per_res=4):
     else:
         gt_struct=gt_struct.unsqueeze(0)
         B, L,_ = gt_struct.shape
-        print(f"B:{B}")
-        print(f"L:{L}")
-        print(model_in)
         final_mask = torch.zeros(B, L * atoms_per_res, dtype=torch.bool)
         for i in range(len(model_in)):
             final_mask[i, :len(model_in[i]) * atoms_per_res] = True
-        arr = model_prediction_to_atom_array(model_in, gt_struct, final_mask)[0]
+        arr = model_prediction_to_atom_array([model_in], gt_struct, final_mask)[0]
 
     ref_dir = os.path.join(out_dir, "references")
     os.makedirs(ref_dir, exist_ok=True)
