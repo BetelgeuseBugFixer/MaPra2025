@@ -87,15 +87,14 @@ def get_scores(gt_pdb, pred):
 
     try:
         # Superimpose predicted onto ground-truth
-        superimposed, _, ref_indices, sub_indices = superimpose_structural_homologs(
-            gt_protein, pred_protein, max_iterations=1
-        )
+        superimposed, _, ref_indices, sub_indices = superimpose(
+            gt_protein, pred_protein)
     except Exception as e:
         print(f"superimposed caused error: {e}")
 
     try:
         # rmsd
-        rmsd_score = float(rmsd(gt_protein, pred_protein)) #rm superimpose for testing
+        rmsd_score = float(rmsd(gt_protein, superimposed))
     except Exception as e:
         print(f"rmsd caused error: {e}")
 
