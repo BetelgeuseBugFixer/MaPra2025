@@ -1043,7 +1043,10 @@ if __name__ == '__main__':
     scheduler=ReduceLROnPlateau(optimizer,factor=1.0)
     losses=[SmoothLDDTLoss()]
     loss_weights=[1]
-    train_score_dict = model.run_epoch(data_loader, losses, loss_weights, optimizer=optimizer,
+
+    for i in range(1000):
+        train_score_dict = model.run_epoch(data_loader, losses, loss_weights, optimizer=optimizer,
                                        scheduler=scheduler,
                                        device=device)
+        print(train_score_dict)
 
