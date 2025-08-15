@@ -11,27 +11,61 @@ from models.bio2token.data.utils.tokens import PAD_CLASS
 from models.bio2token.data.utils.utils import filter_batch, pad_and_stack_batch, compute_masks, pdb_2_dict, \
     uniform_dataframe
 
-def model_prediction_to_atom_array(sequences, model_prediction, final_mask):
+AA1_TO_AA3 = {
+    "A": "ALA", "R": "ARG", "N": "ASN", "D": "ASP", "C": "CYS",
+    "E": "GLU", "Q": "GLN", "G": "GLY", "H": "HIS", "I": "ILE",
+    "L": "LEU", "K": "LYS", "M": "MET", "F": "PHE", "P": "PRO",
+    "S": "SER", "T": "THR", "W": "TRP", "Y": "TYR", "V": "VAL",
+    # Sonderfälle / Ambiguitäten
+    "U": "SEC",  # Selenocystein
+    "O": "PYL",  # Pyrrolysin
+    "B": "ASX",  # Asn/Asp
+    "Z": "GLX",  # Gln/Glu
+    "J": "XLE",  # Leu/Ile
+    "X": "UNK",  # unbekannt
+}
+
+
+def seq_to_aa3(seq: str):
+    # Falls unbekannter Buchstabe -> UNK, damit Writer nicht crasht
+    return [AA1_TO_AA3.get(a.upper(), "UNK") for a in seq]
+
+def model_prediction_to_atom_array(sequences, model_prediction, final_mask, only_c_alpha=False):
     atom_arrays = []
     for i in range(len(sequences)):
         seq = sequences[i]
         protein_length = len(seq)
 
         # init atom array
-        current_atom_arrray = AtomArray(protein_length * 4)
+        if only_c_alpha:
+            atoms_per_residue = 1
+        else:
+            atoms_per_residue=4
+        current_atom_arrray = AtomArray(protein_length * atoms_per_residue)
+
 
         # set structure with predictions
         current_atom_arrray.coord = model_prediction[i][final_mask[i]].detach().cpu().numpy().astype(np.float32)
 
-        # set atom names, residues and sequences
-        atom_names = np.array(["N", "CA", "C", "O"])
+        # set atom names
+        if only_c_alpha:
+            atom_names = np.array(["CA"])
+        else:
+            atom_names = np.array(["N", "CA", "C", "O"])
+
         current_atom_arrray.atom_name = np.tile(atom_names, protein_length)
-        current_atom_arrray.res_id = np.repeat(np.arange(1, protein_length + 1), 4)
-        seq_array = np.array(list(seq))
-        rep_seq_array = np.repeat(seq_array, 4)
+        current_atom_arrray.res_id = np.repeat(np.arange(1, protein_length + 1), atoms_per_residue)
+        # seq
+        seq_array = np.array(list(seq_to_aa3(seq)))
+        rep_seq_array = np.repeat(seq_array, atoms_per_residue)
         current_atom_arrray.res_name = rep_seq_array
-        current_atom_arrray.chain_id = np.repeat(np.array(["A"]), protein_length * 4)
-        current_atom_arrray.element = np.tile(np.array(["N", "C", "C", "O"]), protein_length)
+        # chain
+        current_atom_arrray.chain_id = np.repeat(np.array(["A"]), protein_length * atoms_per_residue)
+        # atom types
+        if only_c_alpha:
+            current_atom_arrray.element = np.tile(np.array(["C"]), protein_length)
+        else:
+            current_atom_arrray.element = np.tile(np.array(["N", "C", "C", "O"]), protein_length)
         atom_arrays.append(current_atom_arrray)
 
     return atom_arrays
