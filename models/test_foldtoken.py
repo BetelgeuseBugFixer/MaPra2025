@@ -16,7 +16,8 @@ from torch import nn
 from torch.nn.utils import clip_grad_norm_
 from torch.nn.utils.rnn import pad_sequence
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.utils.data import DataLoader, Subset
 
 from benchmark.model_predictions import prepare_data, plot_smooth_lddt
 from models.bio2token.data.utils.tokens import PAD_CLASS
@@ -1023,4 +1024,26 @@ def test_new_model():
 
 
 if __name__ == '__main__':
-    write_pdb()
+    device="cuda"
+    # init dat
+    val_dir = os.path.join("/mnt/data/large/subset2/", "val")
+    val_set = StructureSet(val_dir, precomputed_embeddings=False)
+    collate_function = collate_seq_struc
+    subset_size = 1  # Number of samples in subset
+    subset_indices = list(range(subset_size))  # First 1000 samples
+    subset_dataset = Subset(val_set, subset_indices)
+    data_loader=DataLoader(subset_dataset, batch_size=8, collate_fn=collate_function)
+    # init model
+
+    model=FinalFinalModel(hidden=[1024],device=device,kernel_sizes=[7,3,3],dropout=0.0,decoder_lora=True,c_alpha_only=True)
+    optimizer = torch.optim.Adam(
+        model.parameters(),
+        lr=0.00001,
+    )
+    scheduler=ReduceLROnPlateau(optimizer,factor=1.0)
+    losses=[SmoothLDDTLoss()]
+    loss_weights=[1]
+    train_score_dict = model.run_epoch(data_loader, losses, loss_weights, optimizer=optimizer,
+                                       scheduler=scheduler,
+                                       device=device)
+

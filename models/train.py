@@ -58,9 +58,11 @@ def parse_args():
     parser.add_argument("--lora_plm", action="store_true", help=" use lora to finetune the plm")
     parser.add_argument("--lora_decoder", action="store_true", help=" use lora to finetune the plm")
     parser.add_argument("--bio2token", action="store_true", help="use bio2token instead of foldtoken in tfold")
+    parser.add_argument("--c_alpha", action="store_true", help="only predict c-alpha atoms")
     parser.add_argument("--lora_r", type=int, help="lora rank", default=8)
     parser.add_argument("--alpha", type=int, help="weight of the lddt loss", default=1)
     parser.add_argument("--beta", type=int, help="weight of the encoding loss", default=1)
+
 
     # cnn exclusive setting
     parser.add_argument("--codebook_size", type=int, default=1024,
@@ -169,14 +171,14 @@ def build_final_model(lora_plm, lora_decoder, hidden, kernel_size, dropout, devi
     return model
 
 
-def build_final_final_model(lora_plm, lora_decoder, lora_r, hidden, kernel_size, dropout, device, resume):
+def build_final_final_model(lora_plm, lora_decoder, lora_r, hidden, kernel_size, dropout, device, c_alpha, resume):
     if resume:
         model_file_path = find_latest_file(resume)
         model = FinalFinalModel.load_final_final(model_file_path, device=device).to(device)
     else:
         model = FinalFinalModel(hidden, kernel_sizes=kernel_size, plm_lora=lora_plm, decoder_lora=lora_decoder,
                                 device=device,
-                                dropout=dropout, lora_r=lora_r)
+                                dropout=dropout, lora_r=lora_r, c_alpha_only=c_alpha)
     return model
 
 

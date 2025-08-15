@@ -32,23 +32,28 @@ def get_epoch_losses_dict(sum_dict, total_samples, prefix=""):
 
 class FinalFinalModel(nn.Module):
     def __init__(self, hidden: list, device="cpu", kernel_sizes=[5], dropout: float = 0.1, plm_lora=False,
-                 decoder_lora=False, use_prostT5=False, use_standard_cnn=False,lora_r=8):
+                 decoder_lora=False, use_prostT5=False, use_standard_cnn=False,lora_r=8,c_alpha_only=False):
         for kernel_size in kernel_sizes:
             assert kernel_size % 2 == 1, f"Kernel size {kernel_size} is invalid. Must be odd for symmetric context."
         super().__init__()
         self.device = device
         # define model
+        self.c_alpha_only = c_alpha_only
         codebook_size = 128
         embeddings_size = 1024
+        self.atoms_per_res=4
+        if c_alpha_only:
+            self.atoms_per_res=1
+
         if use_prostT5:
             self.plm = ProstT5(codebook_size, embeddings_size,use_lora=plm_lora,lora_r=8).to(device)
         else:
             self.plm = ProtT5(use_lora=plm_lora, device=device,lora_r=8).to(device)
         if use_standard_cnn:
-            self.cnn = ResidueTokenCNN(codebook_size, embeddings_size).to(device)
+            self.cnn = ResidueTokenCNN(codebook_size, embeddings_size,bio2token= not c_alpha_only).to(device)
         else:
             self.cnn = FinalResidueTokenCNN(embeddings_size, hidden[0], codebook_size, kernel_sizes, dropout,
-                                            bio2token=True).to(device)
+                                            bio2token= not c_alpha_only).to(device)
         self.decoder = Bio2tokenDecoder(device=device, use_lora=decoder_lora).to(device)
         # add layer norm for after embeddings
         self.embed_norm = nn.LayerNorm(embeddings_size).to(device)
@@ -66,14 +71,15 @@ class FinalFinalModel(nn.Module):
             "decoder_lora": decoder_lora,
             "use_prostT5": use_prostT5,
             "use_standard_cnn": use_standard_cnn,
-            "lora_r": lora_r
+            "lora_r": lora_r,
+            "c_alpha_only": c_alpha_only
         }
         hidden_layers_string=hidden[0]
         if use_standard_cnn:
             hidden_layers_string = "_".join(str(i) for i in hidden)
         kernel_sizes_string = "_".join(str(i) for i in kernel_sizes)
         lora_string = f"_plm_lora_{lora_r}" if plm_lora else ""
-        self.model_name = f"final_final_{'prost5' if use_prostT5 else 'prott5'}_cnn_type_{'0' if use_standard_cnn else '1'}_k{kernel_sizes_string}_h{hidden_layers_string}{lora_string}"
+        self.model_name = f"final_final_{'prost5' if use_prostT5 else 'prott5'}_cnn_type_{'0' if use_standard_cnn else '1'}_k{kernel_sizes_string}_h{hidden_layers_string}_{'ca' if c_alpha_only else 'bb'}{lora_string}"
 
         # define most important metric and whether it needs to be minimized or maximized
         self.key_metric = "val_total_loss"
@@ -128,7 +134,7 @@ class FinalFinalModel(nn.Module):
         B, L, _ = cnn_out.shape
         eos_mask = torch.ones(B, L, dtype=torch.bool, device=x.device)
         for i, length in enumerate(true_lengths):
-            eos_mask[i, :length * 4] = False
+            eos_mask[i, :length * self.atoms_per_res] = False
         x = self.decoder.decoder.decoder(cnn_out, eos_mask)
         # create mask for all relevant positions
         final_mask = ~eos_mask
@@ -150,6 +156,8 @@ class FinalFinalModel(nn.Module):
         for model_in, structure in loader:
             # model in is not loaded to device, because it might be a list of sequences
             structure = structure.to(device)
+            if self.c_alpha_only:
+                structure = structure[:, 1::4, :]
             predictions, final_mask, cnn_out = forward(model_in)
             # get loss:
             B, L, _ = predictions.shape
@@ -158,7 +166,7 @@ class FinalFinalModel(nn.Module):
                 optimizer.zero_grad()
                 combined_loss.backward()
                 # gradient clipping
-                clip_grad_norm_(self.parameters(), max_norm=0.1)
+                clip_grad_norm_(self.parameters(), max_norm=1.0)
                 optimizer.step()
                 scheduler.step()
 
