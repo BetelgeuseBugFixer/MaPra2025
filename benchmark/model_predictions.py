@@ -16,6 +16,7 @@ from torch.utils.data import Dataset, DataLoader
 from models.bio2token.data.utils.utils import pdb_2_dict
 from models.collab_fold.esmfold import EsmFold
 from models.end_to_end.whole_model import FinalModel, TFold, FinalFinalModel
+from models.model_utils import model_prediction_to_atom_array
 import argparse
 
 from models.model_utils import SmoothLDDTLoss
@@ -44,17 +45,27 @@ def collate_seqs(batch):
 
 # predict structures
 def infer_structures(model: torch.nn.Module, seqs, batch_size=16):
+    """
+    Runs the model and converts predictions to AtomArray via model_prediction_to_atom_array.
+    Returns: List[AtomArray] aligned as N, CA, C, O per residue.
+    """
     model.eval()
     ds = SeqDataset(seqs)
     loader = DataLoader(ds, batch_size=batch_size, collate_fn=collate_seqs, shuffle=False)
     all_structs = []
 
-    start_time = time.time()  # Startzeit
+    start_time = time.time()
     with torch.inference_mode():
         for seq_batch in loader:
-            pred_structs, *_ = model(seq_batch)
-            for i in range(pred_structs.shape[0]):
-                all_structs.append(pred_structs[i].cpu())
+            preds, final_mask, *rest = model(seq_batch)
+            batch_atom_arrays = model_prediction_to_atom_array(
+                sequences=seq_batch,
+                model_prediction=preds,       # (B, L*4, 3) or similar
+                final_mask=final_mask,        # (B, L*4) boolean
+                only_c_alpha=False            # keep backbone N,CA,C,O
+            )
+            all_structs.extend(batch_atom_arrays)
+
     end_time = time.time()
     print(f"[inference] Time needed for {len(seqs)} sequences: {end_time - start_time:.2f} seconds")
 
@@ -94,14 +105,19 @@ def _apply_rt(coords: np.ndarray, R: np.ndarray, t: np.ndarray):
 # --- get_scores ----------------------------------------------------
 def get_scores(gt_pdb, pred, method: str = "biotite"):
     """
-    method: "biotite" (default) or "kabsch"
+    pred can be:
+      - str (pdb path),
+      - AtomArray,
+      - numpy coords shaped (L*4, 3).
     """
     gt_protein = load_prot_from_pdb(gt_pdb)
 
-    # build predicted structure
     if isinstance(pred, str):
         pred_protein = load_prot_from_pdb(pred)
+    elif isinstance(pred, AtomArray):
+        pred_protein = pred
     else:
+        # assume coords
         pred_protein = gt_protein.copy()
         pred_protein.coord = np.asarray(pred, dtype=np.float32)
 
@@ -109,18 +125,19 @@ def get_scores(gt_pdb, pred, method: str = "biotite"):
     rmsd_score = np.nan
     tm_score_score = np.nan
 
-    # 1) LDDT BEFORE any alignment
+    # 1) lDDT before alignment
     try:
         lddt_score = float(lddt(gt_protein, pred_protein))
     except Exception as e:
         print(f"lddt caused error: {e}")
 
-    # 2) Alignment + metrics
+    # 2) alignment + RMSD/TM
     match method:
         case "biotite":
             try:
-                superimposed, _, ref_idx, sub_idx = superimpose_structural_homologs(gt_protein, pred_protein, max_iterations=1)
-                # compute on matched atoms
+                superimposed, _, ref_idx, sub_idx = superimpose_structural_homologs(
+                    gt_protein, pred_protein, max_iterations=1
+                )
                 rmsd_score = float(rmsd(gt_protein[ref_idx], superimposed[sub_idx]))
                 tm_score_score = float(tm_score(gt_protein, superimposed, ref_idx, sub_idx))
             except Exception as e:
@@ -170,10 +187,10 @@ def get_scores(gt_pdb, pred, method: str = "biotite"):
 
 
 
-def get_smooth_lddt(lddt_loss_module, prediction, pdb_dict):
+def get_smooth_lddt(lddt_loss_module, prediction_atom_array: AtomArray, pdb_dict):
     filtered = filter_pdb_dict(pdb_dict)
-    gt = torch.tensor(filtered["coords_groundtruth"]).unsqueeze(0).to(device)
-    pd = prediction.unsqueeze(0).to(device)
+    gt = torch.tensor(filtered["coords_groundtruth"]).unsqueeze(0).to(device)   # [1, L*4, 3]
+    pd = torch.from_numpy(prediction_atom_array.coord).float().unsqueeze(0).to(device)  # [1, L*4, 3]
     B, L, _ = gt.shape
     mask = torch.ones((B, L), dtype=torch.bool, device=device)
     lddt_score = 1 - lddt_loss_module(gt, pd, mask).item()
@@ -182,51 +199,39 @@ def get_smooth_lddt(lddt_loss_module, prediction, pdb_dict):
 
 def compute_and_save_scores_for_model(checkpoint_path, model, seqs, pdb_paths, pdb_dicts, batch_size=64,
                                       dataset_name="", given_base=None):
-    if given_base is None:
-        base = os.path.splitext(os.path.basename(checkpoint_path))[0]
-    else:
-        base = given_base
+    base = given_base if given_base is not None else os.path.splitext(os.path.basename(checkpoint_path))[0]
     if dataset_name:
         base = f"{base}_{dataset_name}"
-    cwd = os.getcwd()
-    out_dir = os.path.join(cwd, base)
-
+    out_dir = os.path.join(os.getcwd(), base)
     os.makedirs(out_dir, exist_ok=True)
 
     csv_path = os.path.join(out_dir, f"{base}_scores.csv")
     plot_path = os.path.join(out_dir, f"{base}_smooth_lddt.png")
 
-    # predict
+    # predict → AtomArrays (N,CA,C,O per residue), order already matches writer in model_utils
     final_structs = infer_structures(model, seqs, batch_size=batch_size)
-    final_structs = [struct[:len(seq) * 4] for struct, seq in zip(final_structs, seqs)]
 
-    # Scores berechnen – skippe problematische Einträge
     actual_lddts, rmsd_scores, tm_scores, smooth_lddts = [], [], [], []
-    kept_pdb_paths, kept_pdb_dicts = [], []
+    kept_pdb_paths = []
 
     smooth_loss = SmoothLDDTLoss().to(device)
 
     for i, (struct, pdb, pdb_dict) in enumerate(zip(final_structs, pdb_paths, pdb_dicts)):
         try:
-            l, r, t = get_scores(pdb, struct.numpy())
+            l, r, t = get_scores(pdb, struct)  # struct is AtomArray now
             s = get_smooth_lddt(smooth_loss, struct, pdb_dict)
         except Exception as e:
             print(f"[SKIPPED] PDB {pdb} (index {i}) caused error: {e}")
             continue
 
-        # Falls alles erfolgreich war → speichern
-        actual_lddts.append(l)
-        rmsd_scores.append(r)
-        tm_scores.append(t)
-        smooth_lddts.append(s)
+        actual_lddts.append(l); rmsd_scores.append(r); tm_scores.append(t); smooth_lddts.append(s)
         kept_pdb_paths.append(pdb)
 
     # Save results
     with open(csv_path, "w", newline="") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(["pdb_path", "lddt", "rmsd", "tm_score", "smooth_lddt"])
-        for pdb, l, r, t, s in zip(kept_pdb_paths, actual_lddts, rmsd_scores, tm_scores, smooth_lddts):
-            writer.writerow([pdb, l, r, t, s])
+        writer.writerows(zip(kept_pdb_paths, actual_lddts, rmsd_scores, tm_scores, smooth_lddts))
     print(f"Scores saved to {csv_path}")
 
     if len(actual_lddts) > 0:
