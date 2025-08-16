@@ -1041,7 +1041,7 @@ if __name__ == '__main__':
         lr=0.00001,
     )
     scheduler=ReduceLROnPlateau(optimizer,factor=0.9)
-    losses=[SmoothLDDTLoss()]
+    losses=[SmoothLDDTLoss().to(device)]
     loss_weights=[1]
 
     for i in range(1000):
