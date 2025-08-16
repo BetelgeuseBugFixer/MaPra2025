@@ -298,7 +298,7 @@ def _atomarray_from_coords(coords_np, atoms_per_res=4):
     return arr
 
 
-def _save_snapshot(sample, model, out_dir, tag, device, atoms_per_res=4):
+def _save_snapshot(sample, model, out_dir, tag, device, only_c_alpha):
     """
     sample: one item from val dataset. Accepts (model_in, structure) or (model_in, tokens, structure)
     Writes: <out_dir>/snapshots/epoch_XXX_<tag>.pdb
@@ -333,7 +333,7 @@ def _save_snapshot(sample, model, out_dir, tag, device, atoms_per_res=4):
         inp = model_in.unsqueeze(0).to(device) if isinstance(model_in, torch.Tensor) else [model_in]
         preds, final_mask, *_ = forward_fn(inp)
 
-    atom_array = model_prediction_to_atom_array(sequences, preds, final_mask)[0]
+    atom_array = model_prediction_to_atom_array(sequences, preds, final_mask,only_c_alpha=only_c_alpha)[0]
 
     # Write PDB
     snap_dir = os.path.join(out_dir, "snapshots")
@@ -571,7 +571,7 @@ def main():
             lddt_sum = 0
             for key, sample in snapshot_cache:
                 tag = f"epoch_{epoch:03d}_{str(key)}"
-                lddt_sum += _save_snapshot(sample, model, out_folder, tag, device=args.device)
+                lddt_sum += _save_snapshot(sample, model, out_folder, tag, args.c_alpha, device=args.device)
         score_dict["biotite_lddt"] = lddt_sum / len(snapshot_cache)
 
         # log lr
