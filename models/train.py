@@ -375,7 +375,7 @@ def get_model():
                                      args.device, args.alpha, args.beta, args.resume)
         case "final_final":
             return build_final_final_model(args.lora_plm, args.lora_decoder, args.lora_r, args.hidden, args.kernel_size,
-                                           args.dropout, args.device, args.resume,args.res_cnn)
+                                           args.dropout, args.device,args.c_alpha, args.resume, args.res_cnn)
         case _:
             raise NotImplementedError
 
