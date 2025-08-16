@@ -1033,7 +1033,7 @@ if __name__ == '__main__':
     val_dir = os.path.join("/mnt/data/large/subset2/", "val")
     val_set = StructureSet(val_dir, precomputed_embeddings=False)
     collate_function = collate_seq_struc
-    subset_size = 1  # Number of samples in subset
+    subset_size = 100  # Number of samples in subset
     subset_indices = list(range(subset_size))  # First 1000 samples
     subset_dataset = Subset(val_set, subset_indices)
     data_loader = DataLoader(subset_dataset, batch_size=8, collate_fn=collate_function)
@@ -1059,14 +1059,14 @@ if __name__ == '__main__':
                                            device=device)
         if epoch % 10 == 0:
             print(f"{epoch}:{train_score_dict["total_loss"]}")
-        if train_score_dict["total_loss"] < 0.30:
+        if train_score_dict["total_loss"] < 0.35:
             break
         epoch += 1
 
     for batch, (model_in, structure) in enumerate(data_loader):
         pred, mask, _ = model(model_in)
         pred_arrays = model_prediction_to_atom_array(model_in, pred, mask, only_c_alpha=c_alpha_only)
-        true_arrays = model_prediction_to_atom_array(structure, pred, mask, only_c_alpha=c_alpha_only)
+        true_arrays = model_prediction_to_atom_array(structure, pred, mask, only_c_alpha=False)
         for i, array in enumerate(pred_arrays):
             pdb_file = PDBFile()
             pdb_file.set_structure(array)
