@@ -18,6 +18,7 @@ python -u models/train.py --model final_final \
                           --c_alpha \
                           --res_cnn \
                           --lora_plm \
+                          --test_run \
                           --lora_decoder \
                           --hidden 16384 8192 2048 \
                           --kernel 17 3 3 \
@@ -26,6 +27,6 @@ python -u models/train.py --model final_final \
                           --out_folder /mnt/models \
                           --batch 8 \
                           --patience 20 \
-                          --lr 0.00005 \
+                          --lr 0.00004 \
 
 echo "Training script finished."
