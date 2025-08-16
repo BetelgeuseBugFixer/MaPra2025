@@ -50,7 +50,7 @@ class FinalFinalModel(nn.Module):
         else:
             self.plm = ProtT5(use_lora=plm_lora, device=device,lora_r=8).to(device)
         if use_standard_cnn:
-            self.cnn = ResidueTokenCNN(codebook_size, embeddings_size,bio2token= not c_alpha_only).to(device)
+            self.cnn = ResidueTokenCNN(embeddings_size,hidden,codebook_size,kernel_sizes,dropout,bio2token= not c_alpha_only).to(device)
         else:
             self.cnn = FinalResidueTokenCNN(embeddings_size, hidden[0], codebook_size, kernel_sizes, dropout,
                                             bio2token= not c_alpha_only).to(device)
