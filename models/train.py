@@ -59,6 +59,7 @@ def parse_args():
     parser.add_argument("--lora_decoder", action="store_true", help=" use lora to finetune the plm")
     parser.add_argument("--bio2token", action="store_true", help="use bio2token instead of foldtoken in tfold")
     parser.add_argument("--c_alpha", action="store_true", help="only predict c-alpha atoms")
+    parser.add_argument("--res_cnn", action="store_true", help="use res stly cnn")
     parser.add_argument("--lora_r", type=int, help="lora rank", default=8)
     parser.add_argument("--alpha", type=int, help="weight of the lddt loss", default=1)
     parser.add_argument("--beta", type=int, help="weight of the encoding loss", default=1)
@@ -175,14 +176,14 @@ def build_final_model(lora_plm, lora_decoder, hidden, kernel_size, dropout, devi
     return model
 
 
-def build_final_final_model(lora_plm, lora_decoder, lora_r, hidden, kernel_size, dropout, device, c_alpha, resume):
+def build_final_final_model(lora_plm, lora_decoder, lora_r, hidden, kernel_size, dropout, device, c_alpha, resume,res_cnn):
     if resume:
         model_file_path = find_latest_file(resume)
         model = FinalFinalModel.load_final_final(model_file_path, device=device).to(device)
     else:
         model = FinalFinalModel(hidden, kernel_sizes=kernel_size, plm_lora=lora_plm, decoder_lora=lora_decoder,
                                 device=device,
-                                dropout=dropout, lora_r=lora_r, c_alpha_only=c_alpha)
+                                dropout=dropout, lora_r=lora_r, c_alpha_only=c_alpha,use_standard_cnn= not res_cnn)
     return model
 
 
@@ -374,7 +375,7 @@ def get_model():
                                      args.device, args.alpha, args.beta, args.resume)
         case "final_final":
             return build_final_final_model(args.lora_plm, args.lora_decoder, args.lora_r, args.hidden, args.kernel_size,
-                                           args.dropout, args.device, args.resume)
+                                           args.dropout, args.device, args.resume,args.res_cnn)
         case _:
             raise NotImplementedError
 
