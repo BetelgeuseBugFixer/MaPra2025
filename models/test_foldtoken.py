@@ -1040,7 +1040,7 @@ if __name__ == '__main__':
     data_loader=DataLoader(subset_dataset, batch_size=8, collate_fn=collate_function)
     # init model
 
-    model=FinalFinalModel(hidden=[1024],device=device,kernel_sizes=[7,3,3,3],dropout=0.0,decoder_lora=True,c_alpha_only=True,plm_lora=True)
+    model=FinalFinalModel(hidden=[19_000,10_000,3_000],device=device,kernel_sizes=[1,1,1],use_standard_cnn=True,dropout=0.0,decoder_lora=True,c_alpha_only=True,plm_lora=True)
     optimizer = torch.optim.Adam(
         model.parameters(),
         lr=0.00001,
@@ -1049,14 +1049,21 @@ if __name__ == '__main__':
     losses=[SmoothLDDTLoss().to(device)]
     loss_weights=[1]
 
-    for i in range(2000):
+    epoch=0
+    while True:
         train_score_dict = model.run_epoch(data_loader, losses, loss_weights, optimizer=optimizer,
                                        scheduler=scheduler,
                                        device=device)
-        print(train_score_dict)
+        if epoch % 10 == 0:
+            print(f"{epoch}:{train_score_dict["total_loss"]}")
+        if train_score_dict["total_loss"] < 0.25:
+            break
+        epoch+=1
 
-    for model_in, structure in data_loader:
-        pdb_file=PDBFile()
-        pred, mask,_=model(model_in)
-        pdb_file.set_structure(model_prediction_to_atom_array(model_in,pred,mask,only_c_alpha=True))
-        pdb_file.write("c_alpha_test.pdb")
+    for batch,(model_in, structure) in enumerate(data_loader):
+        arrays=model_prediction_to_atom_array(model_in, pred, mask, only_c_alpha=True)
+        for i, array in enumerate(arrays):
+            pdb_file=PDBFile()
+            pred, mask,_=model(model_in)
+            pdb_file.set_structure(array)
+            pdb_file.write(f"c_alpha_{batch}_{i}.pdb")
