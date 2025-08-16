@@ -349,7 +349,9 @@ def _save_snapshot(sample, model, out_dir, tag, device, only_c_alpha):
 
     # calculate and return score
     gt_struct = gt_struct.unsqueeze(0).to(device)
-    ref_atom_array = model_prediction_to_atom_array(sequences, gt_struct, final_mask)[0]
+    if only_c_alpha:
+        gt_struct=gt_struct[:, 1::4, :]
+    ref_atom_array = model_prediction_to_atom_array(sequences, gt_struct, final_mask,only_c_alpha=only_c_alpha)[0]
     lddt_score = lddt(ref_atom_array, atom_array)
     return lddt_score
 
