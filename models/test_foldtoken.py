@@ -1040,7 +1040,7 @@ if __name__ == '__main__':
         model.parameters(),
         lr=0.00001,
     )
-    scheduler=ReduceLROnPlateau(optimizer,factor=1.0)
+    scheduler=ReduceLROnPlateau(optimizer,factor=0.9)
     losses=[SmoothLDDTLoss()]
     loss_weights=[1]
 
