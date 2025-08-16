@@ -1039,8 +1039,8 @@ if __name__ == '__main__':
     data_loader = DataLoader(subset_dataset, batch_size=8, collate_fn=collate_function)
     # init model
 
-    model = FinalFinalModel(hidden=[1024, 4_000, 2_000], device=device, kernel_sizes=[7, 3, 3, 3],
-                            use_standard_cnn=False, dropout=0.0, decoder_lora=True, c_alpha_only=True, plm_lora=True)
+    model = FinalFinalModel(hidden=[16384, 8192, 2048], device=device, kernel_sizes=[17, 3, 3],
+                            use_standard_cnn=True, dropout=0.0, decoder_lora=True, c_alpha_only=True, plm_lora=True)
     optimizer = torch.optim.Adam(
         model.parameters(),
         lr=0.00001,
