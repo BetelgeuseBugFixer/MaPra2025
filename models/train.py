@@ -72,6 +72,8 @@ def parse_args():
     # general settings
     parser.add_argument("--kernel_size", type=int, nargs="+", default=[5], help="kernel size of the cnn")
     parser.add_argument("--hidden", type=int, nargs="+", default=[2048])
+    parser.add_argument("--test_run", action="store_true", help="use validation set for training")
+
 
     # trainings setting
     parser.add_argument("--batch", type=int, default=1,
@@ -96,8 +98,10 @@ def parse_args():
     return parser.parse_args()
 
 
-def create_tfold_data_loaders(data_dir, batch_size, val_batch_size, fine_tune_plm, bio2token=False, model_type="final"):
+def create_tfold_data_loaders(data_dir, batch_size, val_batch_size, fine_tune_plm, bio2token=False, model_type="final",test_run=False):
     train_dir = os.path.join(data_dir, "train")
+    if test_run:
+        train_dir = os.path.join(data_dir, "val")
     val_dir = os.path.join(data_dir, "val")
 
     if model_type == "final":
@@ -408,7 +412,7 @@ def get_dataset():
         )
     else:
         return create_tfold_data_loaders(args.data_dir, args.batch, args.val_batch, args.lora_plm, args.bio2token,
-                                         args.model)
+                                         args.model,args.test_run)
 
 
 def print_epoch_end(score_dict, epoch, start):
