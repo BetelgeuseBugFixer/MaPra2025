@@ -1033,14 +1033,14 @@ if __name__ == '__main__':
     val_dir = os.path.join("/mnt/data/large/subset2/", "val")
     val_set = StructureSet(val_dir, precomputed_embeddings=False)
     collate_function = collate_seq_struc
-    subset_size = 1  # Number of samples in subset
+    subset_size = 10  # Number of samples in subset
     subset_indices = list(range(subset_size))  # First 1000 samples
     subset_dataset = Subset(val_set, subset_indices)
     data_loader = DataLoader(subset_dataset, batch_size=8, collate_fn=collate_function)
     # init model
 
-    model = FinalFinalModel(hidden=[5_000, 4_000, 3_000], device=device, kernel_sizes=[3, 1, 1],
-                            use_standard_cnn=True, dropout=0.0, decoder_lora=True, c_alpha_only=True, plm_lora=True, lora_r=100)
+    model = FinalFinalModel(hidden=[16_000, 8_000, 2_000], device=device, kernel_sizes=[17, 3, 3],
+                            use_standard_cnn=True, dropout=0.0, decoder_lora=True, c_alpha_only=True, plm_lora=True, lora_r=8)
     optimizer = torch.optim.Adam(
         model.parameters(),
         lr=0.00001,
@@ -1056,7 +1056,7 @@ if __name__ == '__main__':
                                            device=device)
         if epoch % 10 == 0:
             print(f"{epoch}:{train_score_dict["total_loss"]}")
-        if train_score_dict["total_loss"] < 0.26:
+        if train_score_dict["total_loss"] < 0.30:
             break
         epoch += 1
 
