@@ -1068,3 +1068,7 @@ if __name__ == '__main__':
             pdb_file = PDBFile()
             pdb_file.set_structure(array)
             pdb_file.write(f"c_alpha_{batch}_{i}.pdb")
+
+            pdb_file = PDBFile()
+            pdb_file.set_structure(true_arrays[i])
+            pdb_file.write(f"c_alpha_{batch}_{i}_true.pdb")
