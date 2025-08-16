@@ -46,9 +46,9 @@ class FinalFinalModel(nn.Module):
             self.atoms_per_res=1
 
         if use_prostT5:
-            self.plm = ProstT5(codebook_size, embeddings_size,use_lora=plm_lora,lora_r=8).to(device)
+            self.plm = ProstT5(codebook_size, embeddings_size,use_lora=plm_lora,lora_r=lora_r).to(device)
         else:
-            self.plm = ProtT5(use_lora=plm_lora, device=device,lora_r=8).to(device)
+            self.plm = ProtT5(use_lora=plm_lora, device=device,lora_r=lora_r).to(device)
         if use_standard_cnn:
             self.cnn = ResidueTokenCNN(embeddings_size,hidden,codebook_size,kernel_sizes,dropout,bio2token= not c_alpha_only).to(device)
         else:
