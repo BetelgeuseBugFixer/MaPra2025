@@ -1040,7 +1040,7 @@ if __name__ == '__main__':
     data_loader=DataLoader(subset_dataset, batch_size=8, collate_fn=collate_function)
     # init model
 
-    model=FinalFinalModel(hidden=[19_000,10_000,3_000],device=device,kernel_sizes=[1,1,1],use_standard_cnn=True,dropout=0.0,decoder_lora=True,c_alpha_only=True,plm_lora=True)
+    model=FinalFinalModel(hidden=[19_000,10_000,3_000],device=device,kernel_sizes=[3,1,1],use_standard_cnn=True,dropout=0.0,decoder_lora=True,c_alpha_only=True,plm_lora=True)
     optimizer = torch.optim.Adam(
         model.parameters(),
         lr=0.00001,
@@ -1056,7 +1056,7 @@ if __name__ == '__main__':
                                        device=device)
         if epoch % 10 == 0:
             print(f"{epoch}:{train_score_dict["total_loss"]}")
-        if train_score_dict["total_loss"] < 0.25:
+        if train_score_dict["total_loss"] < 0.28:
             break
         epoch+=1
 
