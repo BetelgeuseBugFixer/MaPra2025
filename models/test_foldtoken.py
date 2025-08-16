@@ -1022,6 +1022,11 @@ def test_new_model():
     file.set_structure(gt_protein)
     file.write(f"lddt_tm_test.pdb")
 
+class DummyScheduler:
+    def __init__(self, _):
+        pass
+    def step(self):
+        pass
 
 if __name__ == '__main__':
     device="cuda"
@@ -1040,7 +1045,7 @@ if __name__ == '__main__':
         model.parameters(),
         lr=0.00001,
     )
-    scheduler=ReduceLROnPlateau(optimizer,factor=0.9)
+    scheduler=DummyScheduler(optimizer)
     losses=[SmoothLDDTLoss().to(device)]
     loss_weights=[1]
 
