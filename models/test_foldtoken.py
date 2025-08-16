@@ -531,9 +531,6 @@ def get_protein_sizes_in_dataset(data_file="/mnt/data/large/subset/train/protein
     print(f"found {number_of_to_large_proteins} proteins larger then {max_size} in {all_proteins} proteins.")
 
 
-
-
-
 # def test_dataset_generation():
 #     test_pdbs = ["tokenizer_benchmark/casps/casp14_backbone/T1024-D1.pdb",
 #                  "tokenizer_benchmark/casps/casp14_backbone/T1026-D1.pdb"]
@@ -874,7 +871,7 @@ def write_pdb():
             smoooth_lddt = 1 - orig_value
             # calc other scores
             gt_protein = load_prot_from_pdb(pdb_path)
-            pred_protein = model_prediction_to_atom_array(seq,backbone_coords,final_mask)[0]
+            pred_protein = model_prediction_to_atom_array(seq, backbone_coords, final_mask)[0]
             normal_lddt = float(lddt(gt_protein, pred_protein))
 
             # append score to list
@@ -895,17 +892,15 @@ def write_pdb():
 
             del lddt_loss, structure_tensor, backbone_coords
 
-
-
     plot_smooth_lddt(normal_lddts, smooth_lddts, os.path.join(out_dir, "new_smooth_lddt.png"))
 
 
 def write_pdb_v2():
-    device="cuda"
+    device = "cuda"
 
-    #prepare data
+    # prepare data
     out_folder = "test/v2"
-    data_dir="/mnt/data/large/subset2/"
+    data_dir = "/mnt/data/large/subset2/"
     val_dir = os.path.join(data_dir, "val")
     val_set = StructureSet(val_dir, precomputed_embeddings=False)
     snapshot_cache = _select_first_n(val_set, n=100)
@@ -915,7 +910,7 @@ def write_pdb_v2():
         ref_tag = f"ref_{str(key)}"
         _save_reference_pdb(sample, out_folder, ref_tag)
 
-    #prepare model
+    # prepare model
     model = FinalFinalModel.load_final_final(
         "/mnt/models/final_final_prott5_cnn_type_1_k7_3_3_3_h1024_plm_lora_lr5e-05/final_final_prott5_cnn_type_1_k7_3_3_3_h1024_plm_lora.pt",
         device).to(device)
@@ -931,6 +926,7 @@ def print_gradients(model):
             print(f"[GRAD NORM] {name}: {grad_norm:.6f}")
         else:
             print(f"[NO GRAD] {name}")
+
 
 def test_new_model():
     # test_new_model()
@@ -1022,14 +1018,17 @@ def test_new_model():
     file.set_structure(gt_protein)
     file.write(f"lddt_tm_test.pdb")
 
+
 class DummyScheduler:
     def __init__(self, _):
         pass
+
     def step(self):
         pass
 
+
 if __name__ == '__main__':
-    device="cuda"
+    device = "cuda"
     # init dat
     val_dir = os.path.join("/mnt/data/large/subset2/", "val")
     val_set = StructureSet(val_dir, precomputed_embeddings=False)
@@ -1037,33 +1036,34 @@ if __name__ == '__main__':
     subset_size = 1  # Number of samples in subset
     subset_indices = list(range(subset_size))  # First 1000 samples
     subset_dataset = Subset(val_set, subset_indices)
-    data_loader=DataLoader(subset_dataset, batch_size=8, collate_fn=collate_function)
+    data_loader = DataLoader(subset_dataset, batch_size=8, collate_fn=collate_function)
     # init model
 
-    model=FinalFinalModel(hidden=[19_000,10_000,3_000],device=device,kernel_sizes=[3,1,1],use_standard_cnn=True,dropout=0.0,decoder_lora=True,c_alpha_only=True,plm_lora=True)
+    model = FinalFinalModel(hidden=[8_000, 10_000, 3_000], device=device, kernel_sizes=[3, 1, 1],
+                            use_standard_cnn=True, dropout=0.0, decoder_lora=True, c_alpha_only=True, plm_lora=True)
     optimizer = torch.optim.Adam(
         model.parameters(),
         lr=0.00001,
     )
-    scheduler=DummyScheduler(optimizer)
-    losses=[SmoothLDDTLoss().to(device)]
-    loss_weights=[1]
+    scheduler = DummyScheduler(optimizer)
+    losses = [SmoothLDDTLoss().to(device)]
+    loss_weights = [1]
 
-    epoch=0
+    epoch = 0
     while True:
         train_score_dict = model.run_epoch(data_loader, losses, loss_weights, optimizer=optimizer,
-                                       scheduler=scheduler,
-                                       device=device)
+                                           scheduler=scheduler,
+                                           device=device)
         if epoch % 10 == 0:
             print(f"{epoch}:{train_score_dict["total_loss"]}")
-        if train_score_dict["total_loss"] < 0.28:
+        if train_score_dict["total_loss"] < 0.26:
             break
-        epoch+=1
+        epoch += 1
 
-    for batch,(model_in, structure) in enumerate(data_loader):
-        arrays=model_prediction_to_atom_array(model_in, pred, mask, only_c_alpha=True)
+    for batch, (model_in, structure) in enumerate(data_loader):
+        pred, mask, _ = model(model_in)
+        arrays = model_prediction_to_atom_array(model_in, pred, mask, only_c_alpha=True)
         for i, array in enumerate(arrays):
-            pdb_file=PDBFile()
-            pred, mask,_=model(model_in)
+            pdb_file = PDBFile()
             pdb_file.set_structure(array)
             pdb_file.write(f"c_alpha_{batch}_{i}.pdb")
