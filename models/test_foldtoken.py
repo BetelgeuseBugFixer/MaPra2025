@@ -1040,7 +1040,7 @@ if __name__ == '__main__':
     data_loader=DataLoader(subset_dataset, batch_size=8, collate_fn=collate_function)
     # init model
 
-    model=FinalFinalModel(hidden=[1024],device=device,kernel_sizes=[7,3,3],dropout=0.0,decoder_lora=True,c_alpha_only=True,plm_lora=True)
+    model=FinalFinalModel(hidden=[1024],device=device,kernel_sizes=[7,3,3,3],dropout=0.0,decoder_lora=True,c_alpha_only=True,plm_lora=True)
     optimizer = torch.optim.Adam(
         model.parameters(),
         lr=0.00001,
@@ -1049,9 +1049,14 @@ if __name__ == '__main__':
     losses=[SmoothLDDTLoss().to(device)]
     loss_weights=[1]
 
-    for i in range(1000):
+    for i in range(2000):
         train_score_dict = model.run_epoch(data_loader, losses, loss_weights, optimizer=optimizer,
                                        scheduler=scheduler,
                                        device=device)
         print(train_score_dict)
 
+    for model_in, structure in data_loader:
+        pdb_file=PDBFile()
+        pred, mask,_=model(model_in)
+        pdb_file.set_structure(model_prediction_to_atom_array(model_in,pred,mask,only_c_alpha=True))
+        pdb_file.write("c_alpha_test.pdb")
