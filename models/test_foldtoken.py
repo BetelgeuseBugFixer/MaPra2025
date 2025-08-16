@@ -1040,7 +1040,7 @@ if __name__ == '__main__':
     # init model
 
     model = FinalFinalModel(hidden=[16384, 8192, 2048], device=device, kernel_sizes=[17, 3, 3],
-                            use_standard_cnn=True, dropout=0.0, decoder_lora=True, c_alpha_only=True, plm_lora=True, lora_r=16)
+                            use_standard_cnn=True, dropout=0.0, decoder_lora=True, c_alpha_only=True, plm_lora=True, lora_r=48)
     optimizer = torch.optim.Adam(
         model.parameters(),
         lr=0.00001,
