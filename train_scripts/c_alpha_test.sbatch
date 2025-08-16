@@ -25,7 +25,7 @@ python -u models/train.py --model final_final \
                           --data_dir /mnt/data/large/subset2/ \
                           --epochs 200 \
                           --out_folder /mnt/models \
-                          --batch 8 \
+                          --batch 5 \
                           --patience 20 \
                           --lr 0.00004 \
 
