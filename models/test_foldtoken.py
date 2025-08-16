@@ -1040,7 +1040,7 @@ if __name__ == '__main__':
     # init model
 
     model = FinalFinalModel(hidden=[16384, 8192, 2048], device=device, kernel_sizes=[17, 3, 3],
-                            use_standard_cnn=True, dropout=0.0, decoder_lora=True, c_alpha_only=True, plm_lora=True)
+                            use_standard_cnn=True, dropout=0.0, decoder_lora=True, c_alpha_only=True, plm_lora=True, lora_r=16)
     optimizer = torch.optim.Adam(
         model.parameters(),
         lr=0.00001,
@@ -1062,8 +1062,9 @@ if __name__ == '__main__':
 
     for batch, (model_in, structure) in enumerate(data_loader):
         pred, mask, _ = model(model_in)
-        arrays = model_prediction_to_atom_array(model_in, pred, mask, only_c_alpha=True)
-        for i, array in enumerate(arrays):
+        pred_arrays = model_prediction_to_atom_array(model_in, pred, mask, only_c_alpha=True)
+        true_arrays = model_prediction_to_atom_array(structure, pred, mask, only_c_alpha=True)
+        for i, array in enumerate(pred_arrays):
             pdb_file = PDBFile()
             pdb_file.set_structure(array)
             pdb_file.write(f"c_alpha_{batch}_{i}.pdb")
