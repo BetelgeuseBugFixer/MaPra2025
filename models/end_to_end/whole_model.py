@@ -79,7 +79,7 @@ class FinalFinalModel(nn.Module):
             hidden_layers_string = "_".join(str(i) for i in hidden)
         kernel_sizes_string = "_".join(str(i) for i in kernel_sizes)
         lora_string = f"_plm_lora_{lora_r}" if plm_lora else ""
-        self.model_name = f"final_final_{'prost5' if use_prostT5 else 'prott5'}_cnn_type_{'0' if use_standard_cnn else '1'}_k{kernel_sizes_string}_h{hidden_layers_string}_{'ca' if c_alpha_only else 'bb'}{lora_string}"
+        self.model_name = f"final_final_{'prost5' if use_prostT5 else 'prott5'}_{'cnn' if use_standard_cnn else 'res_cnn'}_k{kernel_sizes_string}_h{hidden_layers_string}_{'ca' if c_alpha_only else 'bb'}{lora_string}"
 
         # define most important metric and whether it needs to be minimized or maximized
         self.key_metric = "val_total_loss"
