@@ -19,6 +19,7 @@ export PYTHONPATH=~/MaPra2025:$PYTHONPATH
 echo "Starting training script..."
 python -u models/train.py --model final_final \
                           --c_alpha \
+                          --res_cnn \
                           --lora_plm \
                           --lora_decoder \
                           --hidden 1024 \
@@ -28,6 +29,6 @@ python -u models/train.py --model final_final \
                           --out_folder /mnt/models \
                           --batch 8 \
                           --patience 20 \
-                          --lr 0.00005 \
+                          --lr 0.0001 \
 
 echo "Training script finished."

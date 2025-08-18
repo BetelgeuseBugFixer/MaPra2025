@@ -59,11 +59,10 @@ def parse_args():
     parser.add_argument("--lora_decoder", action="store_true", help=" use lora to finetune the plm")
     parser.add_argument("--bio2token", action="store_true", help="use bio2token instead of foldtoken in tfold")
     parser.add_argument("--c_alpha", action="store_true", help="only predict c-alpha atoms")
-    parser.add_argument("--res_cnn", action="store_true", help="use res stly cnn")
+    parser.add_argument("--res_cnn", action="store_true", help="use res style cnn")
     parser.add_argument("--lora_r", type=int, help="lora rank", default=8)
     parser.add_argument("--alpha", type=int, help="weight of the lddt loss", default=1)
     parser.add_argument("--beta", type=int, help="weight of the encoding loss", default=1)
-
 
     # cnn exclusive setting
     parser.add_argument("--codebook_size", type=int, default=1024,
@@ -74,7 +73,6 @@ def parse_args():
     parser.add_argument("--kernel_size", type=int, nargs="+", default=[5], help="kernel size of the cnn")
     parser.add_argument("--hidden", type=int, nargs="+", default=[2048])
     parser.add_argument("--test_run", action="store_true", help="use validation set for training")
-
 
     # trainings setting
     parser.add_argument("--batch", type=int, default=1,
@@ -99,7 +97,8 @@ def parse_args():
     return parser.parse_args()
 
 
-def create_tfold_data_loaders(data_dir, batch_size, val_batch_size, fine_tune_plm, bio2token=False, model_type="final",test_run=False):
+def create_tfold_data_loaders(data_dir, batch_size, val_batch_size, fine_tune_plm, bio2token=False, model_type="final",
+                              test_run=False):
     train_dir = os.path.join(data_dir, "train")
     if test_run:
         train_dir = os.path.join(data_dir, "val")
@@ -176,14 +175,15 @@ def build_final_model(lora_plm, lora_decoder, hidden, kernel_size, dropout, devi
     return model
 
 
-def build_final_final_model(lora_plm, lora_decoder, lora_r, hidden, kernel_size, dropout, device, c_alpha, resume,res_cnn):
+def build_final_final_model(lora_plm, lora_decoder, lora_r, hidden, kernel_size, dropout, device, c_alpha, resume,
+                            res_cnn):
     if resume:
         model_file_path = find_latest_file(resume)
         model = FinalFinalModel.load_final_final(model_file_path, device=device).to(device)
     else:
         model = FinalFinalModel(hidden, kernel_sizes=kernel_size, plm_lora=lora_plm, decoder_lora=lora_decoder,
                                 device=device,
-                                dropout=dropout, lora_r=lora_r, c_alpha_only=c_alpha,use_standard_cnn= not res_cnn)
+                                dropout=dropout, lora_r=lora_r, c_alpha_only=c_alpha, use_standard_cnn=not res_cnn)
     return model
 
 
@@ -338,7 +338,7 @@ def _save_snapshot(sample, model, out_dir, tag, device, only_c_alpha):
         inp = model_in.unsqueeze(0).to(device) if isinstance(model_in, torch.Tensor) else [model_in]
         preds, final_mask, *_ = forward_fn(inp)
 
-    atom_array = model_prediction_to_atom_array(sequences, preds, final_mask,only_c_alpha=only_c_alpha)[0]
+    atom_array = model_prediction_to_atom_array(sequences, preds, final_mask, only_c_alpha=only_c_alpha)[0]
 
     # Write PDB
     snap_dir = os.path.join(out_dir, "snapshots")
@@ -350,8 +350,8 @@ def _save_snapshot(sample, model, out_dir, tag, device, only_c_alpha):
     # calculate and return score
     gt_struct = gt_struct.unsqueeze(0).to(device)
     if only_c_alpha:
-        gt_struct=gt_struct[:, 1::4, :]
-    ref_atom_array = model_prediction_to_atom_array(sequences, gt_struct, final_mask,only_c_alpha=only_c_alpha)[0]
+        gt_struct = gt_struct[:, 1::4, :]
+    ref_atom_array = model_prediction_to_atom_array(sequences, gt_struct, final_mask, only_c_alpha=only_c_alpha)[0]
     lddt_score = lddt(ref_atom_array, atom_array)
     return lddt_score
 
@@ -377,7 +377,7 @@ def get_model():
                                      args.device, args.alpha, args.beta, args.resume)
         case "final_final":
             return build_final_final_model(args.lora_plm, args.lora_decoder, args.lora_r, args.hidden, args.kernel_size,
-                                           args.dropout, args.device,args.c_alpha, args.resume, args.res_cnn)
+                                           args.dropout, args.device, args.c_alpha, args.resume, args.res_cnn)
         case _:
             raise NotImplementedError
 
@@ -415,7 +415,7 @@ def get_dataset():
         )
     else:
         return create_tfold_data_loaders(args.data_dir, args.batch, args.val_batch, args.lora_plm, args.bio2token,
-                                         args.model,args.test_run)
+                                         args.model, args.test_run)
 
 
 def print_epoch_end(score_dict, epoch, start):
@@ -578,7 +578,7 @@ def main():
             lddt_sum = 0
             for key, sample in snapshot_cache:
                 tag = f"epoch_{epoch:03d}_{str(key)}"
-                lddt_sum += _save_snapshot(sample, model, out_folder, tag,args.device ,args.c_alpha)
+                lddt_sum += _save_snapshot(sample, model, out_folder, tag, args.device, args.c_alpha)
         score_dict["biotite_lddt"] = lddt_sum / len(snapshot_cache)
 
         # log lr
