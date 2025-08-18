@@ -22,7 +22,7 @@ python -u models/train.py --model final_final \
                           --res_cnn \
                           --lora_plm \
                           --lora_decoder \
-                          --hidden 1024 \
+                          --hidden 2048 \
                           --kernel 7 3 3 3 \
                           --data_dir /mnt/data/large/subset2/ \
                           --epochs 30 \
