@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH -p lrz-hgx-h100-94x4,lrz-hgx-a100-80x4,lrz-dgx-a100-80x8
 #SBATCH --gres=gpu:1
-#SBATCH -o slurm_out/train_c_alpha_std_output.out
-#SBATCH -e slurm_out/train_c_alpha_std_err.err
+#SBATCH -o slurm_out/c_alpha_small.out
+#SBATCH -e slurm_out/c_alpha_small.err
 #SBATCH --container-image="/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/container/final_final.sqsh"
 #SBATCH --container-mounts=/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/data:/mnt/data,/dss/dssfs02/lwp-dss-0001/pn67na/pn67na-dss-0000/group1/models:/mnt/models
 #SBATCH --time=40:00:00
@@ -35,7 +35,7 @@ done
 
 # WandB API Key holen
 export WANDB_API_KEY=$(
-  grep -E '^\s*api_key\s*=' /mnt/dir/MaPra2025/wandb_key \
+  grep -E '^\s*api_key\s*=' /MaPra2025/wandb_key \
     | sed 's/.*=\s*//'
 )
 
