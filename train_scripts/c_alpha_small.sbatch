@@ -35,7 +35,7 @@ done
 
 # WandB API Key holen
 export WANDB_API_KEY=$(
-  grep -E '^\s*api_key\s*=' /MaPra2025/wandb_key \
+  grep -E '^\s*api_key\s*=' wandb_key \
     | sed 's/.*=\s*//'
 )
 
