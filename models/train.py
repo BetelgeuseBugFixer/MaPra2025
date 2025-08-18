@@ -81,7 +81,8 @@ def parse_args():
                         help="Batch size")
     parser.add_argument("--dropout", type=float, default=0.1)
     parser.add_argument("--epochs", type=int, default=10)
-    parser.add_argument("--lr", type=float, default=1e-3)
+    parser.add_argument("--lr", type=float, default=0.0001)
+    parser.add_argument("--eta_min", type=float, default=0.00001)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--patience", type=int, default=3,
                         help="Early stopping patience (in epochs)")
@@ -529,7 +530,7 @@ def main():
     # Warm-up: start_lr=0 → base_lr over `warmup_steps`
     scheduler1 = LinearLR(optimizer, start_factor=0.01, total_iters=warmup_steps)
     # Decay: cosine annealing after warm-up
-    scheduler2 = CosineAnnealingLR(optimizer, T_max=total_steps - warmup_steps)
+    scheduler2 = CosineAnnealingLR(optimizer, T_max=total_steps - warmup_steps, eta_min=args.eta_min)
     scheduler = SequentialLR(
         optimizer,
         schedulers=[scheduler1, scheduler2],
