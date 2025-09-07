@@ -8,7 +8,7 @@
 #SBATCH --time=40:00:00
 
 # command to execute and track it
-# sbatch train_scripts/train_c_alpha_res_cnn_lora.sbatch &  tail -f slurm_out/train_c_alpha_res_cnn_lora_std_output.out slurm_out/train_c_alpha_res_cnn_lora_std_err.err
+# sbatch train_scripts/train_c_alpha_res_cnn_lora_r.sbatch &  tail -f slurm_out/train_c_alpha_res_cnn_lora_std_output.out slurm_out/train_c_alpha_res_cnn_lora_std_err.err
 
 source ~/.bashrc
 source /opt/miniconda/etc/profile.d/conda.sh

@@ -16,7 +16,8 @@ from torch.nn.utils.rnn import pad_sequence
 import matplotlib.pyplot as plt
 
 from models.bio2token.data.utils.utils import pad_and_stack_tensors
-from models.model_utils import SmoothLDDTLoss, TmLossModule, model_prediction_to_atom_array, print_tensor
+from models.losses import SmoothLDDTLoss, TmLossModule, FapeLoss, RmseLoss, InterAtomDistanceLoss
+from models.model_utils import model_prediction_to_atom_array, print_tensor
 from models.simple_classifier.simple_classifier import ResidueTokenCNN
 from models.datasets.datasets import ProteinPairJSONL, ProteinPairJSONL_FromDir, PAD_LABEL, StructureAndTokenSet, \
     TokenSet, StructureSet
@@ -28,6 +29,9 @@ from models.end_to_end.whole_model import TFold, FinalModel, FinalFinalModel
 LOSS_REGISTRY = {
     "lddt": SmoothLDDTLoss(),
     "tm": TmLossModule(),
+    "fape": FapeLoss(),
+    "rmsd": RmseLoss(),
+    "iad": InterAtomDistanceLoss()
 }
 
 
@@ -430,7 +434,7 @@ def print_epoch_end(score_dict, epoch, start):
         if key in score_dict and score_dict[key] is not None:
             parts.append(f"{key}: {score_dict[key]:.4f}")
 
-    # just in case I forgot some
+    # add the rest
     for key, value in score_dict.items():
         if key not in key_order and value is not None:
             parts.append(f"{key}: {value}")
