@@ -60,9 +60,9 @@ def infer_structures(model: torch.nn.Module, seqs, batch_size=16):
             preds, final_mask, *rest = model(seq_batch)
             batch_atom_arrays = model_prediction_to_atom_array(
                 sequences=seq_batch,
-                model_prediction=preds,       # (B, L*4, 3) or similar
-                final_mask=final_mask,        # (B, L*4) boolean
-                only_c_alpha=False            # keep backbone N,CA,C,O
+                model_prediction=preds,  # (B, L*4, 3) or similar
+                final_mask=final_mask,  # (B, L*4) boolean
+                only_c_alpha=False  # keep backbone N,CA,C,O
             )
             all_structs.extend(batch_atom_arrays)
 
@@ -74,9 +74,11 @@ def infer_structures(model: torch.nn.Module, seqs, batch_size=16):
     return all_structs
 
 
-def load_prot_from_pdb(pdb_file):
+def load_prot_from_pdb(pdb_file, c_alpha_only=False):
     file = PDBFile.read(pdb_file)
     array_stack = file.get_structure(model=1)
+    if c_alpha_only:
+        return array_stack[_filter_atom_names(array_stack, ["CA"])]
     return array_stack[_filter_atom_names(array_stack, BACKBONE_ATOMS)]
 
 
@@ -93,24 +95,27 @@ def _kabsch(P, Q):
     t = Pc - Qc @ R.T
     return R, t
 
+
 def _ca_index_map(a: AtomArray):
     mask = filter_amino_acids(a) & (a.atom_name == "CA")
     keys = list(zip(a.chain_id[mask], a.res_id[mask]))
     idxs = np.nonzero(mask)[0]
     return {k: i for k, i in zip(keys, idxs)}
 
+
 def _apply_rt(coords: np.ndarray, R: np.ndarray, t: np.ndarray):
     return (coords @ R.T + t).astype(np.float32)
 
+
 # --- get_scores ----------------------------------------------------
-def get_scores(gt_pdb, pred, method: str = "biotite"):
+def get_scores(gt_pdb, pred, method: str = "biotite", c_alpha_only=False):
     """
     pred can be:
       - str (pdb path),
       - AtomArray,
       - numpy coords shaped (L*4, 3).
     """
-    gt_protein = load_prot_from_pdb(gt_pdb)
+    gt_protein = load_prot_from_pdb(gt_pdb, c_alpha_only)
 
     if isinstance(pred, str):
         pred_protein = load_prot_from_pdb(pred)
@@ -157,10 +162,10 @@ def get_scores(gt_pdb, pred, method: str = "biotite"):
                     Q = np.asarray(pred_protein.coord[pr_idx], dtype=np.float64)
                 else:
                     same_layout = (
-                        len(gt_protein) == len(pred_protein) and
-                        np.array_equal(gt_protein.atom_name, pred_protein.atom_name) and
-                        np.array_equal(gt_protein.chain_id,  pred_protein.chain_id)  and
-                        np.array_equal(gt_protein.res_id,    pred_protein.res_id)
+                            len(gt_protein) == len(pred_protein) and
+                            np.array_equal(gt_protein.atom_name, pred_protein.atom_name) and
+                            np.array_equal(gt_protein.chain_id, pred_protein.chain_id) and
+                            np.array_equal(gt_protein.res_id, pred_protein.res_id)
                     )
                     if not same_layout:
                         print("align: not enough common Cα anchors and no global matchable layout")
@@ -186,10 +191,11 @@ def get_scores(gt_pdb, pred, method: str = "biotite"):
     return lddt_score, rmsd_score, tm_score_score
 
 
-
-def get_smooth_lddt(lddt_loss_module, prediction_atom_array: AtomArray, pdb_dict):
+def get_smooth_lddt(lddt_loss_module, prediction_atom_array: AtomArray, pdb_dict,c_alpha_only=False):
     filtered = filter_pdb_dict(pdb_dict)
-    gt = torch.tensor(filtered["coords_groundtruth"]).unsqueeze(0).to(device)   # [1, L*4, 3]
+    gt = torch.tensor(filtered["coords_groundtruth"]).unsqueeze(0).to(device)  # [1, L*4, 3]
+    if c_alpha_only:
+        gt = gt[:, 1::4, :]
     pd = torch.from_numpy(prediction_atom_array.coord).float().unsqueeze(0).to(device)  # [1, L*4, 3]
     B, L, _ = gt.shape
     mask = torch.ones((B, L), dtype=torch.bool, device=device)
@@ -208,7 +214,12 @@ def compute_and_save_scores_for_model(checkpoint_path, model, seqs, pdb_paths, p
     csv_path = os.path.join(out_dir, f"{base}_scores.csv")
     plot_path = os.path.join(out_dir, f"{base}_smooth_lddt.png")
 
-    # predict → AtomArrays (N,CA,C,O per residue), order already matches writer in model_utils
+    # determine whether this is a C-alpha only model
+    c_alpha_only=False
+    if hasattr(model,"c_alpha_only") and model.c_alpha_only:
+        c_alpha_only = True
+
+    # predict → AtomArrays (N,CA,C,O or CA per residue), order already matches writer in model_utils
     final_structs = infer_structures(model, seqs, batch_size=batch_size)
 
     actual_lddts, rmsd_scores, tm_scores, smooth_lddts = [], [], [], []
@@ -218,13 +229,16 @@ def compute_and_save_scores_for_model(checkpoint_path, model, seqs, pdb_paths, p
 
     for i, (struct, pdb, pdb_dict) in enumerate(zip(final_structs, pdb_paths, pdb_dicts)):
         try:
-            l, r, t = get_scores(pdb, struct)  # struct is AtomArray now
+            l, r, t = get_scores(pdb, struct,c_alpha_only=c_alpha_only)  # struct is AtomArray now
             s = get_smooth_lddt(smooth_loss, struct, pdb_dict)
         except Exception as e:
             print(f"[SKIPPED] PDB {pdb} (index {i}) caused error: {e}")
             continue
 
-        actual_lddts.append(l); rmsd_scores.append(r); tm_scores.append(t); smooth_lddts.append(s)
+        actual_lddts.append(l)
+        rmsd_scores.append(r)
+        tm_scores.append(t)
+        smooth_lddts.append(s)
         kept_pdb_paths.append(pdb)
 
     # Save results
