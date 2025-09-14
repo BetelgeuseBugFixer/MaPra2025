@@ -225,7 +225,7 @@ class RmseLoss(Module):
         if self.root:
             rmsd = torch.sqrt(rmsd + 1e-6)  # Add small value to prevent divisions by zero
 
-        return rmsd
+        return rmsd.mean()
 
 
 class InterAtomDistanceLoss(Module):
