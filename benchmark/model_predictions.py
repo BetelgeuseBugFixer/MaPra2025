@@ -44,7 +44,7 @@ def collate_seqs(batch):
 
 
 # predict structures
-def infer_structures(model: torch.nn.Module, seqs, batch_size=16,only_c_alpha=False):
+def infer_structures(model: torch.nn.Module, seqs, batch_size=16,c_alpha_only=False):
     """
     Runs the model and converts predictions to AtomArray via model_prediction_to_atom_array.
     Returns: List[AtomArray] aligned as N, CA, C, O per residue.
@@ -62,7 +62,7 @@ def infer_structures(model: torch.nn.Module, seqs, batch_size=16,only_c_alpha=Fa
                 sequences=seq_batch,
                 model_prediction=preds,  # (B, L*4, 3) or similar
                 final_mask=final_mask,  # (B, L*4) boolean
-                only_c_alpha=only_c_alpha  # keep backbone N,CA,C,O
+                only_c_alpha=c_alpha_only  # keep backbone N,CA,C,O
             )
             all_structs.extend(batch_atom_arrays)
 
