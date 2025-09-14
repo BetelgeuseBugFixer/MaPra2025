@@ -9,8 +9,9 @@ from torch.nn.utils import clip_grad_norm_
 
 from models.bio2token.decoder import Bio2tokenDecoder
 from models.foldtoken_decoder.foldtoken import FoldToken
-from models.model_utils import _masked_accuracy, calc_token_loss, calc_lddt_scores, SmoothLDDTLoss, masked_mse_loss, \
-    TmLossModule, compute_total_loss, print_trainable_parameters, print_tensor
+from models.model_utils import _masked_accuracy, calc_token_loss, masked_mse_loss, print_trainable_parameters, \
+    print_tensor
+from models.losses import SmoothLDDTLoss, TmLossModule, compute_total_loss
 from models.prot_t5.prot_t5 import ProtT5, ProstT5
 from models.datasets.datasets import PAD_LABEL
 from models.simple_classifier.simple_classifier import ResidueTokenCNN, FinalResidueTokenCNN
@@ -32,7 +33,7 @@ def get_epoch_losses_dict(sum_dict, total_samples, prefix=""):
 
 class FinalFinalModel(nn.Module):
     def __init__(self, hidden: list, device="cpu", kernel_sizes=[5], dropout: float = 0.1, plm_lora=False,
-                 decoder_lora=False, use_prostT5=False, use_standard_cnn=False,lora_r=8,c_alpha_only=False):
+                 decoder_lora=False, use_prostT5=False, use_standard_cnn=False, lora_r=8, c_alpha_only=False):
         for kernel_size in kernel_sizes:
             assert kernel_size % 2 == 1, f"Kernel size {kernel_size} is invalid. Must be odd for symmetric context."
         super().__init__()
@@ -41,24 +42,25 @@ class FinalFinalModel(nn.Module):
         self.c_alpha_only = c_alpha_only
         codebook_size = 128
         embeddings_size = 1024
-        self.atoms_per_res=4
+        self.atoms_per_res = 4
         if c_alpha_only:
-            self.atoms_per_res=1
+            self.atoms_per_res = 1
 
         if use_prostT5:
-            self.plm = ProstT5(codebook_size, embeddings_size,use_lora=plm_lora,lora_r=lora_r).to(device)
+            self.plm = ProstT5(codebook_size, embeddings_size, use_lora=plm_lora, lora_r=lora_r).to(device)
         else:
-            self.plm = ProtT5(use_lora=plm_lora, device=device,lora_r=lora_r).to(device)
+            self.plm = ProtT5(use_lora=plm_lora, device=device, lora_r=lora_r).to(device)
         if use_standard_cnn:
-            self.cnn = ResidueTokenCNN(embeddings_size,hidden,codebook_size,kernel_sizes,dropout,bio2token= not c_alpha_only).to(device)
+            self.cnn = ResidueTokenCNN(embeddings_size, hidden, codebook_size, kernel_sizes, dropout,
+                                       bio2token=not c_alpha_only).to(device)
         else:
             self.cnn = FinalResidueTokenCNN(embeddings_size, hidden[0], codebook_size, kernel_sizes, dropout,
-                                            bio2token= not c_alpha_only).to(device)
+                                            bio2token=not c_alpha_only).to(device)
         self.decoder = Bio2tokenDecoder(device=device, use_lora=decoder_lora).to(device)
         # add layer norm for after embeddings
         self.embed_norm = nn.LayerNorm(embeddings_size).to(device)
 
-        #save args
+        # save args
         self.plm_lora = plm_lora
 
         # save the args so it easier to init our model later
@@ -74,7 +76,7 @@ class FinalFinalModel(nn.Module):
             "lora_r": lora_r,
             "c_alpha_only": c_alpha_only
         }
-        hidden_layers_string=hidden[0]
+        hidden_layers_string = hidden[0]
         if use_standard_cnn:
             hidden_layers_string = "_".join(str(i) for i in hidden)
         kernel_sizes_string = "_".join(str(i) for i in kernel_sizes)
@@ -140,7 +142,7 @@ class FinalFinalModel(nn.Module):
         final_mask = ~eos_mask
         return x, final_mask, cnn_out
 
-    def run_epoch(self, loader, loses, loses_weights, optimizer=None,scheduler=None, device="cpu"):
+    def run_epoch(self, loader, loses, loses_weights, optimizer=None, scheduler=None, device="cpu"):
         is_train = optimizer is not None
         self.train() if is_train else self.eval()
         # in this dict sum up all the losses so we can log them each
@@ -302,7 +304,7 @@ class FinalModel(nn.Module):
         final_mask = ~eos_mask
         return x, final_mask, cnn_out
 
-    def run_epoch(self, loader, optimizer=None,scheduler=None, device="cpu"):
+    def run_epoch(self, loader, optimizer=None, scheduler=None, device="cpu"):
         is_train = optimizer is not None
         self.train() if is_train else self.eval()
         # init statistics
