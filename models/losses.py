@@ -36,6 +36,7 @@ class TmLossModule(Module):
 class InterAtomDistance(Module):
     def __init__(self, c):
         super(InterAtomDistance, self).__init__()
+        self.name = "InterAtomDistanceLoss"
 
     def forward(self, P, Q, mask_remove, idx):
         """
@@ -207,6 +208,7 @@ class RmseLoss(Module):
     def __init__(self):
         super().__init__()
         self.root = False
+        self.name="RmseLoss"
 
     def forward(self, pred_coords, true_coords, coords_mask):
         true_coords = center_structure(true_coords, coords_mask)
@@ -232,6 +234,7 @@ class InterAtomDistanceLoss(Module):
     def __init__(self):
         super().__init__()
         self.c_alpha_only = True
+        self.name="InterAtomDistanceLoss"
 
     def forward(self, pred_coords, true_coords, coords_mask):
         """
@@ -285,6 +288,7 @@ class InterAtomDistanceLoss(Module):
 class FapeLoss(Module):
     def __init__(self):
         super().__init__()
+        self.name="FapeLoss"
 
     @staticmethod
     def create_ca_frames(ca_positions):
