@@ -282,7 +282,7 @@ class InterAtomDistanceLoss(Module):
 
         # Optionally take the square root of the computed loss
         loss = torch.sqrt(loss + 1e-6)  # Adding small constant for numerical stability
-        return loss
+        return loss.mean()
 
 
 class FapeLoss(Module):
