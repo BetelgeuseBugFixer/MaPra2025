@@ -252,7 +252,7 @@ class InterAtomDistanceLoss(Module):
         Q = true_coords
 
         # get residue ids
-        idx = torch.arange(L).unsqueeze(0).expand(B, -1)
+        idx = torch.arange(L,device=P.device).unsqueeze(0).expand(B, -1)
         idx = torch.where(coords_mask, idx, torch.full_like(idx, -1))  # Default to zero indices
 
         # Initialize variables for loss computation
