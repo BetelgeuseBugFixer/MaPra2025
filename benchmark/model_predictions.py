@@ -19,7 +19,7 @@ from models.end_to_end.whole_model import FinalModel, TFold, FinalFinalModel
 from models.model_utils import model_prediction_to_atom_array
 import argparse
 
-from models.model_utils import SmoothLDDTLoss
+from models.losses import SmoothLDDTLoss
 from utils.generate_new_data import BACKBONE_ATOMS, get_pid_from_file_name, filter_pdb_dict
 
 MAX_LENGTH = 780
