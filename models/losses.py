@@ -410,4 +410,4 @@ class FapeLoss(Module):
             l1_clamp_distance=10.0,
         )
 
-        return loss
+        return loss.mean()
