@@ -44,7 +44,7 @@ def collate_seqs(batch):
 
 
 # predict structures
-def infer_structures(model: torch.nn.Module, seqs, batch_size=16):
+def infer_structures(model: torch.nn.Module, seqs, batch_size=16,only_c_alpha=False):
     """
     Runs the model and converts predictions to AtomArray via model_prediction_to_atom_array.
     Returns: List[AtomArray] aligned as N, CA, C, O per residue.
@@ -62,7 +62,7 @@ def infer_structures(model: torch.nn.Module, seqs, batch_size=16):
                 sequences=seq_batch,
                 model_prediction=preds,  # (B, L*4, 3) or similar
                 final_mask=final_mask,  # (B, L*4) boolean
-                only_c_alpha=False  # keep backbone N,CA,C,O
+                only_c_alpha=only_c_alpha  # keep backbone N,CA,C,O
             )
             all_structs.extend(batch_atom_arrays)
 
@@ -220,7 +220,7 @@ def compute_and_save_scores_for_model(checkpoint_path, model, seqs, pdb_paths, p
         c_alpha_only = True
 
     # predict → AtomArrays (N,CA,C,O or CA per residue), order already matches writer in model_utils
-    final_structs = infer_structures(model, seqs, batch_size=batch_size)
+    final_structs = infer_structures(model, seqs, batch_size=batch_size,c_alpha_only=c_alpha_only)
 
     actual_lddts, rmsd_scores, tm_scores, smooth_lddts = [], [], [], []
     kept_pdb_paths = []
