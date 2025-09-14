@@ -230,7 +230,7 @@ def compute_and_save_scores_for_model(checkpoint_path, model, seqs, pdb_paths, p
     for i, (struct, pdb, pdb_dict) in enumerate(zip(final_structs, pdb_paths, pdb_dicts)):
         try:
             l, r, t = get_scores(pdb, struct,c_alpha_only=c_alpha_only)  # struct is AtomArray now
-            s = get_smooth_lddt(smooth_loss, struct, pdb_dict)
+            s = get_smooth_lddt(smooth_loss, struct, pdb_dict,c_alpha_only=c_alpha_only)
         except Exception as e:
             print(f"[SKIPPED] PDB {pdb} (index {i}) caused error: {e}")
             continue
