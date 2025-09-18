@@ -102,6 +102,25 @@ def parse_args():
     return parser.parse_args()
 
 
+def align_loss_weights(loss_modules, loss_weights):
+    """
+    Ensure that loss_weights has the same length as loss_modules.
+    - If loss_weights is shorter, pad with 1.0.
+    - If longer, truncate to match loss_modules.
+    """
+    n = len(loss_modules)
+    m = len(loss_weights)
+
+    if m < n:
+        # fill up with 1.0
+        loss_weights = list(loss_weights) + [1.0] * (n - m)
+    elif m > n:
+        # shorten
+        loss_weights = list(loss_weights)[:n]
+
+    return loss_weights
+
+
 def create_tfold_data_loaders(data_dir, batch_size, val_batch_size, fine_tune_plm, bio2token=False, model_type="final",
                               test_run=False):
     train_dir = os.path.join(data_dir, "train")
@@ -543,6 +562,7 @@ def main():
 
     # init losses
     loss_modules = [LOSS_REGISTRY[loss_name].to(args.device) for loss_name in args.losses]
+    loss_weights=align_loss_weights(loss_modules, args.loss_weights)
 
     # init output
     folder_name = f"{model.model_name}_lr{args.lr}_{'_'.join(args.losses)}"
@@ -572,10 +592,10 @@ def main():
     print("starting training...")
     for epoch in range(1, args.epochs + 1):
         start = time.time()
-        train_score_dict = model.run_epoch(train_loader, loss_modules, args.loss_weights, optimizer=optimizer,
+        train_score_dict = model.run_epoch(train_loader, loss_modules, loss_weights, optimizer=optimizer,
                                            scheduler=scheduler,
                                            device=args.device)
-        val_score_dict = model.run_epoch(val_loader, loss_modules, args.loss_weights, device=args.device)
+        val_score_dict = model.run_epoch(val_loader, loss_modules, loss_weights, device=args.device)
         score_dict = train_score_dict | val_score_dict
 
         model.eval()  # fine because it automatically starts train mode again in next epoch
