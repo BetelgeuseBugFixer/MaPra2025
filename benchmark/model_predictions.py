@@ -311,7 +311,7 @@ if __name__ == '__main__':
 
     # parser
     p = argparse.ArgumentParser()
-    p.add_argument("--final", nargs="+", default=[], help="Path(s) to FinalModel checkpoint(s)")
+    p.add_argument("--0_final", nargs="+", default=[], help="Path(s) to FinalModel checkpoint(s)")
     p.add_argument("--final_final", nargs="+", default=[], help="Path(s) to FinalFinalModel checkpoint(s)")
     p.add_argument("--prostt5", nargs="+", default=[], help="Path(s) to prostt5 checkpoint(s)")
     p.add_argument("--bio2token", nargs="+", default=[], help="Path(s) to bio2token token checkpoint(s)")
@@ -326,7 +326,7 @@ if __name__ == '__main__':
     bio2token_count = 1
     foldtoken_count = 1
 
-    # final models
+    # 0_final models
     for ckpt in args.final:
         print(f"Processing FinalModel checkpoint: {ckpt}")
         model = FinalModel.load_old_final(ckpt, device=device)
@@ -337,7 +337,7 @@ if __name__ == '__main__':
                                           dataset_name="casp", given_base=base_name)
         final_count += 1
 
-    # final final models, whole decoder
+    # 0_final 0_final models, whole decoder
     for ckpt in args.final_final:
         print(f"Processing FinalFinalModel checkpoint: {ckpt}")
         model = FinalModel.load_final(ckpt, device=device)

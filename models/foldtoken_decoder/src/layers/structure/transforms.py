@@ -306,7 +306,7 @@ def average_transforms(
         dim (int): Dimension to average along.
         t_edge (torch.Tensor, optional): Translation `T` of shape `(..., 3)`
             indicating the displacement between source and target nodes.
-        dither (bool): Whether to noise final rotations.
+        dither (bool): Whether to noise 0_final rotations.
         dither_eps (float): Fractional amount by which to noise rotations.
 
     Returns:

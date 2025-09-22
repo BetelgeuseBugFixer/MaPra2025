@@ -1,5 +1,5 @@
 #enroot import docker://nvcr.io/nvidia/pytorch:24.12-py3
-#enroot create --name final 
+#enroot create --name 0_final
 # -> python container with python 3.12 and cuda 12.6
 
 export CUDA_HOME=/usr/local/cuda

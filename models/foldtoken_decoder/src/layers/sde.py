@@ -37,7 +37,7 @@ def sde_integrate(
     args:
         sde_func (function): a function that takes in time and y and returns SDE drift and diffusion terms for the evolution of y
         y0 (torch.tensor): the initial value of y, e.g. a noised protein structure tensor
-        tspan (tuple): a tuple (t_i, t_f) with t_i being the initial time and t_f being the final time for integration
+        tspan (tuple): a tuple (t_i, t_f) with t_i being the initial time and t_f being the 0_final time for integration
         N (int): number of integration steps
 
     returns:
@@ -82,7 +82,7 @@ def sde_integrate_heun(
     args:
         sde_func (function): a function that takes in time and y and returns SDE drift and diffusion terms for the evolution of y
         y0 (torch.tensor): the initial value of y, e.g. a noised protein structure tensor
-        tspan (tuple): a tuple (t_i, t_f) with t_i being the initial time and t_f being the final time for integration
+        tspan (tuple): a tuple (t_i, t_f) with t_i being the initial time and t_f being the 0_final time for integration
         N (int): number of integration steps
 
     returns:
