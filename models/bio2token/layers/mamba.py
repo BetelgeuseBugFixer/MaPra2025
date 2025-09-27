@@ -229,7 +229,7 @@ class MambaStack(nn.Module):
                 hidden_states = hidden_states_forward
                 residual = residual_forward
 
-        # Apply the final Add+Norm layer for integration consistency
+        # Apply the 0_final Add+Norm layer for integration consistency
         if not self.fused_add_norm:
             residual = (hidden_states + residual) if residual is not None else hidden_states
             hidden_states = self.norm_f(residual.to(dtype=self.norm_f.weight.dtype))

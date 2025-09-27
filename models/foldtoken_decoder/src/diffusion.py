@@ -1141,7 +1141,7 @@ class DiffusionChainCov(nn.Module):
             outputs (Dict[str, torch.Tensor]): A dictionary of output tensors with the
             following keys:
                 - 'C': The conditioned tensor with shape `(num_batch,num_residues)`.
-                - 'X_sample': The final sampled state tensor with shape `(num_batch,
+                - 'X_sample': The 0_final sampled state tensor with shape `(num_batch,
                     num_residues ,4 ,3)`.
                 - 'X_trajectory': A list of state tensors along the trajectory with
                     shape `(num_batch,num_residues ,4 ,3)` each.
@@ -1815,7 +1815,7 @@ class ReconstructionLosses(nn.Module):
             # Transpose list of dicts to a dict of lists
             metrics_samples = {k: [d[k] for d in losses] for k in losses[0].keys()}
 
-            # Average final metrics across time
+            # Average 0_final metrics across time
             metrics = {
                 k: torch.stack(v, 0).mean(0)
                 for k, v in metrics_samples.items()

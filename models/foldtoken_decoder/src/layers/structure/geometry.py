@@ -31,7 +31,7 @@ class Distances(nn.Module):
     """Euclidean distance layer (pairwise).
 
     This layer computes batched pairwise Euclidean distances, where the input
-    tensor is treated as a batch of vectors with the final dimension as the
+    tensor is treated as a batch of vectors with the 0_final dimension as the
     feature dimension and the dimension for pairwise expansion can be specified.
 
     Args:

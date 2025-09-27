@@ -548,7 +548,7 @@ class Rotation:
         """
             Returns a new quaternion Rotation after updating the current
             object's underlying rotation with a quaternion update, formatted
-            as a [*, 3] tensor whose final three columns represent x, y, z such
+            as a [*, 3] tensor whose 0_final three columns represent x, y, z such
             that (1, x, y, z) is the desired (not necessarily unit) quaternion
             update.
 
@@ -980,7 +980,7 @@ class Rigid:
                              )   :
         """
             Composes the transformation with a quaternion update vector of
-            shape [*, 6], where the final 6 columns represent the x, y, and
+            shape [*, 6], where the 0_final 6 columns represent the x, y, and
             z values of a quaternion of form (1, x, y, z) followed by a 3D
             translation.
 
@@ -1111,7 +1111,7 @@ class Rigid:
 
     def to_tensor_7(self) -> torch.Tensor:
         """
-            Converts a transformation to a tensor with 7 final columns, four
+            Converts a transformation to a tensor with 7 0_final columns, four
             for the quaternion followed by three for the translation.
 
             Returns:

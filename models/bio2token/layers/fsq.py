@@ -254,7 +254,7 @@ class FSQ(Module):
             z (Tensor): The input tensor with dimensions corresponding to batch, sequence (or spatial),
                         and feature dimensions.
             with_hidden_codes (bool): Flag indicating whether to return the latent quantized codes in addition
-                                    to the final output and indices. Defaults to False.
+                                    to the 0_final output and indices. Defaults to False.
 
         Returns:
             Tensor: The quantized output after passing through the quantization and projection layers.

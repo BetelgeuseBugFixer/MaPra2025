@@ -53,7 +53,7 @@ def parse_args():
 
     # model
     parser.add_argument("--model", type=str, default="cnn",
-                        help="type of model to use, options: cnn, tfold, final, final_final")
+                        help="type of model to use, options: cnn, tfold, 0_final, final_final")
     parser.add_argument("--resume", type=str, help="path to existing trainings folder with the latest model")
     parser.add_argument("--wandb_resume_id", type=str, help="W&B id of an existing wandb run")
     parser.add_argument("--load_optimizer", action="store_true",
@@ -121,14 +121,14 @@ def align_loss_weights(loss_modules, loss_weights):
     return loss_weights
 
 
-def create_tfold_data_loaders(data_dir, batch_size, val_batch_size, fine_tune_plm, bio2token=False, model_type="final",
+def create_tfold_data_loaders(data_dir, batch_size, val_batch_size, fine_tune_plm, bio2token=False, model_type="0_final",
                               test_run=False):
     train_dir = os.path.join(data_dir, "train")
     if test_run:
         train_dir = os.path.join(data_dir, "val")
     val_dir = os.path.join(data_dir, "val")
 
-    if model_type == "final":
+    if model_type == "0_final":
         token_type = "encoding"
         train_set = StructureAndTokenSet(train_dir, token_type, precomputed_embeddings=not fine_tune_plm)
         val_set = StructureAndTokenSet(val_dir, token_type, precomputed_embeddings=not fine_tune_plm)
@@ -396,7 +396,7 @@ def get_model():
         case "t_fold":
             return build_t_fold(args.lora_plm, args.hidden, args.kernel_size, args.dropout,
                                 args.device, args.resume)
-        case "final":
+        case "0_final":
             return build_final_model(args.lora_plm, args.lora_decoder, args.hidden, args.kernel_size, args.dropout,
                                      args.device, args.alpha, args.beta, args.resume)
         case "final_final":
