@@ -44,7 +44,7 @@ def collate_seqs(batch):
 
 
 # predict structures
-def infer_structures(model: torch.nn.Module, seqs, batch_size=16,c_alpha_only=False):
+def infer_structures(model: torch.nn.Module, seqs, batch_size=16, c_alpha_only=False):
     """
     Runs the model and converts predictions to AtomArray via model_prediction_to_atom_array.
     Returns: List[AtomArray] aligned as N, CA, C, O per residue.
@@ -191,7 +191,7 @@ def get_scores(gt_pdb, pred, method: str = "biotite", c_alpha_only=False):
     return lddt_score, rmsd_score, tm_score_score
 
 
-def get_smooth_lddt(lddt_loss_module, prediction_atom_array: AtomArray, pdb_dict,c_alpha_only=False):
+def get_smooth_lddt(lddt_loss_module, prediction_atom_array: AtomArray, pdb_dict, c_alpha_only=False):
     filtered = filter_pdb_dict(pdb_dict)
     gt = torch.tensor(filtered["coords_groundtruth"]).unsqueeze(0).to(device)  # [1, L*4, 3]
     if c_alpha_only:
@@ -215,12 +215,12 @@ def compute_and_save_scores_for_model(checkpoint_path, model, seqs, pdb_paths, p
     plot_path = os.path.join(out_dir, f"{base}_smooth_lddt.png")
 
     # determine whether this is a C-alpha only model
-    c_alpha_only=False
-    if hasattr(model,"c_alpha_only") and model.c_alpha_only:
+    c_alpha_only = False
+    if hasattr(model, "c_alpha_only") and model.c_alpha_only:
         c_alpha_only = True
 
     # predict → AtomArrays (N,CA,C,O or CA per residue), order already matches writer in model_utils
-    final_structs = infer_structures(model, seqs, batch_size=batch_size,c_alpha_only=c_alpha_only)
+    final_structs = infer_structures(model, seqs, batch_size=batch_size, c_alpha_only=c_alpha_only)
 
     actual_lddts, rmsd_scores, tm_scores, smooth_lddts = [], [], [], []
     kept_pdb_paths = []
@@ -229,8 +229,8 @@ def compute_and_save_scores_for_model(checkpoint_path, model, seqs, pdb_paths, p
 
     for i, (struct, pdb, pdb_dict) in enumerate(zip(final_structs, pdb_paths, pdb_dicts)):
         try:
-            l, r, t = get_scores(pdb, struct,c_alpha_only=c_alpha_only)  # struct is AtomArray now
-            s = get_smooth_lddt(smooth_loss, struct, pdb_dict,c_alpha_only=c_alpha_only)
+            l, r, t = get_scores(pdb, struct, c_alpha_only=c_alpha_only)  # struct is AtomArray now
+            s = get_smooth_lddt(smooth_loss, struct, pdb_dict, c_alpha_only=c_alpha_only)
         except Exception as e:
             print(f"[SKIPPED] PDB {pdb} (index {i}) caused error: {e}")
             continue
@@ -405,10 +405,14 @@ if __name__ == '__main__':
     # ESMFold
     if args.esm:
         model = EsmFold(device)
-        try:
-            compute_and_save_scores_for_model("", model, seqs_casp, pdb_casp, casp_dicts, batch_size=8,
-                                              dataset_name="casp", given_base="ESMFold")
-        except Exception as e:
-            print("casp fail")
-            traceback.print_exc()
-        compute_and_save_scores_for_model("", model, seqs, pdb_paths, pdb_dicts, batch_size=8, dataset_name="test",given_base="ESMFold")
+        batch_size = 7
+        while batch_size > 0:
+            try:
+                compute_and_save_scores_for_model("", model, seqs_casp, pdb_casp, casp_dicts, batch_size=batch_size,
+                                                  dataset_name="casp", given_base="ESMFold")
+                break
+            except Exception as e:
+                batch_size = batch_size - 1
+                print("casp fail")
+                traceback.print_exc()
+        # compute_and_save_scores_for_model("", model, seqs, pdb_paths, pdb_dicts, batch_size=8, dataset_name="test",given_base="ESMFold")
