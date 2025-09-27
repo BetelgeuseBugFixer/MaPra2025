@@ -406,9 +406,9 @@ if __name__ == '__main__':
     if args.esm:
         model = EsmFold(device)
         try:
-            compute_and_save_scores_for_model("", model, seqs_casp, pdb_casp, casp_dicts, batch_size=1,
+            compute_and_save_scores_for_model("", model, seqs_casp, pdb_casp, casp_dicts, batch_size=8,
                                               dataset_name="casp", given_base="ESMFold")
         except Exception as e:
             print("casp fail")
             traceback.print_exc()
-        # compute_and_save_scores_for_model("", model, seqs, pdb_paths, pdb_dicts, batch_size=1, dataset_name="test",given_base="ESMFold")
+        compute_and_save_scores_for_model("", model, seqs, pdb_paths, pdb_dicts, batch_size=8, dataset_name="test",given_base="ESMFold")
