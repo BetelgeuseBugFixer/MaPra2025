@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -p lrz-hgx-h100-94x4,lrz-hgx-a100-80x4,lrz-dgx-a100-80x8
+#SBATCH -p lrz-hgx-h100-94x4
 #SBATCH --gres=gpu:1
 #SBATCH -o slurm_out/model_preds_esm.out
 #SBATCH -e slurm_out/model_preds_esm.err
@@ -16,6 +16,6 @@ echo "Starting eval script..."
 python benchmark/model_predictions.py \
           --prostt5 \
           /mnt/models/final_final_prott5_res_cnn_k7_3_3_3_h2048_ca_plm_lora_8_lr0.0003_fape_lddt/final_final_prott5_res_cnn_k7_3_3_3_h2048_ca_plm_lora_8.pt \
-          /mnt/models/final_final_prott5_res_cnn_k7_3_3_3_h2048_ca_plm_lora_8_lr8e-05_fape_lddt/final_final_prott5_res_cnn_k7_3_3_3_h2048_ca_plm_lora_8.pt
+          --esm
 
 echo "Eval script finished."
